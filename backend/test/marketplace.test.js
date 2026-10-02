@@ -101,7 +101,7 @@ test('onsite + in-app payment: escrow, signature, commission, ratings', () => {
   const j = job({ paymentMode: 'in_app' });
   const { myOffer } = m.sendOffer(j.id, pro.id, { price: 1000 });
   m.acceptOffer(j.id, client.id, myOffer.id);
-  assert.deepEqual(m.jobs.get(j.id).escrow, { amount: 1000, status: 'held' });
+  assert.deepEqual(m.jobs.get(j.id).escrow, { amount: 1000, reimburse: 0, status: 'held' });
   m.advance(j.id, pro.id, 'en_route');
   m.advance(j.id, pro.id, 'in_progress', { photos: ['before.jpg'] });
   assert.throws(() => m.advance(j.id, pro.id, 'completed'), /signature/);
@@ -159,4 +159,50 @@ test('quick start: welcome credit, and referral bonus only after first completed
   m.confirmCompletion(j.id, client.id);
   assert.equal(veteran.balance, 55);
   assert.equal(rookie.completedJobs, 1);
+});
+
+test('delivery: courier near the pickup, buys the food, gets reimbursed without commission', () => {
+  const { m, client, mkPro } = setup();
+  const RESTAURANT = { lat: 32.0700, lng: 34.7800 };
+  const HOME = { lat: 32.1000, lng: 34.8000 };
+  const courier = mkPro(['delivery'], { loc: { lat: 32.072, lng: 34.781 } });
+  mkPro(['delivery'], { loc: EILAT }); // far from pickup
+  const j = m.createJob({ clientId: client.id, categoryId: 'delivery.food', mode: 'delivery',
+    description: 'שווארמה בלאפה', address: 'מסעדת הפינה, דיזנגוף 100', location: RESTAURANT,
+    dropoff: { address: 'הרצל 5', location: HOME }, itemsCost: 60, paymentMode: 'in_app' });
+  assert.deepEqual(j.dispatchedTo, [courier.id]);
+  const [card] = m.feed(courier.id);
+  assert.equal(card.tripKm, 3.8);
+  assert.equal(card.itemsCost, 60);
+  assert.equal(card.dropoff.address, undefined); // exact address hidden until accepted
+  const { myOffer } = m.sendOffer(j.id, courier.id, { price: 25, eta: '20 דק׳' });
+  m.acceptOffer(j.id, client.id, myOffer.id);
+  assert.equal(m.teaser(m.jobs.get(j.id), m.pros.get(courier.id)).dropoff.address, 'הרצל 5');
+  assert.throws(() => m.advance(j.id, courier.id, 'in_progress'), /not allowed/);
+  m.advance(j.id, courier.id, 'en_route');
+  m.advance(j.id, courier.id, 'picked_up', { photos: ['receipt.jpg'] });
+  m.advance(j.id, courier.id, 'completed', { photos: ['door.jpg'] }); // no signature needed
+  const done = m.confirmCompletion(j.id, client.id);
+  assert.equal(done.escrow.amount, 85);
+  assert.equal(done.escrow.fee, 3);        // 12% of the 25 delivery fee only
+  assert.equal(done.escrow.payout, 82);    // 22 + 60 reimbursed
+});
+
+test('delivery needs both addresses; legal process serving is a delivery job', () => {
+  const { m, client } = setup();
+  assert.throws(() => m.createJob({ clientId: client.id, categoryId: 'delivery.package', mode: 'delivery',
+    description: 'x', address: 'a', location: TLV }), /drop-off/);
+  const j = m.createJob({ clientId: client.id, categoryId: 'legal.process_serving', mode: 'delivery',
+    description: 'מסירת כתב תביעה', address: 'משרד עו"ד', location: TLV, dropoff: { address: 'נתבע', location: TLV } });
+  assert.equal(j.mode, 'delivery');
+});
+
+test('snapshot/restore keeps all state', () => {
+  const { m, client, mkPro, job } = setup();
+  const pro = mkPro(['plumbing']);
+  m.sendOffer(job().id, pro.id, { price: 100 });
+  const copy = new Marketplace();
+  copy.restore(JSON.parse(JSON.stringify(m.snapshot())));
+  assert.equal(copy.clientJobs(client.id, client.id)[0].offers.length, 1);
+  assert.equal(copy.getPro(pro.id).balance, m.getPro(pro.id).balance);
 });

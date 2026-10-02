@@ -60,6 +60,7 @@
         <label><input type="checkbox" value="onsite">🏠 אצל הלקוח</label>
         <label><input type="checkbox" value="remote">💻 מרחוק</label>
         <label><input type="checkbox" value="phone">📞 בטלפון</label>
+        <label><input type="checkbox" value="delivery">🛵 שליחויות</label>
       </div>
       <div class="row"><span class="muted">רדיוס (ק"מ) לעבודות אצל הלקוח</span><input type="number" id="radius" min="1" max="500"></div>
       <button id="saveProfile">שמירה (כולל המיקום הנוכחי שלי)</button>
@@ -77,11 +78,12 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
-const MODE = { onsite: '🏠 אצל הלקוח', remote: '💻 מרחוק', phone: '📞 בטלפון' };
+const MODE = { onsite: '🏠 אצל הלקוח', remote: '💻 מרחוק', phone: '📞 בטלפון', delivery: '🛵 איסוף ומשלוח' };
 const NEXT = { onsite: { assigned: ['en_route', 'יצאתי לדרך'], en_route: ['in_progress', 'התחלתי לעבוד'], in_progress: ['completed', 'סיימתי'] },
   remote: { assigned: ['in_progress', 'התחלתי'], in_progress: ['completed', 'סיימתי'] } };
 NEXT.phone = NEXT.remote;
-const STATUS = { open: 'ממתין לבחירת הלקוח', assigned: '🎉 הלקוח בחר בך', en_route: 'בדרך', in_progress: 'בעבודה',
+NEXT.delivery = { assigned: ['en_route', 'יצאתי לאיסוף'], en_route: ['picked_up', 'אספתי – בדרך ללקוח'], picked_up: ['completed', 'נמסר ✓'] };
+const STATUS = { open: 'ממתין לבחירת הלקוח', assigned: '🎉 הלקוח בחר בך', en_route: 'בדרך', picked_up: 'נאסף', in_progress: 'בעבודה',
   completed: 'ממתין לאישור הלקוח', closed_done: 'הושלם ✓', booking_failed: 'הזמנה נכשלה' };
 const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד ג׳', criminal_record: 'אישור היעדר רישום פלילי', minors_clearance: 'אישור משטרה לעבודה עם קטינים' };
 let token = store.get('proToken');
@@ -158,7 +160,8 @@ function feedCard(j) {
   const catalogOk = travel || j.paymentMode === 'in_app'; // supplier items need in-app payment
   return `<div class="card" data-job="${j.id}">
     <b>${esc(j.description)}</b>
-    <div class="muted">${esc(cat?.name)} · ${MODE[j.mode]}${j.distanceKm != null ? ` · ${j.distanceKm} ק"מ` : ''}${j.urgency === 'urgent' ? ' · 🔥 דחוף' : ''}${j.budget ? ` · תקציב ₪${esc(j.budget)}` : ''}</div>
+    <div class="muted">${esc(cat?.name)} · ${MODE[j.mode]}${j.distanceKm != null ? ` · ${j.distanceKm} ק"מ ${j.mode === 'delivery' ? 'לאיסוף' : 'ממך'}` : ''}${j.tripKm != null ? ` · מסלול ${j.tripKm} ק"מ` : ''}${j.urgency === 'urgent' ? ' · 🔥 דחוף' : ''}${j.budget ? ` · תקציב ₪${esc(j.budget)}` : ''}</div>
+    ${j.itemsCost ? `<div class="muted">🛒 קנייה עבור הלקוח: כ-₪${esc(j.itemsCost)} (מוחזר לך במלואו)</div>` : ''}
     <div class="muted">עלות שליחת הצעה: ₪${j.leadPrice} · נותרו ${j.offersLeft} מקומות${j.allowCalls ? ' · 📞 הלקוח מאשר שיחה' : ''}${j.paymentMode === 'in_app' ? ' · 🔒 תשלום באפליקציה' : ''}</div>
     ${catalogOk ? `<details ${travel ? 'open' : ''}><summary>${travel ? 'חיפוש במלאי הספקים (מלונות/טיסות/אטרקציות)' : 'הוספת מוצר מהקטלוג (חלקים, ציוד)'}</summary>
       <select data-provider>${providers.map((p) => `<option value="${p.id}">${{ hotel: '🏨', flight: '✈️' }[p.kind] ?? '🤝'} ${p.id === 'partners' ? 'ספקים ישירים' : p.id}</option>`).join('')}</select>
@@ -172,8 +175,10 @@ function feedCard(j) {
 
 function jobCard(j) {
   const next = NEXT[j.mode][j.status];
-  const contact = j.phone ? `<div>📞 <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a>${j.address ? ` · ${esc(j.address)}` : ''}
-    ${j.mode === 'onsite' && j.location?.lat ? ` · <a href="https://waze.com/ul?ll=${j.location.lat},${j.location.lng}&navigate=yes">ניווט Waze</a>` : ''}</div>` : '';
+  const waze = (l, label) => l?.lat ? ` · <a href="https://waze.com/ul?ll=${l.lat},${l.lng}&navigate=yes">${label}</a>` : '';
+  const contact = j.phone ? `<div>📞 <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a>${j.address ? ` · ${j.dropoff ? 'איסוף: ' : ''}${esc(j.address)}` : ''}
+    ${j.mode !== 'remote' && j.mode !== 'phone' ? waze(j.location, j.dropoff ? 'Waze לאיסוף' : 'ניווט Waze') : ''}
+    ${j.dropoff?.address ? `<br>מסירה: ${esc(j.dropoff.address)}${waze(j.dropoff.location, 'Waze למסירה')}` : ''}</div>` : '';
   const items = (j.myOffer?.items ?? []).map((i) => `<div class="item">${({ hotel: '🏨', flight: '✈️', activity: '🎟️', product: '📦' }[i.kind] ?? '📦')} ${esc(i.title)} – ₪${i.price} (הרווח שלך ₪${i.agentFee})</div>`).join('');
   const booking = j.booking?.status === 'confirmed' ? `<div class="item">✅ אושר אצל הספק: ${j.booking.items.map((b) => esc(b.supplierRef)).join(', ')}</div>`
     : j.booking?.status ? `<div class="item">⚠️ ${esc(j.booking.reason ?? j.booking.status)}</div>` : '';

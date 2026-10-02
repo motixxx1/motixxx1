@@ -45,6 +45,13 @@ export class Partners {
   deactivate(partnerId, productId) { return this.upsertProduct(partnerId, { active: false }, productId); }
   partnerBookings(partnerId) { return this.bookings.filter((b) => b.partnerId === partnerId); }
 
+  snapshot() { return { partners: [...this.partners.values()], products: [...this.products.values()], bookings: this.bookings }; }
+  restore({ partners = [], products = [], bookings = [] } = {}) {
+    this.partners = new Map(partners.map((x) => [x.id, x]));
+    this.products = new Map(products.map((x) => [x.id, x]));
+    this.bookings = bookings;
+  }
+
   provider() {
     const self = this;
     const view = (p) => ({ ref: p.id, kind: p.kind, title: p.title,

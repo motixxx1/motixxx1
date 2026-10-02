@@ -1,0 +1,41 @@
+# One-click deploy: https://render.com/deploy?repo=https://github.com/motixxx1/motixxx1
+services:
+  - type: web
+    name: promarket
+    runtime: node
+    rootDir: backend
+    plan: starter            # needed for the persistent disk below (free plan loses data on restart)
+    buildCommand: npm install
+    startCommand: node src/server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE        # remove once SMS (Twilio) and payments are connected
+        value: "1"
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: DATA_FILE
+        value: /var/data/state.json
+      - key: ADMIN_PHONES
+        sync: false
+      - key: GEOCODER_USER_AGENT
+        value: ProMarket/0.1 (motimoreli@gmail.com)
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
+      - key: RATEHAWK_KEY_ID
+        sync: false
+      - key: RATEHAWK_API_KEY
+        sync: false
+      - key: DUFFEL_TOKEN
+        sync: false
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1

@@ -6,7 +6,8 @@ export const MAX_OFFERS = 5;
 export const COMMISSION_RATE = 0.12;
 export const WELCOME_CREDIT = 30;   // free credit so anyone can send first offers without paying
 export const REFERRAL_BONUS = 25;   // to the referrer when the referred pro completes a first job
-export const MODES = ['onsite', 'remote', 'phone'];
+export const MODES = ['onsite', 'remote', 'phone', 'delivery'];
+const PHYSICAL = ['onsite', 'delivery']; // modes where distance matters
 export const PAYMENT_MODES = ['in_app', 'direct'];
 
 // Job status flow per service mode (after the client accepts an offer).
@@ -14,6 +15,8 @@ const FLOW = {
   onsite: { assigned: 'en_route', en_route: 'in_progress', in_progress: 'completed' },
   remote: { assigned: 'in_progress', in_progress: 'completed' },
   phone: { assigned: 'in_progress', in_progress: 'completed' },
+  // Courier: on the way to pickup -> picked up -> delivered (photo as proof).
+  delivery: { assigned: 'en_route', en_route: 'picked_up', picked_up: 'completed' },
 };
 
 export class MarketplaceError extends Error {
@@ -102,9 +105,10 @@ export class Marketplace {
     const covers = pro.categories.some((c) => c === job.categoryId || c === cat.parent);
     return covers && (!cat.requirement || pro.approvedRequirements.includes(cat.requirement));
   }
-  // Remote/phone work has no distance limit; onsite work must be within the pro's radius.
+  // Remote/phone work has no distance limit; onsite/delivery must be within the pro's
+  // radius (for delivery: measured to the pickup point).
   inRange(pro, job, maxKm = pro.radiusKm) {
-    if (job.mode !== 'onsite') return true;
+    if (!PHYSICAL.includes(job.mode)) return true;
     return !!pro.location && distanceKm(pro.location, job.location) <= maxKm;
   }
 
@@ -118,18 +122,26 @@ export class Marketplace {
   history(proId) { return this.ledger.filter((e) => e.proId === proId); }
 
   // ---- Requests (client side) ----
+  // For delivery: location/address = pickup point, dropoff = { address, location }.
+  // itemsCost: money the pro lays out for the client (e.g. buying the food) and gets back in full.
   createJob({ clientId, categoryId, mode = 'onsite', description, location, address, phone, media = [],
-    urgency = 'normal', budget = null, allowCalls = false, paymentMode = 'direct' }) {
+    urgency = 'normal', budget = null, allowCalls = false, paymentMode = 'direct', dropoff = null, itemsCost = null }) {
     const client = this.#client(clientId);
     const cat = getCategory(categoryId) ?? fail('bad_category', 'Unknown category');
     if (!cat.modes.includes(mode)) fail('bad_mode', `${cat.name} is not available as ${mode}`);
     if (cat.payment === 'in_app') paymentMode = 'in_app'; // e.g. travel: we pay the supplier
     if (!PAYMENT_MODES.includes(paymentMode)) fail('bad_payment_mode', 'Unknown payment mode');
     if (!description) fail('bad_description', 'Description required');
-    if (mode === 'onsite' && !location) fail('bad_location', 'Location required for onsite work');
+    if (PHYSICAL.includes(mode) && !location) fail('bad_location', 'Location required');
+    if (mode === 'delivery' && !(address && dropoff?.address && dropoff?.location)) {
+      fail('bad_dropoff', 'Delivery needs pickup and drop-off addresses');
+    }
+    if (itemsCost != null && !(itemsCost >= 0)) fail('bad_items_cost', 'Invalid items cost');
     const job = { id: randomUUID(), clientId, categoryId, mode, description, location: location ?? null,
       address: address ?? null, phone: phone ?? client.phone, media, urgency, budget,
       allowCalls: !!allowCalls, paymentMode, leadPrice: cat.leadPrice, status: 'open',
+      dropoff: mode === 'delivery' ? { address: dropoff.address, location: dropoff.location } : null,
+      itemsCost: itemsCost == null ? null : Number(itemsCost),
       offers: [], assignedProId: null, escrow: null, workLog: [], signature: null, createdAt: Date.now() };
     this.jobs.set(job.id, job);
     job.dispatchedTo = this.dispatch(job);
@@ -143,7 +155,7 @@ export class Marketplace {
       if (!pro.available || pro.balance < job.leadPrice) continue;
       if (!this.canServe(pro, job) || !this.inRange(pro, job)) continue;
       targets.push(pro.id);
-      const d = job.mode === 'onsite' ? round1(distanceKm(pro.location, job.location)) : null;
+      const d = PHYSICAL.includes(job.mode) ? round1(distanceKm(pro.location, job.location)) : null;
       this.notify(pro.id, { type: 'new_job', jobId: job.id, mode: job.mode, distanceKm: d });
     }
     return targets;
@@ -155,8 +167,13 @@ export class Marketplace {
     const pub = { id: job.id, categoryId: job.categoryId, mode: job.mode, description: job.description,
       media: job.media, urgency: job.urgency, budget: job.budget, allowCalls: job.allowCalls,
       paymentMode: job.paymentMode, leadPrice: job.leadPrice, status: job.status, createdAt: job.createdAt,
-      offersLeft: MAX_OFFERS - job.offers.length };
-    if (job.location) pub.location = { lat: +job.location.lat.toFixed(2), lng: +job.location.lng.toFixed(2) };
+      itemsCost: job.itemsCost, offersLeft: MAX_OFFERS - job.offers.length };
+    const approx = (l) => ({ lat: +l.lat.toFixed(2), lng: +l.lng.toFixed(2) });
+    if (job.location) pub.location = approx(job.location);
+    if (job.dropoff) {
+      pub.dropoff = { location: approx(job.dropoff.location) };
+      pub.tripKm = round1(distanceKm(job.location, job.dropoff.location));
+    }
     if (viewer?.location && job.location) pub.distanceKm = round1(distanceKm(viewer.location, job.location));
     if (!viewer) return pub;
     const offer = job.offers.find((o) => o.proId === viewer.id);
@@ -164,7 +181,7 @@ export class Marketplace {
     // Agents never see the supplier's net price or the platform's cut.
     if (offer) pub.myOffer = { ...offer, items: offer.items?.map(({ net, netILS, platformFee, ...i }) => i) ?? null };
     if (assigned || (offer && job.allowCalls)) {
-      Object.assign(pub, { phone: job.phone, address: job.address, location: job.location });
+      Object.assign(pub, { phone: job.phone, address: job.address, location: job.location, dropoff: job.dropoff ?? undefined });
     }
     if (assigned) {
       const e = job.escrow;
@@ -183,6 +200,7 @@ export class Marketplace {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(({ dispatchedTo, escrow, ...j }) => ({ ...j,
         escrow: escrow && { amount: escrow.amount, status: escrow.status },
+        rated: !!j.assignedProId && this.pros.get(j.assignedProId).ratings.some((r) => r.jobId === j.id),
         offers: j.offers.map((o) => {
           const pro = this.pros.get(o.proId);
           const items = o.items?.map(({ kind, title, details, price, freeCancellationBefore }) =>
@@ -252,7 +270,10 @@ export class Marketplace {
     job.assignedProId = offer.proId;
     job.status = 'assigned';
     // In-app: the client's card is charged now and the money is held until completion.
-    if (job.paymentMode === 'in_app') job.escrow = { amount: offer.price, status: 'held' };
+    if (job.paymentMode === 'in_app') {
+      const reimburse = job.itemsCost ?? 0; // paid back to the pro in full, no commission
+      job.escrow = { amount: offer.price + reimburse, reimburse, status: 'held' };
+    }
     if (offer.items) {
       const sum = (k) => Math.round(offer.items.reduce((s, i) => s + i[k], 0) * 100) / 100;
       job.escrow.breakdown = { supplier: sum('netILS'), platformFee: sum('platformFee'), agentFee: sum('agentFee') };
@@ -314,10 +335,11 @@ export class Marketplace {
       const b = job.escrow.breakdown;
       // Services: commission on the whole price. Travel: supplier is paid its net,
       // the platform keeps its markup + commission on the agent's markup.
-      const base = b ? b.agentFee : job.escrow.amount;
+      const reimburse = job.escrow.reimburse ?? 0;
+      const base = b ? b.agentFee : job.escrow.amount - reimburse;
       const commission = Math.round(base * COMMISSION_RATE * 100) / 100;
       const fee = Math.round(((b?.platformFee ?? 0) + commission) * 100) / 100;
-      const payout = Math.round((base - commission) * 100) / 100;
+      const payout = Math.round((base - commission + reimburse) * 100) / 100;
       Object.assign(job.escrow, { status: 'released', fee, payout });
       this.#record(job.assignedProId, 'payout', payout, { jobId, fee });
     }
@@ -345,12 +367,24 @@ export class Marketplace {
     if (!(score >= 1 && score <= 5)) fail('bad_score', 'Score 1-5');
     const target = fromId === job.clientId ? this.#pro(job.assignedProId)
       : fromId === job.assignedProId ? this.#client(job.clientId) : fail('forbidden', 'Not a party');
+    if (target.ratings.some((r) => r.jobId === jobId)) fail('already_rated', 'Already rated');
     target.ratings.push({ jobId, score, text });
     return target.ratings;
   }
   rating(user) {
     const n = user.ratings.length;
     return { ratingAvg: n ? round1(user.ratings.reduce((s, r) => s + r.score, 0) / n) : null, ratingCount: n };
+  }
+
+  // ---- Persistence (JSON snapshot; production: Postgres)
+  snapshot() {
+    return { pros: [...this.pros.values()], clients: [...this.clients.values()], jobs: [...this.jobs.values()], ledger: this.ledger };
+  }
+  restore({ pros = [], clients = [], jobs = [], ledger = [] } = {}) {
+    this.pros = new Map(pros.map((x) => [x.id, x]));
+    this.clients = new Map(clients.map((x) => [x.id, x]));
+    this.jobs = new Map(jobs.map((x) => [x.id, x]));
+    this.ledger = ledger;
   }
 
   #record(proId, type, amount, meta) {

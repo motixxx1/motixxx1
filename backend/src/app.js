@@ -9,10 +9,12 @@ const STATUS = { not_found: 404, forbidden: 403, unauthorized: 401, too_soon: 42
   supplier_error: 502, booking_failed: 502, payments_disabled: 501 };
 const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html' };
 
-// dev: echoes OTP codes in the response and allows wallet top-up without a payment provider.
-// Never enable in production.
+// dev: allows wallet top-up without a payment provider. echoOtp: returns the SMS code in the
+// response (only while no SMS provider is configured). Never enable either with real users.
+// geocode: address -> {lat,lng} | null. onChange: called after every successful write (persistence).
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
-  catalog = new Catalog({ providers: [partners.provider()] }), dev = false } = {}) {
+  catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null,
+  onChange = () => {}, dev = false, echoOtp = dev } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
   const on = (method, path, role, fn) => routes.push({ method, role, fn,
@@ -23,7 +25,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   // ---- Auth: one screen, phone + SMS code. New users are created on first verify.
   on('POST', '/api/auth/request', null, async ({ body }) => {
     const { code } = await auth.requestCode(body.phone);
-    return dev ? { sent: true, devCode: code } : { sent: true };
+    return echoOtp ? { sent: true, devCode: code } : { sent: true };
   });
   on('POST', '/api/auth/verify', null, ({ body }) => {
     const phone = auth.verifyCode(body.phone, body.code);
@@ -84,7 +86,17 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('GET', '/api/partner/v1/bookings', 'partner', ({ me }) => partners.partnerBookings(me));
 
   // ---- Client
-  on('POST', '/api/jobs', 'client', ({ me, body }) => pub(market.createJob({ ...body, clientId: me })));
+  on('POST', '/api/jobs', 'client', async ({ me, body }) => {
+    // Typed address wins; the phone's GPS (myLocation) is the fallback when geocoding fails.
+    const locate = async (address, given) =>
+      given ?? (address ? await geocode(address).catch(() => null) : null) ?? body.myLocation ?? null;
+    const physical = ['onsite', 'delivery'].includes(body.mode ?? 'onsite');
+    const location = physical ? await locate(body.address, body.location) : null;
+    const dropoff = body.mode === 'delivery' && body.dropoff
+      ? { address: body.dropoff.address, location: await locate(body.dropoff.address, body.dropoff.location) } : null;
+    const { myLocation, ...rest } = body;
+    return pub(market.createJob({ ...rest, location, dropoff, clientId: me }));
+  });
   on('GET', '/api/client/jobs', 'client', ({ me }) => market.clientJobs(me, me));
   on('POST', '/api/jobs/:id/offers/:offer/accept', 'client', async ({ p, me, body }) => {
     const { offer } = market.offerForAccept(p[0], me, p[1]);
@@ -108,12 +120,13 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('POST', '/api/admin/partners', 'admin', ({ body }) => partners.create(body));
 
   return async (req, res) => {
+    const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     const url = new URL(req.url, 'http://x');
+    if (url.pathname === '/healthz') return send(200, { ok: true });
     if (req.method === 'GET' && PAGES[url.pathname]) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       return res.end(await readFile(new URL(`../public/${PAGES[url.pathname]}`, import.meta.url)));
     }
-    const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     for (const r of routes) {
       const m = r.method === req.method && url.pathname.match(r.re);
       if (!m) continue;
@@ -130,6 +143,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         for await (const c of req) raw += c;
         const body = raw ? JSON.parse(raw) : {};
         const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me });
+        if (req.method !== 'GET') onChange();
         return send(200, out);
       } catch (e) {
         if (e instanceof MarketplaceError) return send(STATUS[e.code] ?? 400, { error: e.code, message: e.message });

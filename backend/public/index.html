@@ -25,6 +25,9 @@
   .muted{color:var(--muted);font-size:14px}
   .offer{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
   .item{background:var(--bg);border-radius:8px;padding:8px;margin:6px 0;font-size:14px}
+  .quick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+  .quick button{width:auto;flex:0 0 auto;background:var(--bg);color:var(--fg);border:1px solid var(--line);font-weight:500;padding:6px 10px;border-radius:99px;font-size:14px}
+  .stars button{width:auto;background:transparent;color:var(--accent);font-size:24px;padding:0 4px}
   .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
   a{color:var(--accent)}
 </style>
@@ -40,12 +43,18 @@
     <button id="loginBtn">שלחו לי קוד</button>
   </form>
   <form class="card" id="f" hidden>
-    <b>מה צריך?</b>
+    <b>מה צריך? הכל מהכל</b>
+    <div class="quick" id="quick"></div>
+    <input id="catSearch" placeholder="🔍 חיפוש: שליח, אינסטלטור, מסירה משפטית, בייביסיטר…" autocomplete="off">
     <select name="categoryId" id="cat" required></select>
     <textarea name="description" placeholder="תארו בקצרה את הבעיה" required></textarea>
     <div class="muted">איך תרצו שיטפלו?</div>
     <div class="modes" id="modes"></div>
     <input name="address" id="address" placeholder="כתובת">
+    <div id="deliveryBox" hidden>
+      <input name="dropoff" id="dropoff" placeholder="לאן להביא? (ריק = המיקום שלי)">
+      <input name="itemsCost" type="number" min="0" placeholder="השליח קונה עבורך? כמה זה עולה בערך ₪ (מוחזר לו)">
+    </div>
     <div class="row">
       <select name="urgency"><option value="normal">רגיל</option><option value="urgent">🔥 דחוף</option></select>
       <input name="budget" type="number" min="0" placeholder="תקציב ₪ (לא חובה)">
@@ -87,8 +96,8 @@ $('#login').onsubmit = async (e) => {
     }
   } catch (err) { alert(err.message); }
 };
-const MODE = { onsite: '🏠 אצלי', remote: '💻 מרחוק', phone: '📞 בטלפון' };
-const STATUS = { open: 'ממתין להצעות', assigned: 'נבחר מקצוען', en_route: 'בדרך אליכם', in_progress: 'בטיפול',
+const MODE = { onsite: '🏠 אצלי', remote: '💻 מרחוק', phone: '📞 בטלפון', delivery: '🛵 איסוף ומשלוח' };
+const STATUS = { open: 'ממתין להצעות', assigned: 'נבחר מקצוען', en_route: 'בדרך', picked_up: 'נאסף – בדרך אליכם', in_progress: 'בטיפול',
   completed: 'הסתיים – ממתין לאישורכם', closed_done: 'נסגר ✓', booking_failed: 'ההזמנה נכשלה – הכסף הוחזר' };
 let cats = {};
 let loc = { lat: 32.0853, lng: 34.7818 };
@@ -113,17 +122,37 @@ function renderModes() {
   syncAddress();
 }
 function syncAddress() {
-  const onsite = new FormData($('#f')).get('mode') === 'onsite';
-  $('#address').hidden = !onsite; $('#address').required = onsite;
+  const mode = new FormData($('#f')).get('mode');
+  const physical = mode === 'onsite' || mode === 'delivery';
+  $('#address').hidden = !physical; $('#address').required = physical;
+  $('#address').placeholder = mode === 'delivery' ? 'מאיפה לאסוף? (שם מסעדה/חנות + כתובת)' : 'כתובת';
+  $('#deliveryBox').hidden = mode !== 'delivery';
 }
 $('#cat').onchange = renderModes;
 $('#modes').onchange = syncAddress;
 
-api('/api/categories').then((tree) => {
+let tree = [];
+function renderCats(q = '') {
+  const groups = tree.map((p) => [p, p.subs.filter((s) => !q || s.name.includes(q) || p.name.includes(q))]).filter(([, subs]) => subs.length);
+  $('#cat').innerHTML = groups.map(([p, subs]) => `<optgroup label="${esc(p.name)}">${subs.map((s) =>
+    `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`).join('') || '<option value="other.general">אחר – כל מומחיות</option>';
+  renderModes();
+}
+$('#catSearch').oninput = (e) => renderCats(e.target.value.trim());
+const QUICK = [['delivery.food', '🛵 שליח אוכל'], ['delivery.package', '📦 משלוח'], ['plumbing.unclog', '🔧 אינסטלטור'],
+  ['computers.repair', '💻 טכנאי מחשבים'], ['cleaning.home', '🧹 ניקיון'], ['help.handyman', '🛠️ הנדימן'],
+  ['travel.package', '✈️ חופשה'], ['legal.process_serving', '⚖️ מסירה משפטית'], ['care.dog_walking', '🐕 הוצאת כלב'], ['other.general', '✨ משהו אחר']];
+$('#quick').innerHTML = QUICK.map(([id, label]) => `<button type="button" data-cat="${id}">${label}</button>`).join('');
+$('#quick').onclick = (e) => {
+  const id = e.target.dataset.cat;
+  if (!id) return;
+  $('#catSearch').value = ''; renderCats(); $('#cat').value = id; renderModes();
+  $('[name=description]').focus();
+};
+api('/api/categories').then((t) => {
+  tree = t;
   for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, payment: p.payment, parent: p.name };
-  $('#cat').innerHTML = tree.map((p) => `<optgroup label="${esc(p.name)}">${p.subs.map((s) =>
-    `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`).join('');
-  renderModes(); load();
+  renderCats(); load();
 });
 
 function offerHtml(job, o) {
@@ -151,12 +180,13 @@ async function load() {
     try {
       const jobs = await api('/api/client/jobs');
       $('#mine').innerHTML = jobs.length ? jobs.map((j) => `<div class="card">
-        <b>${esc(j.description)}</b><div class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]} ·
+        <b>${esc(j.description)}</b><div class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]}${j.dropoff ? ` · ${esc(j.address)} ← ${esc(j.dropoff.address)}` : ''} ·
         <span class="tag">${STATUS[j.status]}</span>${j.paymentMode === 'in_app' ? ' · 🔒 תשלום באפליקציה' : ''}</div>
         ${j.booking?.status === 'confirmed' ? `<div class="item">✅ ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אישור ${esc(b.supplierRef)})`).join(', ')}</div>` : ''}
         ${j.offers.length ? j.offers.map((o) => offerHtml(j, o)).join('') : '<div class="muted">ממתינים להצעות ממקצוענים…</div>'}
         ${j.workLog.length ? `<div class="offer"><b>תיעוד העבודה</b>${j.workLog.map((l) => `<div class="muted">• ${esc(l.text)} ${l.photos.length ? `(📷 ${l.photos.length})` : ''}</div>`).join('')}</div>` : ''}
         ${j.status === 'completed' ? `<button class="ok" data-confirm="${j.id}">אישור שהעבודה הסתיימה${j.escrow ? ' ושחרור התשלום' : ''}</button>` : ''}
+        ${j.status === 'closed_done' && !j.rated ? `<div class="stars">דרגו: ${[1, 2, 3, 4, 5].map((n) => `<button data-rate="${j.id}|${n}">☆</button>`).join('')}</div>` : ''}
       </div>`).join('') : '<div class="muted">עדיין לא פתחתם קריאות</div>';
     } catch (e) { /* 401 handled in api() */ }
   }
@@ -167,10 +197,13 @@ async function load() {
 }
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('button[data-accept],button[data-confirm]');
+  const t = e.target.closest('button[data-accept],button[data-confirm],button[data-rate]');
   if (!t) return;
   try {
-    if (t.dataset.accept) {
+    if (t.dataset.rate) {
+      const [job, score] = t.dataset.rate.split('|');
+      await api(`/api/jobs/${job}/rate`, { score: +score });
+    } else if (t.dataset.accept) {
       const [job, offer] = t.dataset.accept.split('|');
       const box = t.closest('.offer');
       const traveler = Object.fromEntries([...box.querySelectorAll('[data-t]')].map((i) => [i.dataset.t, i.value.trim()]));
@@ -189,11 +222,14 @@ $('#f').onsubmit = async (e) => {
   const d = Object.fromEntries(new FormData(e.target));
   try {
     d.paymentMode = $('[name=paymentMode]').value; // disabled selects are not in FormData
+    const physical = d.mode === 'onsite' || d.mode === 'delivery';
     await api('/api/jobs', { categoryId: d.categoryId, mode: d.mode, description: d.description,
-      address: d.mode === 'onsite' ? d.address : null, location: d.mode === 'onsite' ? loc : null,
+      address: physical ? d.address : null, myLocation: physical ? loc : null,
+      dropoff: d.mode === 'delivery' ? { address: d.dropoff || 'המיקום שלי' } : null,
+      itemsCost: d.mode === 'delivery' && d.itemsCost ? +d.itemsCost : null,
       urgency: d.urgency, budget: d.budget ? +d.budget : null, paymentMode: d.paymentMode,
       allowCalls: !!d.allowCalls });
-    e.target.description.value = ''; e.target.address.value = '';
+    for (const n of ['description', 'address', 'dropoff', 'itemsCost']) e.target[n].value = '';
   } catch (err) { alert(err.message); }
   load();
 };

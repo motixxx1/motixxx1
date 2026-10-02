@@ -131,3 +131,34 @@ test('HTTP: a company publishes products via the partner API and an agent resell
     assert.equal((await call(`/api/partner/v1/products/${product.id}`, { key: partner.apiKey, method: 'PUT', body: { stock: 3 } })).b.stock, 3);
   } finally { srv.close(); }
 });
+
+test('HTTP: delivery request geocodes typed addresses, falls back to phone GPS', async () => {
+  const sms = new Map();
+  const auth = new Auth({ secret: 's'.repeat(32), resendMs: 0, sendSms: async (p, t) => sms.set(p, t.match(/\d{6}/)[0]) });
+  const known = { 'דיזנגוף 100 תל אביב': { lat: 32.077, lng: 34.774 } };
+  let saves = 0;
+  const srv = createServer(createApp({ auth, dev: true, geocode: async (a) => known[a] ?? null, onChange: () => saves++ })).listen(0);
+  const base = `http://localhost:${srv.address().port}`;
+  const call = (path, { body, token, method } = {}) => fetch(base + path, { method: method ?? (body ? 'POST' : 'GET'),
+    headers: token ? { authorization: `Bearer ${token}` } : {}, body: body && JSON.stringify(body) }).then(async (r) => ({ s: r.status, b: await r.json() }));
+  const login = async (phone, role, extra = {}) => {
+    await call('/api/auth/request', { body: { phone } });
+    return (await call('/api/auth/verify', { body: { phone, code: sms.get(phone.replace(/^0/, '972')), role, ...extra } })).b;
+  };
+  try {
+    assert.equal((await call('/healthz')).s, 200);
+    const courier = await login('0521111111', 'pro', { name: 'שליח', categories: ['delivery'] });
+    await call('/api/pro/me', { method: 'PUT', token: courier.token, body: { location: { lat: 32.078, lng: 34.775 } } });
+    await call('/api/pro/availability', { method: 'PUT', token: courier.token, body: { available: true } });
+    const client = await login('0502222222', 'client', { name: 'דן' });
+    const job = await call('/api/jobs', { token: client.token, body: { categoryId: 'delivery.food', mode: 'delivery',
+      description: 'פיצה', address: 'דיזנגוף 100 תל אביב', dropoff: { address: 'כתובת שלא קיימת' },
+      myLocation: { lat: 32.1, lng: 34.8 }, itemsCost: 70 } });
+    assert.equal(job.s, 200);
+    assert.deepEqual(job.b.location, { lat: 32.08, lng: 34.77 });     // geocoded pickup (rounded)
+    assert.deepEqual(job.b.dropoff.location, { lat: 32.1, lng: 34.8 }); // GPS fallback
+    const [card] = (await call('/api/pro/feed', { token: courier.token })).b;
+    assert.equal(card.distanceKm, 0.1);
+    assert.ok(saves >= 4);
+  } finally { srv.close(); }
+});

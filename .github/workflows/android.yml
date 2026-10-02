@@ -1,0 +1,49 @@
+name: Android APK
+
+on:
+  push:
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publish the APKs as a GitHub release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Set a repository variable SERVER_URL (Settings → Variables) to bake the server address
+      # into the APK; otherwise the app asks for it on first launch.
+      - name: Build both apps
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug -PserverUrl="${{ vars.SERVER_URL }}"
+
+      - name: Collect APKs
+        run: |
+          mkdir out
+          cp android/app/build/outputs/apk/client/debug/*.apk out/ProMarket-client.apk
+          cp android/app/build/outputs/apk/pro/debug/*.apk out/ProMarket-pro.apk
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProMarket-apks
+          path: out/*.apk
+
+      - name: Publish release "apk-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest out/*.apk --prerelease --target "$GITHUB_SHA" \
+            --title "ProMarket APK – latest build" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}.
+          ProMarket-client.apk – app for customers. ProMarket-pro.apk – app for pros, agents and couriers.
+          Install: open the file on an Android phone and allow installing from this source."
