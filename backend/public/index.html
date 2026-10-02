@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>קריאה למקצוען</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--muted:#667;--accent:#ff6a00}
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+  header{background:var(--accent);color:#fff;padding:14px 16px;font-weight:700;font-size:20px}
+  main{max-width:720px;margin:auto;padding:16px}
+  .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+  input,select,textarea,button{width:100%;box-sizing:border-box;font:inherit;padding:10px;margin:4px 0;border:1px solid #ccd;border-radius:8px}
+  button{background:var(--accent);color:#fff;border:0;font-weight:700;cursor:pointer}
+  .muted{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>🔧 קריאה למקצוען — לוח עבודות</header>
+<main>
+  <form class="card" id="f">
+    <b>פתיחת קריאה חדשה</b>
+    <input name="name" placeholder="שם" required>
+    <input name="phone" placeholder="טלפון" required>
+    <select name="categoryId" id="cat"></select>
+    <textarea name="description" placeholder="תיאור התקלה" required></textarea>
+    <input name="address" placeholder="כתובת" required>
+    <select name="urgency"><option value="normal">רגיל</option><option value="urgent">דחוף</option></select>
+    <button>פרסם קריאה</button>
+    <div class="muted">המיקום נלקח מהדפדפן (ברירת מחדל: תל אביב). הטלפון והכתובת נחשפים רק לעד 3 מקצוענים.</div>
+  </form>
+  <div id="list"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const api = (u, o) => fetch(u, o).then((r) => r.json());
+let loc = { lat: 32.0853, lng: 34.7818 };
+navigator.geolocation?.getCurrentPosition((p) => loc = { lat: p.coords.latitude, lng: p.coords.longitude });
+api('/api/categories').then((cats) => {
+  $('#cat').innerHTML = cats.map((c) => `<optgroup label="${c.name}">${c.subs.map((s) => `<option value="${s.id}">${s.name}</option>`).join('')}</optgroup>`).join('');
+});
+async function load() {
+  const jobs = await api('/api/jobs');
+  $('#list').innerHTML = jobs.length ? jobs.map((j) => `<div class="card"><b>${j.description}</b>
+    <div class="muted">${j.categoryId} · ${j.urgency === 'urgent' ? '🔥 דחוף' : 'רגיל'} · נותרו ${j.claimsLeft} מקומות</div></div>`).join('')
+    : '<div class="muted">אין קריאות פתוחות</div>';
+}
+$('#f').onsubmit = async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(e.target));
+  const client = await api('/api/clients', { method: 'POST', body: JSON.stringify({ name: d.name, phone: d.phone }) });
+  await api('/api/jobs', { method: 'POST', body: JSON.stringify({ ...d, clientId: client.id, location: loc }) });
+  e.target.reset(); load();
+};
+load();
+</script>
+</body>
+</html>
