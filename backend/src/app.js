@@ -16,13 +16,20 @@ export function createApp(market = new Marketplace()) {
   on('PUT', '/api/pros/:id/location', ({ p, body }) => (market.updateLocation(p[0], body), { ok: true }));
   on('POST', '/api/pros/:id/wallet/topup', ({ p, body }) => market.topUp(p[0], body.amount, body.method));
   on('GET', '/api/pros/:id/wallet', ({ p }) => ({ balance: market.pros.get(p[0])?.balance, history: market.history(p[0]) }));
-  on('GET', '/api/pros/:id/feed', ({ p, query }) => market.feed(p[0], { maxKm: query.maxKm && +query.maxKm, urgency: query.urgency }));
-  // Client marketplace (Yad2-style public board)
+  on('GET', '/api/pros/:id/feed', ({ p, query }) => market.feed(p[0], {
+    maxKm: query.maxKm && +query.maxKm, urgency: query.urgency, mode: query.mode }));
+  on('GET', '/api/pros/:id/jobs', ({ p, user }) => market.proJobs(p[0], user));
+  // Client: open a request, get offers, accept one
   on('GET', '/api/jobs', ({ query }) => [...market.jobs.values()]
-    .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))).map(pub));
-  on('POST', '/api/jobs', ({ body }) => pub(market.createJob(body)));
-  on('POST', '/api/jobs/:id/claim', ({ p, user }) => market.claim(p[0], user));
-  on('POST', '/api/jobs/:id/assign', ({ p, user, body }) => pub(market.assign(p[0], user, body.proId, body.price)));
+    .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))
+      && (!query.mode || j.mode === query.mode))
+    .sort((a, b) => b.createdAt - a.createdAt).map(pub));
+  on('POST', '/api/jobs', ({ body, user }) => pub(market.createJob({ ...body, clientId: user })));
+  on('GET', '/api/clients/:id/jobs', ({ p, user }) => market.clientJobs(p[0], user));
+  on('POST', '/api/jobs/:id/offers', ({ p, user, body }) => market.sendOffer(p[0], user, body));
+  on('POST', '/api/jobs/:id/offers/:offer/accept', ({ p, user }) => pub(market.acceptOffer(p[0], user, p[1])));
+  // Work: documentation + status
+  on('POST', '/api/jobs/:id/log', ({ p, user, body }) => market.addLog(p[0], user, body));
   on('POST', '/api/jobs/:id/status', ({ p, user, body }) => pub(market.advance(p[0], user, body.status, body)));
   on('POST', '/api/jobs/:id/confirm', ({ p, user }) => pub(market.confirmCompletion(p[0], user)));
   on('POST', '/api/jobs/:id/rate', ({ p, user, body }) => market.rate(p[0], user, body.score, body.text));
@@ -48,7 +55,7 @@ export function createApp(market = new Marketplace()) {
         const out = r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), user: req.headers['x-user-id'] });
         return send(200, out);
       } catch (e) {
-        if (e instanceof MarketplaceError) return send(e.code === 'not_found' ? 404 : 400, { error: e.code, message: e.message });
+        if (e instanceof MarketplaceError) return send({ not_found: 404, forbidden: 403 }[e.code] ?? 400, { error: e.code, message: e.message });
         if (e instanceof SyntaxError) return send(400, { error: 'bad_json' });
         console.error(e);
         return send(500, { error: 'internal' });

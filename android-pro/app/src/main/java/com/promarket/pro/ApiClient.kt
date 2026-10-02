@@ -11,7 +11,14 @@ import java.net.URL
 class ApiClient(private val base: String = BuildConfig.API_BASE, var userId: String? = null) {
 
     suspend fun feed(proId: String): JSONArray = JSONArray(request("GET", "/api/pros/$proId/feed"))
-    suspend fun claim(jobId: String): JSONObject = JSONObject(request("POST", "/api/jobs/$jobId/claim", JSONObject()))
+    suspend fun myJobs(proId: String): JSONArray = JSONArray(request("GET", "/api/pros/$proId/jobs"))
+    suspend fun sendOffer(jobId: String, price: Int?, message: String): JSONObject = JSONObject(
+        request("POST", "/api/jobs/$jobId/offers", JSONObject().put("price", price ?: JSONObject.NULL).put("message", message))
+    )
+    suspend fun addLog(jobId: String, text: String) =
+        request("POST", "/api/jobs/$jobId/log", JSONObject().put("text", text))
+    suspend fun setStatus(jobId: String, status: String) =
+        request("POST", "/api/jobs/$jobId/status", JSONObject().put("status", status))
     suspend fun setAvailable(proId: String, available: Boolean) =
         request("PUT", "/api/pros/$proId/availability", JSONObject().put("available", available))
     suspend fun updateLocation(proId: String, lat: Double, lng: Double) =

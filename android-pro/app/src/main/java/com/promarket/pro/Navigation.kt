@@ -13,3 +13,8 @@ fun Context.navigateTo(lat: Double, lng: Double) {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng")))
     }
 }
+
+/** Opens the dialer with the number filled in (no CALL_PHONE permission needed). */
+fun Context.dial(phone: String) {
+    startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")))
+}

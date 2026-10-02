@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">ProMarket למקצוענים</string>
     <string name="available">פנוי לקריאות</string>
-    <string name="claim">תפוס קריאה</string>
+    <string name="send_offer">שלח הצעה</string>
+    <string name="send">שלח</string>
+    <string name="call">התקשר</string>
     <string name="navigate">נווט</string>
 </resources>
