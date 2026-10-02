@@ -1,0 +1,12 @@
+# Alternative to start.sh: docker compose up -d
+services:
+  promarket:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: config.env
+    environment:
+      DATA_FILE: /data/state.json
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

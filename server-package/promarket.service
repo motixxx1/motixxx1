@@ -1,0 +1,15 @@
+# Auto-start on Linux boot (systemd). Assumes the folder is /opt/promarket-server:
+#   sudo cp -r promarket-server /opt/ && sudo cp /opt/promarket-server/promarket.service /etc/systemd/system/
+#   sudo systemctl enable --now promarket
+[Unit]
+Description=ProMarket server
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/promarket-server
+ExecStart=/opt/promarket-server/start.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

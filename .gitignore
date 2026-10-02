@@ -4,3 +4,4 @@ build/
 local.properties
 .idea/
 backend/data/
+backend/config.env

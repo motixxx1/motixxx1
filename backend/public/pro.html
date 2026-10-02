@@ -89,7 +89,15 @@ const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד 
 let token = store.get('proToken');
 let cats = {}, tree = [], me = null, providers = [];
 let loc = null;
-navigator.geolocation?.getCurrentPosition((p) => loc = { lat: p.coords.latitude, lng: p.coords.longitude });
+// In the Android app the location comes from the app itself (works on plain http:// too);
+// in a browser it comes from geolocation (which browsers only allow on https/localhost).
+function appLoc() { try { const s = window.ProMarketApp?.location(); return s ? JSON.parse(s) : null; } catch { return null; } }
+function refreshLoc() {
+  const a = appLoc();
+  if (a) { loc = a; return; }
+  navigator.geolocation?.getCurrentPosition((p) => { loc = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
+}
+refreshLoc();
 const ref = new URLSearchParams(location.search).get('ref');
 if (ref) $('[name=referralCode]').value = ref;
 
@@ -135,6 +143,7 @@ function renderProfile() {
 }
 
 $('#saveProfile').onclick = async () => {
+  refreshLoc();
   const categories = [...$('#catChips').querySelectorAll('input:checked')].map((i) => i.value);
   const serviceModes = [...$('#modeChips').querySelectorAll('input:checked')].map((i) => i.value);
   try {
@@ -142,7 +151,7 @@ $('#saveProfile').onclick = async () => {
     renderProfile(); $('#profileBox').open = false; load();
   } catch (err) { alert(err.message); }
 };
-$('#available').onchange = async (e) => { await api('/api/pro/availability', { available: e.target.checked }, 'PUT'); if (loc) await api('/api/pro/location', loc, 'PUT'); load(); };
+$('#available').onchange = async (e) => { refreshLoc(); await api('/api/pro/availability', { available: e.target.checked }, 'PUT'); if (loc) await api('/api/pro/location', loc, 'PUT'); load(); };
 $('#topup').onclick = async () => { try { await api('/api/pro/wallet/topup', { amount: 100 }); me = await api('/api/pro/me'); renderProfile(); } catch (err) { alert(err.message); } };
 
 function searchForm(provider) {
@@ -258,6 +267,8 @@ async function boot() {
   try {
     [me, providers] = await Promise.all([api('/api/pro/me'), api('/api/catalog/providers')]);
     renderProfile(); load();
+    refreshLoc(); // keep the pro's position fresh each time the app opens (matters for couriers)
+    if (loc) api('/api/pro/location', loc, 'PUT').catch(() => {});
   } catch (err) { console.error(err); }
 }
 show(); boot();

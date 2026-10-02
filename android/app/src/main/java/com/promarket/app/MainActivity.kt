@@ -5,9 +5,14 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Looper
 import android.webkit.GeolocationPermissions
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -26,12 +31,36 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
  * App shell around the web app (client "/" or pro "/pro", chosen by build flavor).
  * Adds what the browser can't: location permission, phone dialer, Waze, photo picker,
  * back navigation and pull-to-refresh. Native screens can replace pages one by one.
+ *
+ * Location: browsers only allow geolocation on https, and the server may run on plain
+ * http on the local network, so the app reads the location itself and exposes it to the
+ * page as window.ProMarketApp.location().
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var web: WebView
     private lateinit var refresh: SwipeRefreshLayout
     private var pendingGeo: Pair<String, GeolocationPermissions.Callback>? = null
     private var pendingFiles: ValueCallback<Array<Uri>>? = null
+    @Volatile private var lastLocation: Location? = null
+    private val locationManager by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
+
+    // All four methods overridden: before Android 11 they have no default implementations.
+    private val locationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) { lastLocation = location }
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+    }
+
+    /** Called from JavaScript: returns {"lat":..,"lng":..} or "" when unknown. */
+    inner class Bridge {
+        @JavascriptInterface
+        fun location(): String {
+            val l = lastLocation ?: return ""
+            return "{\"lat\":${l.latitude},\"lng\":${l.longitude}}"
+        }
+    }
 
     private val prefs by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
     private val serverUrl: String
@@ -40,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         pendingGeo?.let { (origin, cb) -> cb.invoke(origin, granted, false) }
         pendingGeo = null
+        if (granted) startLocationUpdates()
     }
     private val pickImages = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         pendingFiles?.onReceiveValue(uris.toTypedArray())
@@ -61,6 +91,7 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true // the login token lives in localStorage
             setGeolocationEnabled(true)
         }
+        web.addJavascriptInterface(Bridge(), "ProMarketApp")
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
@@ -82,9 +113,7 @@ class MainActivity : AppCompatActivity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) {
-                val granted = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                    PackageManager.PERMISSION_GRANTED
-                if (granted) {
+                if (hasLocationPermission()) {
                     callback.invoke(origin, true, false)
                 } else {
                     pendingGeo = origin to callback
@@ -105,6 +134,9 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        if (hasLocationPermission()) startLocationUpdates()
+        else locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+
         when {
             savedInstanceState != null -> web.restoreState(savedInstanceState)
             serverUrl.isBlank() -> askServer(getString(R.string.server_first_time))
@@ -113,6 +145,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun load() = web.loadUrl(serverUrl + BuildConfig.START_PATH)
+
+    private fun hasLocationPermission() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        if (!hasLocationPermission()) return
+        for (provider in listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)) {
+            if (!locationManager.isProviderEnabled(provider)) continue
+            if (lastLocation == null) lastLocation = locationManager.getLastKnownLocation(provider)
+            locationManager.requestLocationUpdates(provider, 30_000L, 25f, locationListener, Looper.getMainLooper())
+        }
+    }
+
+    override fun onDestroy() {
+        locationManager.removeUpdates(locationListener)
+        super.onDestroy()
+    }
 
     private fun openExternal(uri: Uri) {
         val intent = if (uri.scheme == "tel") Intent(Intent.ACTION_DIAL, uri) else Intent(Intent.ACTION_VIEW, uri)

@@ -1,0 +1,102 @@
+name: Release (APK + server)
+
+on:
+  push:
+    paths: ['android/**', 'backend/**', 'server-package/**', '.github/workflows/release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publish the GitHub release
+
+# Server address baked into the APKs. Override with a repository variable SERVER_URL
+# (Settings → Secrets and variables → Actions → Variables).
+env:
+  SERVER_URL: ${{ vars.SERVER_URL || 'http://192.168.1.244:3000' }}
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build both apps
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug -PserverUrl="$SERVER_URL"
+      - name: Collect APKs
+        run: |
+          mkdir out
+          cp android/app/build/outputs/apk/client/debug/*.apk out/ProMarket-client.apk
+          cp android/app/build/outputs/apk/pro/debug/*.apk out/ProMarket-pro.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: out/
+
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Tests
+        working-directory: backend
+        run: npm test
+      - name: Package (plain + with bundled Node.js for Linux x64/arm64/armv7l and Windows)
+        run: |
+          set -e
+          VER=$(curl -fsSL https://nodejs.org/dist/index.json | jq -r '[.[] | select(.version | startswith("v22."))][0].version')
+          echo "Bundling Node $VER"
+          base=pkg/promarket-server
+          mkdir -p $base out
+          cp -r backend/src backend/public backend/package.json backend/Dockerfile $base/
+          cp backend/config.env.example $base/config.env
+          cp server-package/* $base/
+          chmod +x $base/start.sh
+          (cd pkg && zip -qr ../out/promarket-server.zip promarket-server)
+          for arch in linux-x64 linux-arm64 linux-armv7l; do
+            d=pkg-$arch/promarket-server
+            mkdir -p pkg-$arch && cp -r $base pkg-$arch/ && mkdir -p $d/node/bin
+            curl -fsSL https://nodejs.org/dist/$VER/node-$VER-$arch.tar.xz \
+              | tar -xJ -C $d/node/bin --strip-components=2 node-$VER-$arch/bin/node
+            tar -czf out/promarket-server-$arch.tar.gz -C pkg-$arch promarket-server
+          done
+          d=pkg-win/promarket-server
+          mkdir -p pkg-win && cp -r $base pkg-win/ && mkdir -p $d/node
+          curl -fsSLo node-win.zip https://nodejs.org/dist/$VER/node-$VER-win-x64.zip
+          unzip -qj node-win.zip "node-$VER-win-x64/node.exe" -d $d/node
+          (cd pkg-win && zip -qr ../out/promarket-server-windows-x64.zip promarket-server)
+          cp server-package/README-SERVER.txt out/
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server
+          path: out/
+
+  publish:
+    needs: [android, server]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Publish release "promarket-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la out
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release delete promarket-latest --yes --cleanup-tag || true
+          gh release create promarket-latest out/* --latest --target "$GITHUB_SHA" \
+            --title "ProMarket – latest build" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server address in the APKs: ${SERVER_URL}
+
+          **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents).
+          **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).
+          Extract, run start.sh (Linux) or start.bat (Windows). See README-SERVER.txt."

@@ -5,27 +5,33 @@
 
 📄 **האפיון המלא: [`docs/PRD.md`](docs/PRD.md)**
 
-## 📱 הורדת האפליקציות (APK)
-**https://github.com/motixxx1/motixxx1/releases/tag/apk-latest**
+## ⬇️ הורדה: https://github.com/motixxx1/motixxx1/releases/tag/promarket-latest
+כל שינוי בקוד בונה מחדש את כל הקבצים אוטומטית (GitHub Actions).
 
-| קובץ | למי |
+| קובץ | מה זה |
 |---|---|
-| `ProMarket-client.apk` | לקוחות – פותחים קריאות ומקבלים הצעות |
-| `ProMarket-pro.apk` | מקצוענים, שליחים, סוכנים – מקבלים קריאות ומרוויחים |
+| `ProMarket-client.apk` | אפליקציה ללקוחות |
+| `ProMarket-pro.apk` | אפליקציה למקצוענים, שליחים וסוכנים |
+| `promarket-server-linux-x64.tar.gz` | שרת למחשב/שרת לינוקס – **Node.js כלול** |
+| `promarket-server-linux-arm64.tar.gz` / `-linux-armv7l` | שרת ל-Raspberry Pi – Node.js כלול |
+| `promarket-server-windows-x64.zip` | שרת לווינדוס – Node.js כלול |
+| `promarket-server.zip` | שרת בלי Node (ל-Docker או למי שיש Node 22) |
 
-התקנה: לפתוח את הקובץ בטלפון אנדרואיד ולאשר "התקנה ממקור לא ידוע". בפתיחה הראשונה האפליקציה מבקשת את כתובת השרת
-(או שמגדירים משתנה `SERVER_URL` ב-GitHub → Settings → Variables והיא נבנית איתו מראש).
-כל push לתיקייה `android/` בונה גרסה חדשה אוטומטית (GitHub Actions).
+### הפעלת השרת על 192.168.1.244
+```bash
+tar -xzf promarket-server-linux-x64.tar.gz
+cd promarket-server
+./start.sh            # ווינדוס: להקליק פעמיים על start.bat
+```
+- לקוחות: `http://192.168.1.244:3000` · מקצוענים: `http://192.168.1.244:3000/pro`
+- ה-APK כבר מוגדר לכתובת `http://192.168.1.244:3000` (משנים ע"י משתנה `SERVER_URL` ב-GitHub → Settings → Variables, או בתוך האפליקציה כשהיא לא מצליחה להתחבר).
+- הגדרות (טלפון אדמין, SMS, ספקים): `config.env` בתיקיית השרת. הפעלה אוטומטית: `promarket.service`. פרטים: `README-SERVER.txt`.
+- **192.168.x.x היא כתובת ברשת הביתית** – הטלפונים צריכים להיות על אותו Wi-Fi. לגישה מכל מקום: הפניית פורט + דומיין + HTTPS, או שרת בענן (למטה).
+- פורט 3000 צריך להיות פתוח בחומת האש (`sudo ufw allow 3000`).
 
-## 🌐 העלאת השרת לאוויר (Render – בערך 3 דקות)
+## 🌐 אפשרות: שרת בענן (Render)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/motixxx1/motixxx1)
-
-1. לוחצים על הכפתור, נכנסים עם GitHub, ומאשרים. ההגדרות נקראות מ-[`render.yaml`](render.yaml).
-2. ממלאים `ADMIN_PHONES` (הטלפון שלך). השאר אופציונלי.
-3. מקבלים כתובת כמו `https://promarket-xxxx.onrender.com` – מזינים אותה באפליקציה.
-
-עלות: תוכנית Starter (~7$ לחודש) כולל דיסק לשמירת הנתונים. בתוכנית החינמית הנתונים נמחקים בכל הפעלה מחדש.
-אפשר גם בכל שרת עם Docker: `docker build -t promarket backend && docker run -p 3000:3000 -v pm:/data -e AUTH_SECRET=... promarket`.
+לוחצים, נכנסים עם GitHub, ממלאים `ADMIN_PHONES`, ומקבלים כתובת `https://...onrender.com` (תוכנית Starter ~7$ לחודש כולל דיסק).
 
 ### ⚠️ מצב הדגמה
 כל עוד לא מחוברים SMS אמיתי וסליקה, השרת רץ ב-`DEMO_MODE`: קוד הכניסה מוצג על המסך וטעינת קרדיט היא בלי תשלום.

@@ -100,8 +100,16 @@ const MODE = { onsite: '🏠 אצלי', remote: '💻 מרחוק', phone: '📞 
 const STATUS = { open: 'ממתין להצעות', assigned: 'נבחר מקצוען', en_route: 'בדרך', picked_up: 'נאסף – בדרך אליכם', in_progress: 'בטיפול',
   completed: 'הסתיים – ממתין לאישורכם', closed_done: 'נסגר ✓', booking_failed: 'ההזמנה נכשלה – הכסף הוחזר' };
 let cats = {};
-let loc = { lat: 32.0853, lng: 34.7818 };
-navigator.geolocation?.getCurrentPosition((p) => loc = { lat: p.coords.latitude, lng: p.coords.longitude });
+let loc = { lat: 32.0853, lng: 34.7818 }; // fallback: Tel Aviv
+// In the Android app the location comes from the app itself (works on plain http:// too);
+// in a browser it comes from geolocation (which browsers only allow on https/localhost).
+function appLoc() { try { const s = window.ProMarketApp?.location(); return s ? JSON.parse(s) : null; } catch { return null; } }
+function refreshLoc() {
+  const a = appLoc();
+  if (a) { loc = a; return; }
+  navigator.geolocation?.getCurrentPosition((p) => { loc = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
+}
+refreshLoc();
 
 async function api(path, body, method) {
   const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
@@ -222,6 +230,7 @@ $('#f').onsubmit = async (e) => {
   const d = Object.fromEntries(new FormData(e.target));
   try {
     d.paymentMode = $('[name=paymentMode]').value; // disabled selects are not in FormData
+    refreshLoc();
     const physical = d.mode === 'onsite' || d.mode === 'delivery';
     await api('/api/jobs', { categoryId: d.categoryId, mode: d.mode, description: d.description,
       address: physical ? d.address : null, myLocation: physical ? loc : null,
