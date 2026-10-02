@@ -24,14 +24,22 @@
   .check{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:15px} .check input{width:auto}
   .muted{color:var(--muted);font-size:14px}
   .offer{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .item{background:var(--bg);border-radius:8px;padding:8px;margin:6px 0;font-size:14px}
   .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
   a{color:var(--accent)}
 </style>
 </head>
 <body>
-<header><b>🔧 קריאה למקצוען</b><div>במקום לחפש בגוגל: פותחים קריאה ומקבלים הצעות ממקצוענים</div></header>
+<header><b>🔧 קריאה למקצוען</b><div>במקום לחפש בגוגל: פותחים קריאה ומקבלים הצעות ממקצוענים · <a href="/pro" style="color:#fff">יש לך מקצוע? הצטרף והרווח</a></div></header>
 <main>
-  <form class="card" id="f">
+  <form class="card" id="login">
+    <b>כניסה מהירה</b>
+    <div class="muted">רק שם וטלפון – נשלח אליכם קוד ב-SMS</div>
+    <div class="row"><input name="name" placeholder="שם" required><input name="phone" placeholder="טלפון נייד" required inputmode="tel"></div>
+    <div id="codeRow" hidden><input name="code" placeholder="קוד מה-SMS" inputmode="numeric" autocomplete="one-time-code"></div>
+    <button id="loginBtn">שלחו לי קוד</button>
+  </form>
+  <form class="card" id="f" hidden>
     <b>מה צריך?</b>
     <select name="categoryId" id="cat" required></select>
     <textarea name="description" placeholder="תארו בקצרה את הבעיה" required></textarea>
@@ -47,7 +55,6 @@
       <option value="in_app">תשלום מאובטח באפליקציה (הכסף משתחרר רק אחרי שאישרתם)</option>
     </select>
     <label class="check"><input type="checkbox" name="allowCalls"> מותר למקצוענים שהציעו להתקשר אליי</label>
-    <div class="row"><input name="name" id="name" placeholder="שם" required><input name="phone" id="phone" placeholder="טלפון" required></div>
     <button>פרסמו קריאה וקבלו הצעות</button>
     <div class="muted">הטלפון שלכם לא נחשף אם לא סימנתם שמותר להתקשר. תוכלו לבחור הצעה בלי לדבר עם אף אחד.</div>
   </form>
@@ -63,25 +70,44 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+let token = store.get('clientToken');
+function showLogin() { $('#login').hidden = !!token; $('#f').hidden = !token; }
+showLogin();
+$('#login').onsubmit = async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(e.target));
+  try {
+    if ($('#codeRow').hidden) {
+      const res = await api('/api/auth/request', { phone: d.phone });
+      $('#codeRow').hidden = false; $('#loginBtn').textContent = 'כניסה';
+      if (res.devCode) e.target.code.value = res.devCode; // dev mode only
+    } else {
+      token = (await api('/api/auth/verify', { phone: d.phone, code: d.code, role: 'client', name: d.name })).token;
+      store.set('clientToken', token); showLogin(); load();
+    }
+  } catch (err) { alert(err.message); }
+};
 const MODE = { onsite: '🏠 אצלי', remote: '💻 מרחוק', phone: '📞 בטלפון' };
 const STATUS = { open: 'ממתין להצעות', assigned: 'נבחר מקצוען', en_route: 'בדרך אליכם', in_progress: 'בטיפול',
-  completed: 'הסתיים – ממתין לאישורכם', closed_done: 'נסגר ✓' };
-let me = store.get('clientId');
+  completed: 'הסתיים – ממתין לאישורכם', closed_done: 'נסגר ✓', booking_failed: 'ההזמנה נכשלה – הכסף הוחזר' };
 let cats = {};
 let loc = { lat: 32.0853, lng: 34.7818 };
 navigator.geolocation?.getCurrentPosition((p) => loc = { lat: p.coords.latitude, lng: p.coords.longitude });
-$('#name').value = store.get('name') ?? ''; $('#phone').value = store.get('phone') ?? '';
 
 async function api(path, body, method) {
   const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
-    headers: { 'content-type': 'application/json', ...(me && { 'x-user-id': me }) }, body: body && JSON.stringify(body) });
+    headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
   const data = await r.json();
+  if (r.status === 401) { token = null; store.set('clientToken', null); showLogin(); }
   if (!r.ok) throw Object.assign(new Error(data.message || data.error), { status: r.status });
   return data;
 }
 
 function renderModes() {
-  const modes = cats[$('#cat').value]?.modes ?? ['onsite'];
+  const cat = cats[$('#cat').value];
+  const modes = cat?.modes ?? ['onsite'];
+  const pay = $('[name=paymentMode]');
+  if (cat?.payment === 'in_app') { pay.value = 'in_app'; pay.disabled = true; } else pay.disabled = false;
   $('#modes').innerHTML = modes.map((m, i) =>
     `<label><input type="radio" name="mode" value="${m}" ${i ? '' : 'checked'}>${MODE[m]}</label>`).join('');
   syncAddress();
@@ -94,7 +120,7 @@ $('#cat').onchange = renderModes;
 $('#modes').onchange = syncAddress;
 
 api('/api/categories').then((tree) => {
-  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, parent: p.name };
+  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, payment: p.payment, parent: p.name };
   $('#cat').innerHTML = tree.map((p) => `<optgroup label="${esc(p.name)}">${p.subs.map((s) =>
     `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`).join('');
   renderModes(); load();
@@ -103,27 +129,36 @@ api('/api/categories').then((tree) => {
 function offerHtml(job, o) {
   const p = o.pro;
   const stars = p.ratingCount ? `⭐ ${p.ratingAvg} (${p.ratingCount})` : 'חדש באפליקציה';
+  const items = (o.items ?? []).map((i) => `<div class="item">${({ hotel: '🏨', flight: '✈️', activity: '🎟️', product: '📦' }[i.kind] ?? '📦')} <b>${esc(i.title)}</b> – ₪${esc(i.price)}
+    <div class="muted">${esc(i.details)}${i.freeCancellationBefore ? ` · ביטול חינם עד ${esc(i.freeCancellationBefore.slice(0, 10))}` : ''}</div></div>`).join('');
+  const traveler = o.items && job.status === 'open' ? `<div class="muted">פרטי הנוסע (כמו בדרכון):</div>
+    <div class="row"><input data-t="firstName" placeholder="שם פרטי באנגלית"><input data-t="lastName" placeholder="שם משפחה באנגלית"></div>
+    <input data-t="email" type="email" placeholder="אימייל לשובר">
+    ${o.items.some((i) => i.kind === 'flight') ? `<div class="row"><input data-t="bornOn" type="date" title="תאריך לידה">
+      <select data-t="gender"><option value="m">זכר</option><option value="f">נקבה</option></select></div>` : ''}` : '';
   const actions = job.status === 'open'
-    ? `<div class="row"><button class="ok" data-accept="${job.id}|${o.id}">בחירה בהצעה</button>
+    ? `${traveler}<div class="row"><button class="ok" data-accept="${job.id}|${o.id}">${o.items ? 'הזמנה ותשלום' : 'בחירה בהצעה'}</button>
        <a href="tel:${esc(p.phone)}" style="flex:0 0 auto;align-self:center">📞 להתקשר</a></div>`
     : o.status === 'accepted' ? `<b>✓ נבחר</b> · <a href="tel:${esc(p.phone)}">${esc(p.phone)}</a>` : '';
   return `<div class="offer"><b>${esc(p.name)}</b> <span class="muted">${stars}</span><br>
     ${o.price != null ? `<b>₪${esc(o.price)}</b>` : '<span class="muted">מחיר אחרי בדיקה</span>'}
-    ${o.eta ? ` · ${esc(o.eta)}` : ''} ${o.message ? `<div>${esc(o.message)}</div>` : ''}${actions}</div>`;
+    ${o.eta ? ` · ${esc(o.eta)}` : ''} ${o.message ? `<div>${esc(o.message)}</div>` : ''}${items}${actions}</div>`;
 }
 
 async function load() {
-  if (me) {
+  const typing = [...$('#mine').querySelectorAll('input')].some((i) => i.value) || document.activeElement?.matches('#mine input, #mine select');
+  if (token && !typing) {
     try {
-      const jobs = await api(`/api/clients/${me}/jobs`);
+      const jobs = await api('/api/client/jobs');
       $('#mine').innerHTML = jobs.length ? jobs.map((j) => `<div class="card">
         <b>${esc(j.description)}</b><div class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]} ·
         <span class="tag">${STATUS[j.status]}</span>${j.paymentMode === 'in_app' ? ' · 🔒 תשלום באפליקציה' : ''}</div>
+        ${j.booking?.status === 'confirmed' ? `<div class="item">✅ ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אישור ${esc(b.supplierRef)})`).join(', ')}</div>` : ''}
         ${j.offers.length ? j.offers.map((o) => offerHtml(j, o)).join('') : '<div class="muted">ממתינים להצעות ממקצוענים…</div>'}
         ${j.workLog.length ? `<div class="offer"><b>תיעוד העבודה</b>${j.workLog.map((l) => `<div class="muted">• ${esc(l.text)} ${l.photos.length ? `(📷 ${l.photos.length})` : ''}</div>`).join('')}</div>` : ''}
         ${j.status === 'completed' ? `<button class="ok" data-confirm="${j.id}">אישור שהעבודה הסתיימה${j.escrow ? ' ושחרור התשלום' : ''}</button>` : ''}
       </div>`).join('') : '<div class="muted">עדיין לא פתחתם קריאות</div>';
-    } catch (e) { if (e.status === 404 || e.status === 403) { me = null; store.set('clientId', null); } }
+    } catch (e) { /* 401 handled in api() */ }
   }
   const board = await api('/api/jobs');
   $('#board').innerHTML = board.length ? board.map((j) => `<div class="card"><b>${esc(j.description)}</b>
@@ -135,7 +170,15 @@ document.addEventListener('click', async (e) => {
   const t = e.target.closest('button[data-accept],button[data-confirm]');
   if (!t) return;
   try {
-    if (t.dataset.accept) { const [job, offer] = t.dataset.accept.split('|'); await api(`/api/jobs/${job}/offers/${offer}/accept`, {}); }
+    if (t.dataset.accept) {
+      const [job, offer] = t.dataset.accept.split('|');
+      const box = t.closest('.offer');
+      const traveler = Object.fromEntries([...box.querySelectorAll('[data-t]')].map((i) => [i.dataset.t, i.value.trim()]));
+      if (box.querySelector('[data-t]') && !(traveler.firstName && traveler.lastName && traveler.email)) return alert('נא למלא שם ואימייל של הנוסע');
+      const res = await api(`/api/jobs/${job}/offers/${offer}/accept`, { traveler });
+      if (res.booking?.status === 'failed') alert('הספק לא אישר את ההזמנה. הכסף הוחזר אליכם.');
+      box.querySelectorAll('input').forEach((i) => i.value = '');
+    }
     else await api(`/api/jobs/${t.dataset.confirm}/confirm`, {});
   } catch (err) { alert(err.message); }
   load();
@@ -145,14 +188,11 @@ $('#f').onsubmit = async (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(e.target));
   try {
-    if (!me) {
-      me = (await api('/api/clients', { name: d.name, phone: d.phone })).id;
-      store.set('clientId', me); store.set('name', d.name); store.set('phone', d.phone);
-    }
+    d.paymentMode = $('[name=paymentMode]').value; // disabled selects are not in FormData
     await api('/api/jobs', { categoryId: d.categoryId, mode: d.mode, description: d.description,
       address: d.mode === 'onsite' ? d.address : null, location: d.mode === 'onsite' ? loc : null,
       urgency: d.urgency, budget: d.budget ? +d.budget : null, paymentMode: d.paymentMode,
-      allowCalls: !!d.allowCalls, phone: d.phone });
+      allowCalls: !!d.allowCalls });
     e.target.description.value = ''; e.target.address.value = '';
   } catch (err) { alert(err.message); }
   load();

@@ -1,7 +1,9 @@
 // Hierarchical category tree (parent -> sub-categories). Seed of the open-ended tree:
 // any expertise can be added as a parent or sub. Subs inherit parent settings.
-// requirement: null | 'license' | 'insurance' | 'criminal_record'
+// requirement: null | 'license' | 'insurance' | 'criminal_record' | 'minors_clearance'
 // modes: where the work can happen — 'onsite' (at the client), 'remote', 'phone'
+// starter: no license/tools needed — anyone can sign up and take these jobs today
+// payment: 'in_app' forces platform payment (e.g. travel, where we pay the supplier)
 const ALL = ['onsite', 'remote', 'phone'];
 
 export const CATEGORIES = [
@@ -38,16 +40,28 @@ export const CATEGORIES = [
     { id: 'hvac.repair', name: 'תיקון ומילוי גז' },
     { id: 'hvac.cleaning', name: 'ניקוי מזגנים' },
   ] },
+  { id: 'help', name: 'עזרה ועבודות כלליות', requirement: null, leadPrice: 8, modes: ['onsite'], starter: true, subs: [
+    { id: 'help.furniture', name: 'הרכבת רהיטים' },
+    { id: 'help.handyman', name: 'תיקונים קטנים בבית (הנדימן)' },
+    { id: 'help.carrying', name: 'סבלות ועזרה בהעברת דירה' },
+    { id: 'help.garden', name: 'גינון' },
+    { id: 'help.errands', name: 'סידורים ושליחויות' },
+  ] },
+  { id: 'travel', name: 'נסיעות ותיירות', requirement: null, leadPrice: 10, modes: ['remote', 'phone'], payment: 'in_app', subs: [
+    { id: 'travel.hotel', name: 'מלונות' },
+    { id: 'travel.flight', name: 'טיסות' },
+    { id: 'travel.package', name: 'חבילת נופש (טיסה + מלון)' },
+  ] },
   { id: 'moving', name: 'הובלות', requirement: null, leadPrice: 20, modes: ['onsite'], subs: [
     { id: 'moving.apartment', name: 'הובלת דירה' },
     { id: 'moving.small', name: 'הובלה קטנה' },
   ] },
-  { id: 'cleaning', name: 'ניקיון', requirement: null, leadPrice: 10, modes: ['onsite'], subs: [
+  { id: 'cleaning', name: 'ניקיון', requirement: null, leadPrice: 10, modes: ['onsite'], starter: true, subs: [
     { id: 'cleaning.home', name: 'ניקיון בית' },
     { id: 'cleaning.post_renovation', name: 'ניקיון אחרי שיפוץ' },
   ] },
-  { id: 'tutoring', name: 'שיעורים והדרכה', requirement: null, leadPrice: 8, modes: ['onsite', 'remote'], subs: [
-    { id: 'tutoring.private', name: 'שיעורים פרטיים' },
+  { id: 'tutoring', name: 'שיעורים והדרכה', requirement: null, leadPrice: 8, modes: ['onsite', 'remote'], starter: true, subs: [
+    { id: 'tutoring.private', name: 'שיעורים פרטיים', requirement: 'minors_clearance' }, // police clearance for work with minors
     { id: 'tutoring.tech_seniors', name: 'הדרכת מחשב וסמארטפון' },
   ] },
   { id: 'professional', name: 'ייעוץ ושירותים מקצועיים', requirement: null, leadPrice: 15, modes: ['remote', 'phone'], subs: [
@@ -55,7 +69,7 @@ export const CATEGORIES = [
     { id: 'professional.legal', name: 'ייעוץ משפטי', requirement: 'license' },
     { id: 'professional.design', name: 'עיצוב גרפי ובניית אתרים' },
   ] },
-  { id: 'other', name: 'אחר – כל מומחיות', requirement: null, leadPrice: 10, modes: ALL, subs: [
+  { id: 'other', name: 'אחר – כל מומחיות', requirement: null, leadPrice: 10, modes: ALL, starter: true, subs: [
     { id: 'other.general', name: 'משהו אחר' },
   ] },
 ];
@@ -64,7 +78,8 @@ const index = new Map();
 for (const p of CATEGORIES) {
   index.set(p.id, { ...p, parent: null });
   for (const s of p.subs) {
-    index.set(s.id, { leadPrice: p.leadPrice, modes: p.modes, requirement: p.requirement, ...s, parent: p.id });
+    index.set(s.id, { leadPrice: p.leadPrice, modes: p.modes, requirement: p.requirement,
+      starter: !!p.starter, payment: p.payment ?? null, ...s, parent: p.id });
   }
 }
 

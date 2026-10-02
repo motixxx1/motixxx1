@@ -7,7 +7,7 @@ const EILAT = { lat: 29.5577, lng: 34.9519 };
 
 function setup() {
   const pushes = [];
-  const m = new Marketplace({ notify: (id, msg) => pushes.push({ id, msg }) });
+  const m = new Marketplace({ notify: (id, msg) => pushes.push({ id, msg }), welcomeCredit: 0 });
   const client = m.registerClient({ phone: '050', name: 'דנה' });
   const mkPro = (cats, { loc = TLV, credit = 100, modes } = {}) => {
     const p = m.registerPro({ phone: '052', name: 'pro', categories: cats, location: loc, radiusKm: 20, serviceModes: modes });
@@ -136,4 +136,27 @@ test('remote + direct payment: no en-route step, work log, no escrow', () => {
   assert.equal(done.escrow, null);
   assert.equal(done.workLog.length, 2);
   assert.ok(!m.history(pro.id).some((e) => e.type === 'payout'));
+});
+
+test('quick start: welcome credit, and referral bonus only after first completed job', () => {
+  const m = new Marketplace({ welcomeCredit: 30, referralBonus: 25 });
+  const client = m.registerClient({ phone: '050', name: 'C' });
+  const veteran = m.registerPro({ phone: '1', name: 'ותיק' });
+  const rookie = m.registerPro({ phone: '2', name: 'מתחיל', referralCode: veteran.refCode });
+  assert.equal(rookie.balance, 30);
+  assert.equal(rookie.referredBy, veteran.id);
+  // signs up with no categories, fills them in later, and can offer right away with the free credit
+  m.updateProfile(rookie.id, { categories: ['help'], location: TLV });
+  m.setAvailability(rookie.id, true);
+  const j = m.createJob({ clientId: client.id, categoryId: 'help.furniture', description: 'ארון איקאה', location: TLV, address: 'x' });
+  assert.deepEqual(j.dispatchedTo, [rookie.id]);
+  const { myOffer } = m.sendOffer(j.id, rookie.id, { price: 200 });
+  assert.equal(veteran.balance, 30);
+  m.acceptOffer(j.id, client.id, myOffer.id);
+  m.advance(j.id, rookie.id, 'en_route');
+  m.advance(j.id, rookie.id, 'in_progress');
+  m.advance(j.id, rookie.id, 'completed', { signature: 's' });
+  m.confirmCompletion(j.id, client.id);
+  assert.equal(veteran.balance, 55);
+  assert.equal(rookie.completedJobs, 1);
 });

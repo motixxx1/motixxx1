@@ -4,6 +4,8 @@ import { getCategory } from './categories.js';
 
 export const MAX_OFFERS = 5;
 export const COMMISSION_RATE = 0.12;
+export const WELCOME_CREDIT = 30;   // free credit so anyone can send first offers without paying
+export const REFERRAL_BONUS = 25;   // to the referrer when the referred pro completes a first job
 export const MODES = ['onsite', 'remote', 'phone'];
 export const PAYMENT_MODES = ['in_app', 'direct'];
 
@@ -22,7 +24,9 @@ const round1 = (n) => Math.round(n * 10) / 10;
 
 // In-memory store behind a small service API. Swap for Postgres/PostGIS repos.
 export class Marketplace {
-  constructor({ notify = () => {} } = {}) {
+  constructor({ notify = () => {}, welcomeCredit = WELCOME_CREDIT, referralBonus = REFERRAL_BONUS } = {}) {
+    this.welcomeCredit = welcomeCredit;
+    this.referralBonus = referralBonus;
     this.pros = new Map();
     this.clients = new Map();
     this.jobs = new Map();
@@ -31,15 +35,46 @@ export class Marketplace {
   }
 
   // ---- Onboarding ----
-  registerPro({ phone, name, categories = [], location, radiusKm = 20, serviceModes = MODES }) {
-    for (const c of categories) if (!getCategory(c)) fail('bad_category', `Unknown category ${c}`);
-    for (const m of serviceModes) if (!MODES.includes(m)) fail('bad_mode', `Unknown mode ${m}`);
-    const pro = { id: randomUUID(), phone, name, categories, location, radiusKm, serviceModes,
-      available: false, balance: 0, documents: [], approvedRequirements: [], ratings: [] };
+  // Quick start: phone + name is enough. Categories/area can be filled in later;
+  // the welcome credit lets a new pro send first offers before paying anything.
+  registerPro({ phone, name, categories = [], location = null, radiusKm = 20, serviceModes = MODES, referralCode }) {
+    if (!name) fail('bad_name', 'Name required');
+    const referrer = referralCode ? [...this.pros.values()].find((p) => p.refCode === referralCode) : null;
+    const pro = { id: randomUUID(), phone, name, categories: [], location: null, radiusKm, serviceModes: MODES,
+      available: false, balance: 0, documents: [], approvedRequirements: [], ratings: [],
+      refCode: randomUUID().slice(0, 6).toUpperCase(), referredBy: referrer?.id ?? null, referralPaid: false,
+      completedJobs: 0, createdAt: Date.now() };
+    this.updateProfile(pro, { categories, location, radiusKm, serviceModes });
     this.pros.set(pro.id, pro);
+    if (this.welcomeCredit) {
+      pro.balance += this.welcomeCredit;
+      this.#record(pro.id, 'welcome_bonus', this.welcomeCredit, {});
+    }
     return pro;
   }
+  updateProfile(proOrId, { name, categories, location, radiusKm, serviceModes } = {}) {
+    const pro = typeof proOrId === 'string' ? this.#pro(proOrId) : proOrId;
+    for (const c of categories ?? []) if (!getCategory(c)) fail('bad_category', `Unknown category ${c}`);
+    for (const m of serviceModes ?? []) if (!MODES.includes(m)) fail('bad_mode', `Unknown mode ${m}`);
+    if (serviceModes && !serviceModes.length) fail('bad_mode', 'At least one service mode');
+    if (radiusKm !== undefined && !(radiusKm > 0 && radiusKm <= 500)) fail('bad_radius', 'Radius 1-500 km');
+    if (name) pro.name = name;
+    if (categories) pro.categories = categories;
+    if (location !== undefined) pro.location = location;
+    if (radiusKm !== undefined) pro.radiusKm = radiusKm;
+    if (serviceModes) pro.serviceModes = serviceModes;
+    return pro;
+  }
+  proByPhone(phone) { return [...this.pros.values()].find((p) => p.phone === phone); }
+  clientByPhone(phone) { return [...this.clients.values()].find((c) => c.phone === phone); }
+  getPro(id) { return this.#pro(id); }
+  publicPro(pro) {
+    const { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, documents, radiusKm, location } = pro;
+    return { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, radiusKm, location,
+      documents: documents.map(({ id, type, status }) => ({ id, type, status })), ...this.rating(pro) };
+  }
   registerClient({ phone, name }) {
+    if (!name) fail('bad_name', 'Name required');
     const c = { id: randomUUID(), phone, name, ratings: [] };
     this.clients.set(c.id, c);
     return c;
@@ -88,6 +123,7 @@ export class Marketplace {
     const client = this.#client(clientId);
     const cat = getCategory(categoryId) ?? fail('bad_category', 'Unknown category');
     if (!cat.modes.includes(mode)) fail('bad_mode', `${cat.name} is not available as ${mode}`);
+    if (cat.payment === 'in_app') paymentMode = 'in_app'; // e.g. travel: we pay the supplier
     if (!PAYMENT_MODES.includes(paymentMode)) fail('bad_payment_mode', 'Unknown payment mode');
     if (!description) fail('bad_description', 'Description required');
     if (mode === 'onsite' && !location) fail('bad_location', 'Location required for onsite work');
@@ -125,11 +161,16 @@ export class Marketplace {
     if (!viewer) return pub;
     const offer = job.offers.find((o) => o.proId === viewer.id);
     const assigned = job.assignedProId === viewer.id;
-    if (offer) pub.myOffer = offer;
+    // Agents never see the supplier's net price or the platform's cut.
+    if (offer) pub.myOffer = { ...offer, items: offer.items?.map(({ net, netILS, platformFee, ...i }) => i) ?? null };
     if (assigned || (offer && job.allowCalls)) {
       Object.assign(pub, { phone: job.phone, address: job.address, location: job.location });
     }
-    if (assigned) Object.assign(pub, { workLog: job.workLog, escrow: job.escrow });
+    if (assigned) {
+      const e = job.escrow;
+      Object.assign(pub, { workLog: job.workLog, booking: job.booking ?? null,
+        escrow: e && { amount: e.amount, status: e.status, payout: e.payout } });
+    }
     return pub;
   }
 
@@ -140,10 +181,14 @@ export class Marketplace {
     this.#client(clientId);
     return [...this.jobs.values()].filter((j) => j.clientId === clientId)
       .sort((a, b) => b.createdAt - a.createdAt)
-      .map(({ dispatchedTo, ...j }) => ({ ...j, offers: j.offers.map((o) => {
-        const pro = this.pros.get(o.proId);
-        return { ...o, pro: { name: pro.name, phone: pro.phone, ...this.rating(pro) } };
-      }) }));
+      .map(({ dispatchedTo, escrow, ...j }) => ({ ...j,
+        escrow: escrow && { amount: escrow.amount, status: escrow.status },
+        offers: j.offers.map((o) => {
+          const pro = this.pros.get(o.proId);
+          const items = o.items?.map(({ kind, title, details, price, freeCancellationBefore }) =>
+            ({ kind, title, details, price, freeCancellationBefore }));
+          return { ...o, items, pro: { name: pro.name, phone: pro.phone, ...this.rating(pro) } };
+        }) }));
   }
 
   // ---- Pro side ----
@@ -169,7 +214,8 @@ export class Marketplace {
   // Sending an offer costs the category's lead price (pay-per-lead).
   // Synchronous => atomic in single-threaded Node.
   // Production: SELECT ... FOR UPDATE / Redis Lua script on the offers counter.
-  sendOffer(jobId, proId, { price = null, eta = null, message = '' } = {}) {
+  // `items` are supplier products already priced by the Travel service — never pass raw client input.
+  sendOffer(jobId, proId, { price = null, eta = null, message = '', items = null } = {}) {
     const job = this.#job(jobId);
     const pro = this.#pro(proId);
     if (job.status !== 'open') fail('closed', 'Job is no longer open');
@@ -177,26 +223,61 @@ export class Marketplace {
     if (job.offers.some((o) => o.proId === proId)) fail('already_offered', 'You already sent an offer');
     if (!this.canServe(pro, job) || !this.inRange(pro, job)) fail('not_eligible', 'Not eligible for this job');
     if (price !== null && !(price >= 0)) fail('bad_price', 'Invalid price');
+    if (items && job.paymentMode !== 'in_app') fail('in_app_required', 'Catalog items can only be sold with in-app payment');
     if (pro.balance < job.leadPrice) fail('insufficient_credit', 'Insufficient credit');
     pro.balance -= job.leadPrice;
     this.#record(proId, 'offer_fee', -job.leadPrice, { jobId });
-    job.offers.push({ id: randomUUID(), proId, price, eta, message, status: 'pending', at: Date.now() });
+    if (items) price = Math.round(items.reduce((s, i) => s + i.price, 0) * 100) / 100;
+    job.offers.push({ id: randomUUID(), proId, price, eta, message, items, status: 'pending', at: Date.now() });
     this.notify(job.clientId, { type: 'new_offer', jobId, offers: job.offers.length });
     return this.teaser(job, pro);
   }
 
-  acceptOffer(jobId, clientId, offerId) {
+  // Validation shared by acceptOffer and the async travel pre-checks.
+  offerForAccept(jobId, clientId, offerId) {
     const job = this.#job(jobId);
     if (job.clientId !== clientId) fail('forbidden', 'Not your job');
     if (job.status !== 'open') fail('closed', 'Job is no longer open');
     const offer = job.offers.find((o) => o.id === offerId) ?? fail('not_found', 'Offer not found');
     if (job.paymentMode === 'in_app' && !(offer.price > 0)) fail('price_required', 'In-app payment needs a priced offer');
+    return { job, offer };
+  }
+
+  acceptOffer(jobId, clientId, offerId, { traveler } = {}) {
+    const { job, offer } = this.offerForAccept(jobId, clientId, offerId);
+    if (offer.items && !(traveler?.firstName && traveler?.lastName && traveler?.email)) {
+      fail('traveler_required', 'Traveler name and email required');
+    }
     for (const o of job.offers) o.status = o === offer ? 'accepted' : 'rejected';
     job.assignedProId = offer.proId;
     job.status = 'assigned';
     // In-app: the client's card is charged now and the money is held until completion.
     if (job.paymentMode === 'in_app') job.escrow = { amount: offer.price, status: 'held' };
+    if (offer.items) {
+      const sum = (k) => Math.round(offer.items.reduce((s, i) => s + i[k], 0) * 100) / 100;
+      job.escrow.breakdown = { supplier: sum('netILS'), platformFee: sum('platformFee'), agentFee: sum('agentFee') };
+      job.traveler = traveler;
+      job.booking = { status: 'pending' };
+    }
     this.notify(offer.proId, { type: 'offer_accepted', jobId });
+    return job;
+  }
+
+  // Supplier booking outcome (called by the API after Travel.book).
+  bookingConfirmed(jobId, bookings) {
+    const job = this.#job(jobId);
+    job.booking = { status: 'confirmed', items: bookings };
+    job.workLog.push({ at: Date.now(), stage: job.status, photos: [],
+      text: `הזמנה אושרה אצל הספק: ${bookings.map((b) => `${b.title} (${b.supplierRef})`).join(', ')}` });
+    this.notify(job.clientId, { type: 'booking_confirmed', jobId });
+    return job;
+  }
+  bookingFailed(jobId, reason, partial = []) {
+    const job = this.#job(jobId);
+    job.booking = { status: partial.length ? 'needs_support' : 'failed', reason, items: partial };
+    job.status = 'booking_failed';
+    if (job.escrow) job.escrow.status = partial.length ? 'held_for_support' : 'refunded';
+    this.notify(job.clientId, { type: 'booking_failed', jobId });
     return job;
   }
 
@@ -215,6 +296,7 @@ export class Marketplace {
     const job = this.#job(jobId);
     if (job.assignedProId !== proId) fail('forbidden', 'Not assigned to you');
     if (FLOW[job.mode][job.status] !== status) fail('bad_transition', `${job.status} -> ${status} not allowed`);
+    if (job.booking && job.booking.status !== 'confirmed') fail('booking_pending', 'Supplier booking not confirmed');
     if (status === 'completed' && job.mode === 'onsite' && !signature) fail('signature_required', 'Client signature required');
     job.status = status;
     if (signature) job.signature = signature;
@@ -229,13 +311,32 @@ export class Marketplace {
     if (job.clientId !== clientId) fail('forbidden', 'Not your job');
     if (job.status !== 'completed') fail('bad_transition', 'Job not completed');
     if (job.escrow?.status === 'held') {
-      const fee = Math.round(job.escrow.amount * COMMISSION_RATE * 100) / 100;
-      const payout = job.escrow.amount - fee;
+      const b = job.escrow.breakdown;
+      // Services: commission on the whole price. Travel: supplier is paid its net,
+      // the platform keeps its markup + commission on the agent's markup.
+      const base = b ? b.agentFee : job.escrow.amount;
+      const commission = Math.round(base * COMMISSION_RATE * 100) / 100;
+      const fee = Math.round(((b?.platformFee ?? 0) + commission) * 100) / 100;
+      const payout = Math.round((base - commission) * 100) / 100;
       Object.assign(job.escrow, { status: 'released', fee, payout });
       this.#record(job.assignedProId, 'payout', payout, { jobId, fee });
     }
     job.status = 'closed_done';
+    this.#onProCompleted(this.#pro(job.assignedProId));
     return job;
+  }
+
+  // Referral bonus is paid only once the referred pro actually completes a job (anti-fraud).
+  #onProCompleted(pro) {
+    pro.completedJobs += 1;
+    if (pro.referredBy && !pro.referralPaid && this.referralBonus) {
+      const referrer = this.pros.get(pro.referredBy);
+      if (referrer) {
+        referrer.balance += this.referralBonus;
+        this.#record(referrer.id, 'referral_bonus', this.referralBonus, { referredProId: pro.id });
+      }
+      pro.referralPaid = true;
+    }
   }
 
   rate(jobId, fromId, score, text = '') {

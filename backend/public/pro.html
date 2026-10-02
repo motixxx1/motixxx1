@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>מקצוענים – עבודות</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--muted:#5d6472;--line:#d6d9e0;--accent:#1f5eff;--ok:#1a8f4c;--warn:#ff6a00}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}}
+  :root[data-theme="dark"]{--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+  header{background:var(--accent);color:#fff;padding:14px 16px}
+  header b{font-size:20px} header div{font-size:14px;opacity:.9}
+  main{max-width:720px;margin:auto;padding:16px}
+  h2{font-size:17px;margin:20px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  input,select,textarea,button{width:100%;font:inherit;padding:10px;margin:4px 0;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+  button{background:var(--accent);color:#fff;border:0;font-weight:700;cursor:pointer}
+  button.ok{background:var(--ok)} button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .row{display:flex;gap:8px;align-items:center} .row>*{flex:1}
+  .muted{color:var(--muted);font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+  .chips label{border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:14px;cursor:pointer}
+  .chips input{display:none} .chips label:has(input:checked){border-color:var(--accent);color:var(--accent);font-weight:700}
+  .starter{border-color:var(--ok)!important}
+  .stat{font-size:22px;font-weight:700}
+  .item{background:var(--bg);border-radius:8px;padding:8px;margin:6px 0;font-size:14px}
+  .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header><b>💼 מקצוענים – עבודות</b><div>כל מומחיות יכולה להרוויח. נרשמים בדקה, מקבלים 30 ₪ קרדיט מתנה ומתחילים להציע.</div></header>
+<main>
+  <form class="card" id="login">
+    <b>הרשמה / כניסה</b>
+    <div class="row"><input name="name" placeholder="שם מלא" required><input name="phone" placeholder="טלפון נייד" required inputmode="tel"></div>
+    <input name="referralCode" placeholder="קוד חבר שהזמין אותך (לא חובה)">
+    <div id="codeRow" hidden><input name="code" placeholder="קוד מה-SMS" inputmode="numeric" autocomplete="one-time-code"></div>
+    <button id="loginBtn">שלחו לי קוד</button>
+  </form>
+
+  <div id="app" hidden>
+    <div class="card">
+      <div class="row">
+        <div><div class="muted">קרדיט</div><div class="stat" id="balance">–</div></div>
+        <div><div class="muted">דירוג</div><div class="stat" id="rating">–</div></div>
+        <label class="row" style="flex:1.4"><input type="checkbox" id="available" style="width:auto"> <b>פנוי לקריאות</b></label>
+      </div>
+      <div class="muted" id="refLine"></div>
+      <button class="ghost" id="topup">טעינת 100 ₪ קרדיט (בדיקה בלבד)</button>
+    </div>
+
+    <details class="card" id="profileBox">
+      <summary><b>מה אני יודע לעשות?</b> <span class="muted">(תחומים, איפה עובד)</span></summary>
+      <div class="muted">ירוק = מתאים להתחלה מהירה, בלי רישיון</div>
+      <div id="catChips"></div>
+      <div class="muted">איפה אני עובד</div>
+      <div class="chips" id="modeChips">
+        <label><input type="checkbox" value="onsite">🏠 אצל הלקוח</label>
+        <label><input type="checkbox" value="remote">💻 מרחוק</label>
+        <label><input type="checkbox" value="phone">📞 בטלפון</label>
+      </div>
+      <div class="row"><span class="muted">רדיוס (ק"מ) לעבודות אצל הלקוח</span><input type="number" id="radius" min="1" max="500"></div>
+      <button id="saveProfile">שמירה (כולל המיקום הנוכחי שלי)</button>
+      <div class="muted" id="docsNote"></div>
+    </details>
+
+    <h2>קריאות פתוחות בשבילך</h2>
+    <div id="feed"></div>
+    <h2>העבודות שלי</h2>
+    <div id="jobs"></div>
+  </div>
+</main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+const MODE = { onsite: '🏠 אצל הלקוח', remote: '💻 מרחוק', phone: '📞 בטלפון' };
+const NEXT = { onsite: { assigned: ['en_route', 'יצאתי לדרך'], en_route: ['in_progress', 'התחלתי לעבוד'], in_progress: ['completed', 'סיימתי'] },
+  remote: { assigned: ['in_progress', 'התחלתי'], in_progress: ['completed', 'סיימתי'] } };
+NEXT.phone = NEXT.remote;
+const STATUS = { open: 'ממתין לבחירת הלקוח', assigned: '🎉 הלקוח בחר בך', en_route: 'בדרך', in_progress: 'בעבודה',
+  completed: 'ממתין לאישור הלקוח', closed_done: 'הושלם ✓', booking_failed: 'הזמנה נכשלה' };
+const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד ג׳', criminal_record: 'אישור היעדר רישום פלילי', minors_clearance: 'אישור משטרה לעבודה עם קטינים' };
+let token = store.get('proToken');
+let cats = {}, tree = [], me = null, providers = [];
+let loc = null;
+navigator.geolocation?.getCurrentPosition((p) => loc = { lat: p.coords.latitude, lng: p.coords.longitude });
+const ref = new URLSearchParams(location.search).get('ref');
+if (ref) $('[name=referralCode]').value = ref;
+
+async function api(path, body, method) {
+  const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
+    headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
+  const data = await r.json();
+  if (r.status === 401) { token = null; store.set('proToken', null); show(); }
+  if (!r.ok) throw new Error(data.message || data.error);
+  return data;
+}
+function show() { $('#login').hidden = !!token; $('#app').hidden = !token; }
+
+$('#login').onsubmit = async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(e.target));
+  try {
+    if ($('#codeRow').hidden) {
+      const res = await api('/api/auth/request', { phone: d.phone });
+      $('#codeRow').hidden = false; $('#loginBtn').textContent = 'כניסה';
+      if (res.devCode) e.target.code.value = res.devCode; // dev mode only
+    } else {
+      const res = await api('/api/auth/verify', { phone: d.phone, code: d.code, role: 'pro', name: d.name, referralCode: d.referralCode || undefined });
+      token = res.token; store.set('proToken', token); show();
+      await boot();
+      if (res.isNew) $('#profileBox').open = true;
+    }
+  } catch (err) { alert(err.message); }
+};
+
+function renderProfile() {
+  $('#balance').textContent = `₪${me.balance}`;
+  $('#rating').textContent = me.ratingCount ? `⭐ ${me.ratingAvg}` : 'חדש';
+  $('#available').checked = me.available;
+  const link = `${location.origin}/pro?ref=${me.refCode}`;
+  $('#refLine').innerHTML = `הזמן חברים: <a href="${link}">${link}</a> – תקבל 25 ₪ קרדיט כשהם מסיימים עבודה ראשונה`;
+  $('#catChips').innerHTML = tree.map((p) => `<div class="muted" style="margin-top:8px">${esc(p.name)}${p.requirement ? ` · דורש ${REQ[p.requirement]}` : ''}</div>
+    <div class="chips">${p.subs.map((s) => `<label class="${p.starter ? 'starter' : ''}"><input type="checkbox" value="${s.id}" ${me.categories.includes(s.id) || me.categories.includes(p.id) ? 'checked' : ''}>${esc(s.name)}</label>`).join('')}</div>`).join('');
+  for (const i of $('#modeChips').querySelectorAll('input')) i.checked = me.serviceModes.includes(i.value);
+  $('#radius').value = me.radiusKm;
+  const needed = [...new Set(me.categories.map((c) => cats[c]?.requirement).filter((r) => r && !me.approvedRequirements.includes(r)))];
+  $('#docsNote').innerHTML = needed.length ? `⚠️ כדי לקבל קריאות בחלק מהתחומים צריך להעלות: ${needed.map((r) => REQ[r]).join(', ')} (העלאת מסמכים – בקרוב באפליקציה)` : '';
+}
+
+$('#saveProfile').onclick = async () => {
+  const categories = [...$('#catChips').querySelectorAll('input:checked')].map((i) => i.value);
+  const serviceModes = [...$('#modeChips').querySelectorAll('input:checked')].map((i) => i.value);
+  try {
+    me = await api('/api/pro/me', { categories, serviceModes, radiusKm: +$('#radius').value, ...(loc && { location: loc }) }, 'PUT');
+    renderProfile(); $('#profileBox').open = false; load();
+  } catch (err) { alert(err.message); }
+};
+$('#available').onchange = async (e) => { await api('/api/pro/availability', { available: e.target.checked }, 'PUT'); if (loc) await api('/api/pro/location', loc, 'PUT'); load(); };
+$('#topup').onclick = async () => { try { await api('/api/pro/wallet/topup', { amount: 100 }); me = await api('/api/pro/me'); renderProfile(); } catch (err) { alert(err.message); } };
+
+function searchForm(provider) {
+  if (provider.id.startsWith('mock')) return '';
+  if (provider.id === 'partners') return `<div class="row"><select data-q="kind"><option value="">הכל</option><option value="hotel">לינה</option>
+    <option value="activity">אטרקציות</option><option value="flight">טיסות</option><option value="product">מוצרים</option></select><input data-q="q" placeholder="חיפוש חופשי"></div>`;
+  return provider.kind === 'hotel'
+    ? `<input data-q="regionId" placeholder="RateHawk region_id"><div class="row"><input data-q="checkin" type="date"><input data-q="checkout" type="date"><input data-q="adults" type="number" value="2" min="1"></div>`
+    : `<div class="row"><input data-q="origin" placeholder="מ- (TLV)"><input data-q="destination" placeholder="ל- (ATH)"></div><div class="row"><input data-q="departureDate" type="date"><input data-q="returnDate" type="date"><input data-q="adults" type="number" value="1" min="1"></div>`;
+}
+
+function feedCard(j) {
+  const cat = cats[j.categoryId];
+  const travel = cat?.parent === 'travel';
+  const catalogOk = travel || j.paymentMode === 'in_app'; // supplier items need in-app payment
+  return `<div class="card" data-job="${j.id}">
+    <b>${esc(j.description)}</b>
+    <div class="muted">${esc(cat?.name)} · ${MODE[j.mode]}${j.distanceKm != null ? ` · ${j.distanceKm} ק"מ` : ''}${j.urgency === 'urgent' ? ' · 🔥 דחוף' : ''}${j.budget ? ` · תקציב ₪${esc(j.budget)}` : ''}</div>
+    <div class="muted">עלות שליחת הצעה: ₪${j.leadPrice} · נותרו ${j.offersLeft} מקומות${j.allowCalls ? ' · 📞 הלקוח מאשר שיחה' : ''}${j.paymentMode === 'in_app' ? ' · 🔒 תשלום באפליקציה' : ''}</div>
+    ${catalogOk ? `<details ${travel ? 'open' : ''}><summary>${travel ? 'חיפוש במלאי הספקים (מלונות/טיסות/אטרקציות)' : 'הוספת מוצר מהקטלוג (חלקים, ציוד)'}</summary>
+      <select data-provider>${providers.map((p) => `<option value="${p.id}">${{ hotel: '🏨', flight: '✈️' }[p.kind] ?? '🤝'} ${p.id === 'partners' ? 'ספקים ישירים' : p.id}</option>`).join('')}</select>
+      <div data-qform>${providers[0] ? searchForm(providers[0]) : '<div class="muted">אין ספקים מחוברים</div>'}</div>
+      <button class="ghost" data-search>חיפוש</button><div data-results></div></details>` : ''}
+    <div class="row"><input data-price type="number" min="0" placeholder="${travel ? 'מחושב מהפריטים' : 'מחיר ₪ (ריק = אחרי בדיקה; עם מוצרים – מחושב מהם)'}" ${travel ? 'disabled' : ''}><input data-eta placeholder="מתי? (היום 16:00)"></div>
+    <input data-msg placeholder="הודעה ללקוח">
+    <button data-offer>שליחת הצעה (₪${j.leadPrice} קרדיט)</button>
+  </div>`;
+}
+
+function jobCard(j) {
+  const next = NEXT[j.mode][j.status];
+  const contact = j.phone ? `<div>📞 <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a>${j.address ? ` · ${esc(j.address)}` : ''}
+    ${j.mode === 'onsite' && j.location?.lat ? ` · <a href="https://waze.com/ul?ll=${j.location.lat},${j.location.lng}&navigate=yes">ניווט Waze</a>` : ''}</div>` : '';
+  const items = (j.myOffer?.items ?? []).map((i) => `<div class="item">${({ hotel: '🏨', flight: '✈️', activity: '🎟️', product: '📦' }[i.kind] ?? '📦')} ${esc(i.title)} – ₪${i.price} (הרווח שלך ₪${i.agentFee})</div>`).join('');
+  const booking = j.booking?.status === 'confirmed' ? `<div class="item">✅ אושר אצל הספק: ${j.booking.items.map((b) => esc(b.supplierRef)).join(', ')}</div>`
+    : j.booking?.status ? `<div class="item">⚠️ ${esc(j.booking.reason ?? j.booking.status)}</div>` : '';
+  const mine = j.myOffer?.status === 'rejected' ? 'הלקוח בחר הצעה אחרת' : STATUS[j.status];
+  return `<div class="card" data-job="${j.id}">
+    <b>${esc(j.description)}</b> <span class="tag">${mine}</span>
+    <div class="muted">${MODE[j.mode]} · ההצעה שלך: ${j.myOffer?.price != null ? `₪${j.myOffer.price}` : 'מחיר אחרי בדיקה'}${j.escrow?.payout != null ? ` · שולם לך ₪${j.escrow.payout}` : ''}</div>
+    ${contact}${items}${booking}
+    ${(j.workLog ?? []).map((l) => `<div class="muted">• ${esc(l.text)}</div>`).join('')}
+    ${j.myOffer?.status === 'accepted' && next && j.status !== 'booking_failed' ? `
+      <div class="row"><input data-log placeholder="תיעוד: מה עשית / מה צריך"><button class="ghost" data-addlog style="flex:0 0 auto;width:auto">הוסף</button></div>
+      ${j.mode === 'onsite' && next[0] === 'completed' ? '<input data-sig placeholder="שם הלקוח לאישור (חתימה)">' : ''}
+      <button class="ok" data-next="${next[0]}">${next[1]}</button>` : ''}
+  </div>`;
+}
+
+async function load() {
+  if (!token) return;
+  // Don't wipe what the pro is typing (offer, search, work log) with the auto-refresh.
+  const busy = document.activeElement?.matches('#feed *, #jobs *') ||
+    [...document.querySelectorAll('#feed input, #jobs input')].some((i) => i.type === 'checkbox' ? i.checked : i.value !== i.defaultValue);
+  if (busy) return;
+  try {
+    const [feed, jobs] = await Promise.all([api('/api/pro/feed'), api('/api/pro/jobs')]);
+    $('#feed').innerHTML = feed.length ? feed.map(feedCard).join('')
+      : `<div class="muted">${me.available ? 'אין כרגע קריאות שמתאימות לך. נודיע כשתגיע אחת.' : 'סמנו "פנוי לקריאות" ובחרו תחומים כדי לראות עבודות.'}</div>`;
+    $('#jobs').innerHTML = jobs.length ? jobs.map(jobCard).join('') : '<div class="muted">עוד לא שלחת הצעות</div>';
+  } catch (err) { console.error(err); }
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-provider]')) {
+    const card = e.target.closest('[data-job]');
+    $('[data-qform]', card).innerHTML = searchForm(providers.find((p) => p.id === e.target.value));
+  }
+});
+
+document.addEventListener('click', async (e) => {
+  const card = e.target.closest('[data-job]');
+  if (!card || !e.target.matches('button')) return;
+  const id = card.dataset.job;
+  try {
+    if (e.target.matches('[data-search]')) {
+      const provider = $('[data-provider]', card).value;
+      const query = Object.fromEntries([...card.querySelectorAll('[data-q]')].filter((i) => i.value).map((i) => [i.dataset.q, i.value]));
+      const results = await api('/api/catalog/search', { provider, query });
+      $('[data-results]', card).innerHTML = results.map((r) => `<div class="item"><label class="row">
+        <input type="checkbox" style="width:auto;flex:0" data-item='${esc(JSON.stringify({ provider: r.provider, ref: r.ref }))}'>
+        <span><b>${esc(r.title)}</b><br><span class="muted">${esc(r.details)} · מחיר בסיס ₪${r.basePrice}</span></span></label>
+        <input data-markup type="number" min="0" placeholder="הרווח שלך ₪ (תוספת למחיר)"></div>`).join('') || '<div class="muted">אין תוצאות</div>';
+    } else if (e.target.matches('[data-offer]')) {
+      const items = [...card.querySelectorAll('[data-item]:checked')].map((c) => ({
+        ...JSON.parse(c.dataset.item), agentMarkup: +($('[data-markup]', c.closest('.item')).value || 0) }));
+      const price = $('[data-price]', card).value;
+      const body = { eta: $('[data-eta]', card).value || null, message: $('[data-msg]', card).value,
+        ...(items.length ? { items } : { price: price === '' ? null : +price }) };
+      const res = await api(`/api/jobs/${id}/offers`, body);
+      alert(res.phone ? `ההצעה נשלחה. הלקוח מאשר שיחה: ${res.phone}` : 'ההצעה נשלחה! נעדכן כשהלקוח יבחר.');
+      me = await api('/api/pro/me'); renderProfile();
+      card.querySelectorAll('input').forEach((i) => i.value = '');
+    } else if (e.target.matches('[data-addlog]')) {
+      await api(`/api/jobs/${id}/log`, { text: $('[data-log]', card).value });
+      $('[data-log]', card).value = '';
+    } else if (e.target.dataset.next) {
+      const note = $('[data-log]', card)?.value;
+      await api(`/api/jobs/${id}/status`, { status: e.target.dataset.next, note, signature: $('[data-sig]', card)?.value || undefined });
+      card.querySelectorAll('input').forEach((i) => i.value = '');
+    }
+  } catch (err) { alert(err.message); }
+  if (!e.target.matches('[data-search]')) load();
+});
+
+async function boot() {
+  tree = await api('/api/categories');
+  for (const p of tree) { cats[p.id] = { ...p, parent: null }; for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, requirement: s.requirement ?? p.requirement }; }
+  if (!token) return;
+  try {
+    [me, providers] = await Promise.all([api('/api/pro/me'), api('/api/catalog/providers')]);
+    renderProfile(); load();
+  } catch (err) { console.error(err); }
+}
+show(); boot();
+setInterval(load, 5000);
+</script>
+</body>
+</html>

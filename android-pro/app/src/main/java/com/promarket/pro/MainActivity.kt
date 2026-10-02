@@ -1,5 +1,6 @@
 package com.promarket.pro
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.ViewGroup
@@ -18,23 +19,21 @@ import org.json.JSONObject
 
 /**
  * Live feed (screen 2 in the PRD): open requests the pro can answer with an offer.
- * Onboarding (OTP, categories, documents), map view, active-job screens and
- * wallet are the next milestones.
+ * Next milestones: categories/documents setup, map view, active-job screens, wallet,
+ * travel inventory search (available today in the web app at /pro).
  */
 class MainActivity : AppCompatActivity() {
     private val api = ApiClient()
     private lateinit var list: LinearLayout
-    // TODO: replace with the id returned from OTP onboarding.
-    private val proId = "DEMO_PRO_ID"
     private val modeLabel = mapOf("onsite" to "🏠 אצל הלקוח", "remote" to "💻 מרחוק", "phone" to "📞 בטלפון")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        api.userId = proId
+        api.token = Session.token(this) ?: return goToLogin()
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 32, 32, 32) }
         val toggle = MaterialSwitch(this).apply {
             text = getString(R.string.available)
-            setOnCheckedChangeListener { _, on -> lifecycleScope.launch { runCatching { api.setAvailable(proId, on) }; refresh() } }
+            setOnCheckedChangeListener { _, on -> lifecycleScope.launch { runCatching { api.setAvailable(on) }; refresh() } }
         }
         list.addView(toggle)
         setContentView(ScrollView(this).apply { addView(list, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) })
@@ -43,7 +42,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun refresh() = lifecycleScope.launch {
         while (list.childCount > 1) list.removeViewAt(1)
-        val jobs = runCatching { api.feed(proId) }.getOrElse { toast(it.message); return@launch }
+        val jobs = runCatching { api.feed() }.getOrElse {
+            if ((it as? ApiException)?.status == 401) return@launch goToLogin()
+            toast(it.message); return@launch
+        }
         for (i in 0 until jobs.length()) {
             val job = jobs.getJSONObject(i)
             val distance = if (job.has("distanceKm")) " · ${job.getDouble("distanceKm")} ק\"מ" else ""
@@ -92,6 +94,12 @@ class MainActivity : AppCompatActivity() {
             b.setNeutralButton(R.string.navigate) { _, _ -> navigateTo(loc.getDouble("lat"), loc.getDouble("lng")) }
         }
         b.show()
+    }
+
+    private fun goToLogin() {
+        Session.save(this, null)
+        startActivity(Intent(this, LoginActivity::class.java))
+        finish()
     }
 
     private fun toast(msg: String?) = Toast.makeText(this, msg ?: "שגיאה", Toast.LENGTH_LONG).show()
