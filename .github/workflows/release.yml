@@ -11,7 +11,7 @@ permissions:
 # Server address baked into the APKs. Override with a repository variable SERVER_URL
 # (Settings → Secrets and variables → Actions → Variables).
 env:
-  SERVER_URL: ${{ vars.SERVER_URL || 'http://192.168.1.244:3000' }}
+  SERVER_URL: ${{ vars.SERVER_URL || 'http://87.68.15.249:3000,http://192.168.1.244:3000' }}
 
 jobs:
   android:
@@ -95,7 +95,7 @@ jobs:
           gh release delete promarket-latest --yes --cleanup-tag || true
           gh release create promarket-latest out/* --latest --target "$GITHUB_SHA" \
             --title "ProMarket – latest build" \
-            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server address in the APKs: ${SERVER_URL}
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server addresses in the APKs (tried in order): ${SERVER_URL}
 
           **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents).
           **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).

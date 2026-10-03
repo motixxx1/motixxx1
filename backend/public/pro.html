@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מקצוענים – עבודות</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<meta name="theme-color" content="#1f5eff">
 <style>
-  :root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--muted:#5d6472;--line:#d6d9e0;--accent:#1f5eff;--ok:#1a8f4c;--warn:#ff6a00}
+  :root{--accent2:#4a82ff;--bg:#f5f6fa;--card:#fff;--fg:#1d2330;--muted:#5d6472;--line:#d6d9e0;--accent:#1f5eff;--ok:#1a8f4c;--warn:#ff6a00}
   @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}}
   :root[data-theme="dark"]{--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}
   *{box-sizing:border-box}
@@ -34,6 +36,27 @@
   .lbclose{position:absolute;top:12px;left:12px;width:40px;height:40px;border-radius:50%;background:#fff3;color:#fff;font-size:18px;padding:0;margin:0;border:0}
   .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
   a{color:var(--accent)}
+  /* App look (from docs/prototype): Rubik headings, soft rounded cards, pill buttons */
+  body{font-family:"Assistant","Rubik",system-ui,sans-serif;font-size:16px;-webkit-tap-highlight-color:transparent}
+  header{background:linear-gradient(135deg,var(--accent),var(--accent2));padding:22px 18px 28px;border-radius:0 0 26px 26px;box-shadow:0 10px 24px -14px var(--accent)}
+  header b,h2,.stat{font-family:"Rubik","Assistant",system-ui,sans-serif}
+  header b{font-size:22px;font-weight:800}
+  main{padding:16px 14px 40px}
+  h2{font-size:18px;font-weight:800}
+  .card{border:0;border-radius:22px;padding:16px;box-shadow:0 1px 0 var(--line),0 8px 20px -14px #1d2759aa}
+  input,select,textarea{border:1.5px solid var(--line);border-radius:14px;padding:12px 13px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+  button{border-radius:16px;padding:13px 16px;transition:transform .1s}
+  button:active{transform:scale(.98)}
+  button:disabled{opacity:.45}
+  .item{border-radius:14px;padding:10px 12px}
+  .tag{border-radius:99px;font-weight:600}
+  .modes label,.chips label{border-width:1.5px;border-radius:14px;transition:background .15s}
+  .modes label:has(input:checked),.chips label:has(input:checked){background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .quick button{background:#eceef5;color:var(--fg);border:0;font-weight:700;padding:7px 13px}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .quick button{background:#2a2e38}}
+  :root[data-theme="dark"] .quick button{background:#2a2e38}
+  @media (prefers-reduced-motion:reduce){button{transition:none}}
 </style>
 </head>
 <body>

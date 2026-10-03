@@ -142,6 +142,16 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         return send(500, { error: 'internal' });
       }
     }
+    const img = req.method === 'GET' && url.pathname.match(/^\/img\/cat\/([a-z_]+)\.svg$/);
+    if (img) {
+      try {
+        const body = await readFile(new URL(`../public/img/cat/${img[1]}.svg`, import.meta.url));
+        res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=86400' });
+        return res.end(body);
+      } catch {
+        return send(404, { error: 'not_found' });
+      }
+    }
     if (req.method === 'GET' && PAGES[url.pathname]) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       return res.end(await readFile(new URL(`../public/${PAGES[url.pathname]}`, import.meta.url)));

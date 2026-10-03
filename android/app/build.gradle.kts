@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Server address baked into the APK: ./gradlew assembleDebug -PserverUrl=https://your-server
+// Server addresses baked into the APK, comma separated, tried in order (public, then LAN): ./gradlew assembleDebug -PserverUrl=http://public:3000,http://lan:3000
 // If empty, the app asks for it on first launch (and it can be changed later).
 val serverUrl = (findProperty("serverUrl") as String?).orEmpty()
 
@@ -13,8 +13,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
     }
     // Two apps from one codebase: customers, and pros/agents/couriers.

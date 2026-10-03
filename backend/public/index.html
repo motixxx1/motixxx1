@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>קריאה למקצוען</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<meta name="theme-color" content="#ff6a00">
 <style>
-  :root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--muted:#5d6472;--line:#d6d9e0;--accent:#ff6a00;--ok:#1a8f4c}
+  :root{--accent2:#ff9442;--bg:#f5f6fa;--card:#fff;--fg:#1d2330;--muted:#5d6472;--line:#d6d9e0;--accent:#ff6a00;--ok:#1a8f4c}
   @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}}
   :root[data-theme="dark"]{--bg:#14161b;--card:#1e2128;--fg:#eceef2;--muted:#a3a9b5;--line:#343843}
   *{box-sizing:border-box}
@@ -40,6 +42,33 @@
   .mpick input{display:none} .mprev{position:relative} .mprev .rm{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#000b;color:#fff;font-size:12px;padding:0;margin:0;border:0;z-index:2}
   .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
   a{color:var(--accent)}
+  /* App look (from docs/prototype): Rubik headings, soft rounded cards, pill buttons */
+  body{font-family:"Assistant","Rubik",system-ui,sans-serif;font-size:16px;-webkit-tap-highlight-color:transparent}
+  header{background:linear-gradient(135deg,var(--accent),var(--accent2));padding:22px 18px 28px;border-radius:0 0 26px 26px;box-shadow:0 10px 24px -14px var(--accent)}
+  header b,h2,.stat{font-family:"Rubik","Assistant",system-ui,sans-serif}
+  header b{font-size:22px;font-weight:800}
+  main{padding:16px 14px 40px}
+  h2{font-size:18px;font-weight:800}
+  .card{border:0;border-radius:22px;padding:16px;box-shadow:0 1px 0 var(--line),0 8px 20px -14px #1d2759aa}
+  input,select,textarea{border:1.5px solid var(--line);border-radius:14px;padding:12px 13px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+  button{border-radius:16px;padding:13px 16px;transition:transform .1s}
+  button:active{transform:scale(.98)}
+  button:disabled{opacity:.45}
+  .item{border-radius:14px;padding:10px 12px}
+  .tag{border-radius:99px;font-weight:600}
+  .modes label,.chips label{border-width:1.5px;border-radius:14px;transition:background .15s}
+  .modes label:has(input:checked),.chips label:has(input:checked){background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .quick button{background:#eceef5;color:var(--fg);border:0;font-weight:700;padding:7px 13px}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .quick button{background:#2a2e38}}
+  :root[data-theme="dark"] .quick button{background:#2a2e38}
+  @media (prefers-reduced-motion:reduce){button{transition:none}}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin:8px 0}
+  .tiles button{padding:0;margin:0;overflow:hidden;background:var(--card);color:var(--fg);border:1.5px solid var(--line);text-align:center;font-weight:700;font-size:13px;line-height:1.25;border-radius:16px}
+  .tiles img{display:block;width:100%;aspect-ratio:5/3;object-fit:cover}
+  .tiles span{display:block;padding:6px 4px 8px}
+  .tiles button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+  .catimg{display:block;width:100%;height:84px;object-fit:cover;border-radius:14px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -54,6 +83,7 @@
   </form>
   <form class="card" id="f" hidden>
     <b>מה צריך? הכל מהכל</b>
+    <div class="tiles" id="tiles"></div>
     <div class="quick" id="quick"></div>
     <input id="catSearch" placeholder="🔍 חיפוש: שליח, אינסטלטור, מסירה משפטית, בייביסיטר…" autocomplete="off">
     <select name="categoryId" id="cat" required></select>
@@ -223,6 +253,18 @@ function renderCats(q = '') {
     `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</optgroup>`).join('') || '<option value="other.general">אחר – כל מומחיות</option>';
   renderModes();
 }
+function renderTiles() {
+  $('#tiles').innerHTML = tree.map((p) => `<button type="button" data-parent="${p.id}"><img src="/img/cat/${p.id}.svg" alt="" loading="lazy"><span>${esc(p.name)}</span></button>`).join('');
+}
+$('#tiles').onclick = (e) => {
+  const b = e.target.closest('[data-parent]');
+  if (!b) return;
+  $('#catSearch').value = ''; renderCats();
+  const p = tree.find((x) => x.id === b.dataset.parent);
+  $('#cat').value = p.subs[0].id; renderModes();
+  for (const t of $('#tiles').children) t.classList.toggle('on', t === b);
+  $('#cat').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 $('#catSearch').oninput = (e) => renderCats(e.target.value.trim());
 const QUICK = [['delivery.food', '🛵 שליח אוכל'], ['delivery.package', '📦 משלוח'], ['plumbing.unclog', '🔧 אינסטלטור'],
   ['computers.repair', '💻 טכנאי מחשבים'], ['cleaning.home', '🧹 ניקיון'], ['help.handyman', '🛠️ הנדימן'],
@@ -236,8 +278,8 @@ $('#quick').onclick = (e) => {
 };
 api('/api/categories').then((t) => {
   tree = t;
-  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, payment: p.payment, parent: p.name };
-  renderCats(); load();
+  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, payment: p.payment, parent: p.name, parent_id: p.id };
+  renderTiles(); renderCats(); load();
 });
 
 function offerHtml(job, o) {
@@ -264,7 +306,7 @@ async function load() {
   if (token && !typing) {
     try {
       const jobs = await api('/api/client/jobs');
-      $('#mine').innerHTML = jobs.length ? jobs.map((j) => `<div class="card">
+      $('#mine').innerHTML = jobs.length ? jobs.map((j) => `<div class="card"><img class="catimg" src="/img/cat/${esc(cats[j.categoryId]?.parent_id ?? 'other')}.svg" alt="">
         <b>${esc(j.description)}</b>${mediaHtml(j.media)}<div class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]}${j.dropoff ? ` · ${esc(j.address)} ← ${esc(j.dropoff.address)}` : ''} ·
         <span class="tag">${STATUS[j.status]}</span>${j.paymentMode === 'in_app' ? ' · 🔒 תשלום באפליקציה' : ''}</div>
         ${j.booking?.status === 'confirmed' ? `<div class="item">✅ ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אישור ${esc(b.supplierRef)})`).join(', ')}</div>` : ''}
@@ -276,7 +318,7 @@ async function load() {
     } catch (e) { /* 401 handled in api() */ }
   }
   const board = await api('/api/jobs');
-  $('#board').innerHTML = board.length ? board.map((j) => `<div class="card"><b>${esc(j.description)}</b>
+  $('#board').innerHTML = board.length ? board.map((j) => `<div class="card"><img class="catimg" src="/img/cat/${esc(cats[j.categoryId]?.parent_id ?? 'other')}.svg" alt=""><b>${esc(j.description)}</b>
     <div class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]} · ${j.urgency === 'urgent' ? '🔥 דחוף · ' : ''}נותרו ${j.offersLeft} הצעות</div></div>`).join('')
     : '<div class="muted">אין קריאות פתוחות</div>';
 }

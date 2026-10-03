@@ -63,8 +63,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val prefs by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
-    private val serverUrl: String
-        get() = (prefs.getString("server_url", null) ?: BuildConfig.SERVER_URL).trimEnd('/')
+    // Built-in addresses, comma separated, public first then LAN (BuildConfig.SERVER_URL).
+    private val defaults: List<String>
+        get() = BuildConfig.SERVER_URL.split(',').map { it.trim().trimEnd('/') }.filter { it.isNotEmpty() }
+    // The address that worked last, or one typed by the user; null until the first connection.
+    private var serverUrl: String = ""
+    private var autoRetried = false
 
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         pendingGeo?.let { (origin, cb) -> cb.invoke(origin, granted, false) }
@@ -96,19 +100,21 @@ class MainActivity : AppCompatActivity() {
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
-                if (url.scheme in listOf("http", "https") && url.host == Uri.parse(serverUrl).host) return false
+                if (url.scheme in listOf("http", "https") && (url.host == Uri.parse(serverUrl).host || defaults.any { url.host == Uri.parse(it).host })) return false
                 openExternal(url) // tel:, Waze links, anything outside our server
                 return true
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 refresh.isRefreshing = false
+                autoRetried = false
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) {
                     refresh.isRefreshing = false
-                    askServer(getString(R.string.server_unreachable))
+                    // Maybe the network changed (Wi-Fi <-> mobile): re-pick the address, but only once in a row.
+                    if (autoRetried) askServer(getString(R.string.server_unreachable)) else { autoRetried = true; connect() }
                 }
             }
         }
@@ -145,12 +151,40 @@ class MainActivity : AppCompatActivity() {
 
         when {
             savedInstanceState != null -> web.restoreState(savedInstanceState)
-            serverUrl.isBlank() -> askServer(getString(R.string.server_first_time))
-            else -> load()
+            else -> connect()
         }
     }
 
     private fun load() = web.loadUrl(serverUrl + BuildConfig.START_PATH)
+
+    /** Picks the first reachable address (typed one, then public, then LAN) without asking the user. */
+    private fun connect() {
+        refresh.isRefreshing = true
+        val candidates = (listOfNotNull(prefs.getString("server_url", null)) + defaults).map { it.trimEnd('/') }.distinct()
+        Thread {
+            val found = candidates.firstOrNull { reachable(it) }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (found != null) {
+                    serverUrl = found
+                    load()
+                } else {
+                    refresh.isRefreshing = false
+                    serverUrl = candidates.firstOrNull().orEmpty()
+                    askServer(getString(if (candidates.isEmpty()) R.string.server_first_time else R.string.server_unreachable))
+                }
+            }
+        }.start()
+    }
+
+    private fun reachable(base: String): Boolean = try {
+        val c = java.net.URL("$base/healthz").openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 3000
+        c.readTimeout = 3000
+        c.responseCode in 200..399
+    } catch (e: Exception) {
+        false
+    }
 
     private fun hasLocationPermission() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -193,9 +227,9 @@ class MainActivity : AppCompatActivity() {
             .setCancelable(false)
             .setPositiveButton(R.string.connect) { _, _ ->
                 prefs.edit().putString("server_url", input.text.toString().trim().trimEnd('/')).apply()
-                load()
+                connect()
             }
-            .setNeutralButton(R.string.retry) { _, _ -> load() }
+            .setNeutralButton(R.string.retry) { _, _ -> connect() }
             .show()
     }
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-label="אינסטלציה">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+<radialGradient id="s" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+<rect width="400" height="240" fill="url(#g)"/><path d="M0 150 Q100 120 200 150 T400 150 V240 H0Z" fill="#fff" opacity=".1"/><path d="M0 172 Q100 142 200 172 T400 172 V240 H0Z" fill="#fff" opacity=".1"/><path d="M0 194 Q100 164 200 194 T400 194 V240 H0Z" fill="#fff" opacity=".1"/><path d="M0 216 Q100 186 200 216 T400 216 V240 H0Z" fill="#fff" opacity=".1"/><path d="M0 238 Q100 208 200 238 T400 238 V240 H0Z" fill="#fff" opacity=".1"/>
+<circle cx="200" cy="120" r="105" fill="url(#s)"/>
+<circle cx="200" cy="120" r="74" fill="#fff" opacity=".92"/>
+<circle cx="200" cy="120" r="74" fill="none" stroke="#2563eb" stroke-width="4" opacity=".35"/>
+<text x="200" y="146" font-size="82" text-anchor="middle" font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">🔧</text>
+</svg>
