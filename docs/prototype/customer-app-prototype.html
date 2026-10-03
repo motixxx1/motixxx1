@@ -1,0 +1,545 @@
+<title>ProMarket ללקוחות</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<style>
+  /* Layout: a light customer app in a phone frame on a dark stage (a single committed look, orange brand). */
+  :root {
+    color-scheme: light;
+    --stage: #0b0e17; --frame: #1a1d29;
+    --bg: #f5f6fa; --card: #ffffff; --ink: #171a26; --muted: #646b80; --line: #e3e6ef; --chip: #eceef5;
+    --brand: #ff6a00; --brand-ink: #ffffff; --brand-soft: #fff0e5; --navy: #1d2759;
+    --ok: #12945a; --ok-soft: #e3f6ed; --warn: #b7791f; --err: #d92d4a;
+    --display: "Rubik", "Assistant", system-ui, sans-serif;
+    --body: "Assistant", "Rubik", system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body { background: radial-gradient(1100px 600px at 50% -10%, #1c2547 0%, var(--stage) 62%); color: var(--ink); font-family: var(--body); padding-inline: 16px; padding-block: 24px; }
+  .display { font-family: var(--display); }
+  .num { font-variant-numeric: tabular-nums; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .scroll { scrollbar-width: none; }
+  .field { width: 100%; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 11px 13px; color: var(--ink); font: inherit; }
+  .field:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+  textarea.field { resize: none; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 16px; padding: 13px 16px; font-weight: 700; background: var(--brand); color: var(--brand-ink); width: 100%; }
+  .btn:disabled { opacity: .45; }
+  .btn-ghost { background: var(--chip); color: var(--ink); }
+  .card { background: var(--card); border-radius: 22px; box-shadow: 0 1px 0 var(--line), 0 6px 18px -12px #1d275955; }
+  @keyframes toastIn { from { transform: translateY(-14px); opacity: .3 } to { transform: none; opacity: 1 } }
+  .toast { animation: toastIn .25s ease-out; }
+  @keyframes sheetIn { from { transform: translateY(40px); opacity: .4 } to { transform: none; opacity: 1 } }
+  .sheet { animation: sheetIn .22s ease-out; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  .live { animation: pulse 1.4s infinite; }
+  @keyframes ping { 0% { transform: scale(.6); opacity: .9 } 100% { transform: scale(2.2); opacity: 0 } }
+  .ping { animation: ping 1.8s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .toast, .live, .sheet, .ping { animation: none; } }
+  button:focus-visible, label:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+</style>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>window.react = window.React; // the lucide UMD build reads the lowercase global</script>
+<script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect, useRef } = React;
+const L = window.LucideReact || {};
+const Icon = ({ name, size = 20, className = "", style }) => {
+  const C = L[name] || L.Circle;
+  return C ? <C size={size} className={className} style={style} strokeWidth={2} /> : <span className={className} />;
+};
+const ils = (n) => "₪" + Math.round(n).toLocaleString("he-IL");
+const MODE = { onsite: "אצלי בבית", remote: "מרחוק", delivery: "איסוף ומשלוח" };
+const MODE_ICON = { onsite: "Home", remote: "Laptop", delivery: "Bike" };
+const FLOW = {
+  onsite: ["נבחר מקצוען", "בדרך אליך", "בעבודה", "הושלם"],
+  remote: ["נבחר מקצוען", "בטיפול", "הושלם"],
+  delivery: ["נבחר שליח", "בדרך לאיסוף", "נאסף – בדרך אליך", "נמסר"],
+};
+const CATS = [
+  { id: "delivery", name: "שליחויות", icon: "Bike", color: "#ff6a00", subs: ["משלוח אוכל", "קניות מהסופר", "חבילה בעיר", "מסירה משפטית"], modes: ["delivery"], base: 35 },
+  { id: "plumbing", name: "אינסטלציה", icon: "Wrench", color: "#2563eb", subs: ["פתיחת סתימה", "נזילה", "החלפת ברז", "דוד שמש"], modes: ["onsite"], base: 260 },
+  { id: "electric", name: "חשמל", icon: "Zap", color: "#d97706", subs: ["תקלת חשמל", "לוח חשמל", "התקנת תאורה", "עמדת טעינה"], modes: ["onsite"], base: 300 },
+  { id: "computers", name: "מחשבים", icon: "Laptop", color: "#7c3aed", subs: ["תיקון מחשב", "וירוסים", "רשת ו-WiFi", "שחזור מידע"], modes: ["remote", "onsite"], base: 140 },
+  { id: "cleaning", name: "ניקיון", icon: "Sparkles", color: "#0891b2", subs: ["ניקיון בית", "אחרי שיפוץ", "ספות ושטיחים", "חלונות"], modes: ["onsite"], base: 220 },
+  { id: "moving", name: "הובלות", icon: "Truck", color: "#15803d", subs: ["הובלת דירה", "הובלה קטנה", "סבלים"], modes: ["onsite"], base: 450 },
+  { id: "handy", name: "הנדימן", icon: "Hammer", color: "#be185d", subs: ["הרכבת רהיטים", "תליית טלוויזיה", "תיקונים קטנים"], modes: ["onsite"], base: 180 },
+  { id: "travel", name: "נסיעות", icon: "Plane", color: "#0ea5e9", subs: ["מלון", "טיסה", "חבילת נופש", "צימר"], modes: ["remote"], base: 80, inapp: true },
+  { id: "pets", name: "חיות", icon: "Dog", color: "#a16207", subs: ["הוצאת כלב", "פנסיון", "טיפוח"], modes: ["onsite"], base: 60 },
+  { id: "lessons", name: "שיעורים", icon: "GraduationCap", color: "#4f46e5", subs: ["שיעור פרטי", "שפות", "מחשב למבוגרים"], modes: ["onsite", "remote"], base: 120 },
+  { id: "auto", name: "רכב", icon: "Car", color: "#475569", subs: ["התנעה", "פנצ׳ר", "מכונאי", "גרירה"], modes: ["onsite"], base: 200 },
+  { id: "other", name: "משהו אחר", icon: "Sparkle", color: "#64748b", subs: ["כל בקשה"], modes: ["onsite", "remote", "delivery"], base: 150 },
+];
+const PROS = [
+  { name: "אבי כהן", rating: 4.9, jobs: 212, badges: ["מאומת", "מהיר"], init: "א", hue: "#2563eb" },
+  { name: "דור שמעון", rating: 4.7, jobs: 98, badges: ["מאומת"], init: "ד", hue: "#7c3aed" },
+  { name: "רוני בן-דוד", rating: 5.0, jobs: 41, badges: ["מאומת", "חדש ומצטיין"], init: "ר", hue: "#0891b2" },
+  { name: "יעל אברהם", rating: 4.8, jobs: 156, badges: ["מאומת", "ביטוח"], init: "י", hue: "#be185d" },
+];
+const SAMPLE = [{ hue: "#fb923c", icon: "Image" }, { hue: "#60a5fa", icon: "Camera" }, { hue: "#34d399", icon: "Image" }];
+
+const Chip = ({ on, children, ...p }) => <button {...p} className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold" style={{ background: on ? "var(--ink)" : "var(--chip)", color: on ? "#fff" : "var(--ink)" }}>{children}</button>;
+const Stars = ({ r }) => <span className="inline-flex items-center gap-0.5 text-xs font-bold num" style={{ color: "var(--warn)" }}><Icon name="Star" size={12} style={{ fill: "currentColor" }} />{r.toFixed(1)}</span>;
+const Label = ({ children }) => <div className="mb-1.5 mt-4 text-sm font-bold">{children}</div>;
+const Avatar = ({ p, size = 44 }) => <div className="display grid shrink-0 place-items-center rounded-full font-extrabold text-white" style={{ width: size, height: size, background: p.hue }}>{p.init}</div>;
+const Empty = ({ icon, t, s, action }) => <div className="card grid place-items-center gap-2 p-8 text-center"><div className="grid h-14 w-14 place-items-center rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={icon} size={26} /></div><div className="display font-bold">{t}</div><div className="text-sm" style={{ color: "var(--muted)" }}>{s}</div>{action}</div>;
+
+function Sheet({ title, onClose, children }) {
+  return (
+    <div className="absolute inset-0 z-40 flex items-end" style={{ background: "#0009" }} onClick={onClose}>
+      <div className="sheet scroll max-h-[90%] w-full overflow-y-auto rounded-t-[28px] p-5" style={{ background: "var(--bg)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between"><h2 className="display text-lg font-extrabold">{title}</h2>
+          <button onClick={onClose} aria-label="סגירה" className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "var(--chip)" }}><Icon name="X" size={16} /></button></div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- media ---------- */
+function Thumb({ m, onClick, onRemove, big }) {
+  const [dur, setDur] = useState(m.dur);
+  const box = big ? "h-44 w-44" : "aspect-square w-full";
+  return (
+    <div className={"relative shrink-0 overflow-hidden rounded-2xl " + box} style={{ background: m.hue ? `linear-gradient(135deg, ${m.hue}, ${m.hue}88)` : "#222" }}>
+      <button onClick={onClick} className="absolute inset-0" aria-label={m.kind === "video" ? "נגן סרטון" : "הצג תמונה"}>
+        {m.kind === "video" && m.url && <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" onLoadedMetadata={(e) => setDur(Math.round(e.target.duration))} />}
+        {m.kind === "image" && m.url && <img src={m.url} alt="" className="h-full w-full object-cover" />}
+        {!m.url && <span className="grid h-full w-full place-items-center text-white"><Icon name={m.icon || "Image"} size={30} /></span>}
+        {m.kind === "video" && <span className="absolute inset-0 grid place-items-center"><span className="grid h-10 w-10 place-items-center rounded-full" style={{ background: "#000a", color: "#fff" }}><Icon name="Play" size={18} style={{ fill: "#fff" }} /></span></span>}
+      </button>
+      {m.kind === "video" && dur ? <span className="absolute bottom-1.5 right-1.5 rounded-md px-1.5 text-[11px] font-bold num" style={{ background: "#000a", color: "#fff" }}>{Math.floor(dur / 60)}:{String(dur % 60).padStart(2, "0")}</span> : null}
+      {onRemove && <button onClick={onRemove} aria-label="הסר" className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full" style={{ background: "#000b", color: "#fff" }}><Icon name="X" size={13} /></button>}
+    </div>
+  );
+}
+const MAX_IMG = 8, MAX_VID = 1, MAX_MB = 100;
+
+function MediaPicker({ media, setMedia, toast }) {
+  const imgs = media.filter((m) => m.kind === "image").length, vids = media.filter((m) => m.kind === "video").length;
+  const imgRef = useRef(), vidRef = useRef(), camRef = useRef();
+  const add = (files, kind) => {
+    const list = [...files]; let cur = kind === "image" ? imgs : vids; const max = kind === "image" ? MAX_IMG : MAX_VID; const out = [];
+    for (const f of list) {
+      if (cur >= max) { toast(kind === "image" ? `אפשר עד ${MAX_IMG} תמונות` : "אפשר סרטון אחד לקריאה", "err"); break; }
+      if (f.size > MAX_MB * 1048576) { toast(`הקובץ גדול מדי (עד ${MAX_MB}MB)`, "err"); continue; }
+      out.push({ id: Date.now() + Math.random(), kind, url: URL.createObjectURL(f), name: f.name }); cur++;
+    }
+    if (out.length) setMedia((m) => [...m, ...out]);
+  };
+  const addSample = () => {
+    if (imgs >= MAX_IMG) return toast(`אפשר עד ${MAX_IMG} תמונות`, "err");
+    const s = SAMPLE[imgs % SAMPLE.length];
+    setMedia((m) => [...m, { id: Date.now() + Math.random(), kind: "image", hue: s.hue, icon: s.icon, name: "דוגמה" }]);
+  };
+  const addSampleVideo = () => { if (vids >= MAX_VID) return toast("אפשר סרטון אחד לקריאה", "err"); setMedia((m) => [...m, { id: Date.now(), kind: "video", hue: "#6366f1", dur: 24, name: "סרטון דוגמה" }]); };
+  const Tile = ({ icon, label, sub, onClick, disabled }) => (
+    <button disabled={disabled} onClick={onClick} className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-2xl text-center disabled:opacity-40" style={{ border: "2px dashed #f7b27d", background: "var(--brand-soft)", color: "var(--brand)" }}>
+      <Icon name={icon} size={24} /><span className="text-xs font-bold leading-tight">{label}</span>{sub && <span className="text-[10px]" style={{ color: "var(--muted)" }}>{sub}</span>}</button>);
+  return (
+    <div>
+      <input ref={imgRef} id="pick-images" type="file" accept="image/*" multiple hidden onChange={(e) => { add(e.target.files, "image"); e.target.value = ""; }} />
+      <input ref={camRef} id="pick-camera" type="file" accept="image/*" capture="environment" hidden onChange={(e) => { add(e.target.files, "image"); e.target.value = ""; }} />
+      <input ref={vidRef} id="pick-video" type="file" accept="video/*" hidden onChange={(e) => { add(e.target.files, "video"); e.target.value = ""; }} />
+      <div className="grid grid-cols-3 gap-2">
+        {media.map((m) => <Thumb key={m.id} m={m} onRemove={() => setMedia((x) => x.filter((y) => y.id !== m.id))} />)}
+        <Tile icon="ImagePlus" label="הוסף תמונות" sub={`${imgs}/${MAX_IMG}`} disabled={imgs >= MAX_IMG} onClick={() => imgRef.current.click()} />
+        <Tile icon="Video" label="הוסף סרטון" sub={`${vids}/${MAX_VID} · עד דקה`} disabled={vids >= MAX_VID} onClick={() => vidRef.current.click()} />
+        <Tile icon="Camera" label="צלם עכשיו" onClick={() => camRef.current.click()} />
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
+        <span>אין קבצים בהישג יד?</span>
+        <button onClick={addSample} className="font-bold underline" style={{ color: "var(--brand)" }}>תמונת דוגמה</button>
+        <button onClick={addSampleVideo} className="font-bold underline" style={{ color: "var(--brand)" }}>סרטון דוגמה</button>
+      </div>
+      <div className="mt-2 flex items-start gap-2 rounded-xl p-2.5 text-xs" style={{ background: "var(--chip)", color: "var(--muted)" }}><Icon name="Lightbulb" size={14} className="mt-0.5 shrink-0" />תמונה או סרטון של הבעיה חוסכים שאלות ומקבלים הצעות מדויקות יותר, לפעמים ב-30% פחות.</div>
+    </div>
+  );
+}
+
+function Lightbox({ m, onClose }) {
+  return (
+    <div className="absolute inset-0 z-50 grid place-items-center p-4" style={{ background: "#000e" }} onClick={onClose}>
+      <button onClick={onClose} aria-label="סגירה" className="absolute left-4 top-12 grid h-9 w-9 place-items-center rounded-full" style={{ background: "#fff3", color: "#fff" }}><Icon name="X" size={18} /></button>
+      <div className="w-full" onClick={(e) => e.stopPropagation()}>
+        {m.url ? (m.kind === "video" ? <video src={m.url} controls autoPlay playsInline className="max-h-[70vh] w-full rounded-2xl" /> : <img src={m.url} alt="" className="max-h-[70vh] w-full rounded-2xl object-contain" />)
+          : <div className="grid aspect-square w-full place-items-center rounded-2xl text-white" style={{ background: `linear-gradient(135deg, ${m.hue}, ${m.hue}88)` }}><Icon name={m.kind === "video" ? "Play" : m.icon || "Image"} size={64} /></div>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- screens ---------- */
+function Home({ c }) {
+  const active = c.requests.filter((r) => r.status !== "done");
+  const [q, setQ] = useState("");
+  const hits = q ? CATS.filter((x) => (x.name + x.subs.join(" ")).includes(q)) : CATS;
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <div className="text-sm" style={{ color: "var(--muted)" }}>שלום, דנה 👋</div>
+        <h2 className="display text-2xl font-extrabold leading-tight">מה צריך היום?</h2>
+        <div className="relative mt-3"><Icon name="Search" size={18} className="absolute right-3.5 top-3.5 opacity-50" />
+          <input id="home-search" className="field pr-11" placeholder="שליח, אינסטלטור, מסירה משפטית…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      </div>
+      {active.length > 0 && !q && (
+        <button onClick={() => c.open("req", active[0].id)} className="card flex items-center gap-3 p-3.5 text-right" style={{ background: "linear-gradient(135deg, #1d2759, #3b2f9c)", color: "#fff" }}>
+          <span className="relative grid h-11 w-11 place-items-center rounded-full" style={{ background: "#ffffff22" }}><Icon name={active[0].chosen != null ? "Navigation" : "Hourglass"} size={20} />
+            <span className="ping absolute inset-0 rounded-full" style={{ border: "2px solid #fff8" }} /></span>
+          <span className="min-w-0 flex-1"><span className="block truncate font-bold">{active[0].title}</span>
+            <span className="text-xs opacity-80">{active[0].chosen != null ? `${active[0].offers[active[0].chosen].pro.name} · ${FLOW[active[0].mode][active[0].step]}` : `${active[0].offers.length} הצעות הגיעו`}</span></span>
+          <Icon name="ChevronLeft" size={18} /></button>)}
+      <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+        {hits.map((k) => (
+          <button key={k.id} onClick={() => c.startNew(k.id)} className="flex flex-col items-center gap-1.5">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl" style={{ background: `${k.color}1a`, color: k.color }}><Icon name={k.icon} size={26} /></span>
+            <span className="text-xs font-bold leading-tight">{k.name}</span></button>))}
+      </div>
+      {!hits.length && <Empty icon="SearchX" t="לא מצאנו תחום כזה" s="פתח קריאה חופשית ומקצוענים יציעו לך" action={<button onClick={() => c.startNew("other")} className="btn" style={{ width: "auto" }}>פתח קריאה חופשית</button>} />}
+      {!q && (<>
+        <section>
+          <h3 className="display mb-2 font-extrabold">איך זה עובד</h3>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[["FilePlus2", "פותחים קריאה", "עם תמונה או סרטון"], ["MessagesSquare", "מקבלים הצעות", "מחיר, דירוג וזמן"], ["BadgeCheck", "בוחרים ומשלמים", "מאובטח, עד האישור"]].map(([ic, t, s]) => (
+              <div key={t} className="card p-3"><span className="mx-auto mb-1.5 grid h-9 w-9 place-items-center rounded-full" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon name={ic} size={18} /></span><div className="text-xs font-bold">{t}</div><div className="text-[11px]" style={{ color: "var(--muted)" }}>{s}</div></div>))}</div>
+        </section>
+        <section>
+          <h3 className="display mb-2 font-extrabold">מקצוענים מובילים באזור</h3>
+          <div className="scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+            {PROS.map((p) => (<div key={p.name} className="card w-36 shrink-0 p-3 text-center"><div className="mx-auto w-fit"><Avatar p={p} size={52} /></div><div className="mt-1.5 truncate text-sm font-bold">{p.name}</div><Stars r={p.rating} /><div className="text-[11px]" style={{ color: "var(--muted)" }}>{p.jobs} עבודות</div></div>))}</div>
+        </section>
+        <div className="card flex items-center gap-3 p-4" style={{ background: "var(--brand-soft)" }}>
+          <Icon name="Gift" size={24} style={{ color: "var(--brand)" }} /><div className="flex-1 text-sm"><b>הזמן חבר וקבל ₪30 קרדיט</b><div className="text-xs" style={{ color: "var(--muted)" }}>קוד: DANA30</div></div>
+          <button onClick={() => { navigator.clipboard?.writeText("DANA30").catch(() => {}); c.toast("הקוד הועתק"); }} className="rounded-full px-3 py-1.5 text-xs font-bold" style={{ background: "var(--brand)", color: "#fff" }}>העתק</button></div>
+      </>)}
+    </div>
+  );
+}
+
+function NewRequest({ c, catId }) {
+  const [step, setStep] = useState(catId ? 1 : 0);
+  const [catQ, setCatQ] = useState("");
+  const [cat, setCat] = useState(CATS.find((k) => k.id === catId) || null);
+  const [sub, setSub] = useState(null);
+  const [f, setF] = useState({ desc: "", mode: null, address: "", dropoff: "", itemsCost: "", urgency: "normal", budget: "", pay: "direct", calls: false });
+  const [media, setMedia] = useState([]);
+  const [view, setView] = useState(null);
+  const mode = f.mode || cat?.modes[0];
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const pay = cat?.inapp ? "in_app" : f.pay;
+  const needAddr = mode !== "remote";
+  const ok = f.desc.trim().length >= 6 && (!needAddr || f.address.trim()) && (mode !== "delivery" || f.dropoff.trim());
+  const hits = CATS.filter((k) => !catQ || (k.name + k.subs.join(" ")).includes(catQ));
+  const publish = () => c.publish({ cat, sub, mode, desc: f.desc.trim(), address: f.address, dropoff: f.dropoff, itemsCost: +f.itemsCost || null, urgency: f.urgency, budget: +f.budget || null, pay, calls: f.calls, media });
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-1.5" aria-label={`שלב ${step + 1} מתוך 3`}>{[0, 1, 2].map((i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= step ? "var(--brand)" : "var(--line)" }} />)}</div>
+      {step === 0 && (<>
+        <h2 className="display text-xl font-extrabold">איזה סוג עזרה?</h2>
+        <div className="relative"><Icon name="Search" size={18} className="absolute right-3.5 top-3.5 opacity-50" /><input id="cat-search" className="field pr-11" placeholder="חפש תחום" value={catQ} onChange={(e) => setCatQ(e.target.value)} /></div>
+        <div className="flex flex-col gap-2">{hits.map((k) => (<button key={k.id} onClick={() => { setCat(k); setStep(1); }} className="card flex items-center gap-3 p-3 text-right"><span className="grid h-11 w-11 place-items-center rounded-2xl" style={{ background: `${k.color}1a`, color: k.color }}><Icon name={k.icon} size={22} /></span><span className="flex-1"><span className="block font-bold">{k.name}</span><span className="text-xs" style={{ color: "var(--muted)" }}>{k.subs.slice(0, 3).join(" · ")}</span></span><Icon name="ChevronLeft" size={16} className="opacity-40" /></button>))}</div>
+      </>)}
+      {step === 1 && cat && (<>
+        <div className="flex items-center gap-2"><span className="grid h-10 w-10 place-items-center rounded-xl" style={{ background: `${cat.color}1a`, color: cat.color }}><Icon name={cat.icon} size={20} /></span><h2 className="display text-xl font-extrabold">{cat.name}</h2>
+          <button onClick={() => setStep(0)} className="mr-auto text-xs font-bold underline" style={{ color: "var(--brand)" }}>שינוי תחום</button></div>
+        <div className="scroll -mx-4 flex gap-2 overflow-x-auto px-4">{cat.subs.map((s) => <Chip key={s} on={sub === s} onClick={() => setSub(sub === s ? null : s)}>{s}</Chip>)}</div>
+        <Label>ספר לנו מה קרה</Label>
+        <textarea id="req-desc" rows={3} className="field" placeholder="למשל: יש נזילה מתחת לכיור במטבח והמים מציפים את הארון…" value={f.desc} onChange={(e) => set("desc", e.target.value)} />
+        <Label>תמונות וסרטון <span className="font-normal" style={{ color: "var(--muted)" }}>(מומלץ)</span></Label>
+        <MediaPicker media={media} setMedia={setMedia} toast={c.toast} />
+        {cat.modes.length > 1 && (<><Label>איך לטפל?</Label><div className="flex gap-2">{cat.modes.map((m) => <Chip key={m} on={mode === m} onClick={() => set("mode", m)}>{MODE[m]}</Chip>)}</div></>)}
+        {needAddr && (<><Label>{mode === "delivery" ? "מאיפה לאסוף?" : "כתובת"}</Label><input id="req-addr" className="field" placeholder={mode === "delivery" ? "שם העסק + כתובת" : "רחוב ומספר, עיר"} value={f.address} onChange={(e) => set("address", e.target.value)} />
+          <button onClick={() => set("address", "הרצל 12, תל אביב")} className="mt-1.5 flex items-center gap-1 text-xs font-bold" style={{ color: "var(--brand)" }}><Icon name="LocateFixed" size={13} />השתמש במיקום שלי</button></>)}
+        {mode === "delivery" && (<><Label>לאן להביא?</Label><input id="req-drop" className="field" placeholder="כתובת למסירה" value={f.dropoff} onChange={(e) => set("dropoff", e.target.value)} />
+          <Label>השליח קונה עבורך? <span className="font-normal" style={{ color: "var(--muted)" }}>(מחיר משוער, מוחזר לו)</span></Label><input id="req-items" className="field num" inputMode="numeric" placeholder="₪0" value={f.itemsCost} onChange={(e) => set("itemsCost", e.target.value.replace(/\D/g, ""))} /></>)}
+        <div className="grid grid-cols-2 gap-3"><div><Label>דחיפות</Label><div className="flex gap-1.5"><Chip on={f.urgency === "normal"} onClick={() => set("urgency", "normal")}>רגיל</Chip><Chip on={f.urgency === "urgent"} onClick={() => set("urgency", "urgent")}>🔥 דחוף</Chip></div></div>
+          <div><Label>תקציב (₪)</Label><input id="req-budget" className="field num" inputMode="numeric" placeholder="לא חובה" value={f.budget} onChange={(e) => set("budget", e.target.value.replace(/\D/g, ""))} /></div></div>
+        <button disabled={!ok} onClick={() => setStep(2)} className="btn mt-3">המשך לסיכום<Icon name="ChevronLeft" size={18} /></button>
+        {!ok && <div className="text-center text-xs" style={{ color: "var(--muted)" }}>צריך תיאור קצר{needAddr ? " וכתובת" : ""} כדי להמשיך</div>}
+      </>)}
+      {step === 2 && cat && (<>
+        <h2 className="display text-xl font-extrabold">סיכום ופרסום</h2>
+        <div className="card p-4">
+          <div className="flex items-center gap-2 text-sm font-bold"><Icon name={cat.icon} size={16} style={{ color: cat.color }} />{cat.name}{sub ? ` · ${sub}` : ""}{f.urgency === "urgent" && <span style={{ color: "var(--err)" }}>· דחוף</span>}</div>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{f.desc}</p>
+          {media.length > 0 && <div className="scroll -mx-1 mt-3 flex gap-2 overflow-x-auto px-1">{media.map((m) => <div key={m.id} className="w-20 shrink-0"><Thumb m={m} onClick={() => setView(m)} /></div>)}</div>}
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
+            <div className="flex items-center gap-2"><Icon name={MODE_ICON[mode]} size={15} className="opacity-60" />{MODE[mode]}</div>
+            {needAddr && <div className="flex items-center gap-2"><Icon name="MapPin" size={15} className="opacity-60" />{f.address}{mode === "delivery" ? ` ← ${f.dropoff}` : ""}</div>}
+            {f.budget && <div className="flex items-center gap-2"><Icon name="Wallet" size={15} className="opacity-60" />תקציב {ils(+f.budget)}</div>}
+            <div className="flex items-center gap-2"><Icon name="Images" size={15} className="opacity-60" />{media.length ? `${media.filter((m) => m.kind === "image").length} תמונות${media.some((m) => m.kind === "video") ? " + סרטון" : ""}` : "ללא מדיה"}</div>
+          </div>
+        </div>
+        <Label>תשלום</Label>
+        {cat.inapp ? <div className="card flex items-center gap-2 p-3 text-sm"><Icon name="Lock" size={16} style={{ color: "var(--ok)" }} />תשלום מאובטח באפליקציה (נסיעות)</div> : (
+          <div className="flex flex-col gap-2">{[["direct", "Banknote", "ישירות למקצוען", "מזומן, ביט או העברה בסיום"], ["in_app", "ShieldCheck", "דרך האפליקציה", "הכסף מוחזק עד שתאשר שהעבודה הסתיימה"]].map(([k, ic, t, s]) => (
+            <button key={k} onClick={() => set("pay", k)} className="card flex items-center gap-3 p-3 text-right" style={{ outline: pay === k ? "2px solid var(--brand)" : "none" }}><Icon name={ic} size={20} /><span className="flex-1"><span className="block text-sm font-bold">{t}</span><span className="text-xs" style={{ color: "var(--muted)" }}>{s}</span></span>{pay === k && <Icon name="CheckCircle2" size={18} style={{ color: "var(--brand)" }} />}</button>))}</div>)}
+        <label className="card mt-1 flex items-center gap-3 p-3 text-sm"><input type="checkbox" id="req-calls" checked={f.calls} onChange={(e) => set("calls", e.target.checked)} className="h-5 w-5" style={{ accentColor: "var(--brand)" }} /><span className="flex-1"><b>מותר למקצוענים להתקשר אליי</b><span className="block text-xs" style={{ color: "var(--muted)" }}>אם לא מסומן, הטלפון שלך נשאר חסוי עד שתבחר הצעה</span></span></label>
+        <button onClick={publish} className="btn mt-2"><Icon name="Send" size={18} />פרסם וקבל הצעות</button>
+        <button onClick={() => setStep(1)} className="btn btn-ghost">חזרה לעריכה</button>
+        {view && <Lightbox m={view} onClose={() => setView(null)} />}
+      </>)}
+    </div>
+  );
+}
+
+function RequestScreen({ c, id }) {
+  const r = c.requests.find((x) => x.id === id);
+  const [sort, setSort] = useState("price");
+  const [view, setView] = useState(null);
+  const offers = useMemo(() => {
+    const o = r.offers.map((x, i) => ({ ...x, i }));
+    return sort === "price" ? o.sort((a, b) => a.price - b.price) : sort === "rating" ? o.sort((a, b) => b.pro.rating - a.pro.rating) : o.sort((a, b) => a.etaMin - b.etaMin);
+  }, [r.offers.length, sort]);
+  const flow = FLOW[r.mode]; const last = flow.length - 1; const done = r.status === "done"; const wait = r.chosen != null && r.step >= last && !done;
+  const ch = r.chosen != null ? r.offers[r.chosen] : null;
+  return (
+    <div className="flex flex-col gap-3">
+      <section className="card p-4">
+        <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" style={{ background: `${r.cat.color}1a`, color: r.cat.color }}><Icon name={r.cat.icon} size={22} /></span>
+          <div className="min-w-0 flex-1"><h2 className="display font-extrabold leading-snug">{r.title}</h2><div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: "var(--muted)" }}><span>{MODE[r.mode]}</span>{r.address && <span>· {r.address}</span>}<span>· {r.ago}</span></div></div></div>
+        <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{r.desc}</p>
+        {r.media.length > 0 && <div className="scroll -mx-1 mt-3 flex gap-2 overflow-x-auto px-1">{r.media.map((m) => <div key={m.id} className="w-24 shrink-0"><Thumb m={m} onClick={() => setView(m)} /></div>)}</div>}
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+          <span className="rounded-full px-2.5 py-1" style={{ background: "var(--chip)" }}>{r.pay === "in_app" ? "🔒 תשלום באפליקציה" : "💵 תשלום ישיר"}</span>
+          {r.budget && <span className="rounded-full px-2.5 py-1" style={{ background: "var(--chip)" }}>תקציב {ils(r.budget)}</span>}
+          {r.urgency === "urgent" && <span className="rounded-full px-2.5 py-1" style={{ background: "#ffe3e8", color: "var(--err)" }}>דחוף</span>}</div>
+      </section>
+
+      {r.chosen == null && (<>
+        <div className="flex items-center gap-2 text-sm font-bold"><span className="live h-2 w-2 rounded-full" style={{ background: "var(--brand)" }} />{r.offers.length ? `${r.offers.length} הצעות` : "מחפשים מקצוענים באזור…"}
+          {r.offers.length > 1 && <div className="mr-auto flex gap-1">{[["price", "מחיר"], ["rating", "דירוג"], ["eta", "מהיר"]].map(([k, l]) => <Chip key={k} on={sort === k} onClick={() => setSort(k)}>{l}</Chip>)}</div>}</div>
+        {!r.offers.length && <Empty icon="Radar" t="הקריאה נשלחה" s="מקצוענים פנויים רואים אותה עכשיו. ההצעות הראשונות מגיעות בדרך כלל תוך דקות." />}
+        {offers.map((o, n) => (
+          <article key={o.i} className="card p-4" style={{ outline: n === 0 && sort === "price" && r.offers.length > 1 ? "2px solid var(--ok)" : "none" }}>
+            {n === 0 && sort === "price" && r.offers.length > 1 && <div className="mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}><Icon name="TrendingDown" size={12} />המחיר הנמוך ביותר</div>}
+            <div className="flex items-center gap-3"><Avatar p={o.pro} /><div className="min-w-0 flex-1"><div className="font-bold">{o.pro.name}</div><div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Stars r={o.pro.rating} />{o.pro.jobs} עבודות</div></div>
+              <div className="text-left"><div className="display num text-xl font-extrabold">{ils(o.price)}</div><div className="text-[11px]" style={{ color: "var(--muted)" }}>{o.eta}</div></div></div>
+            <div className="mt-2 flex flex-wrap gap-1.5">{o.pro.badges.map((b) => <span key={b} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}><Icon name="BadgeCheck" size={11} />{b}</span>)}</div>
+            <p className="mt-2 rounded-xl p-2.5 text-sm" style={{ background: "var(--bg)" }}>{o.msg}</p>
+            <div className="mt-3 flex gap-2"><button onClick={() => c.setSheet({ n: "pay", id: r.id, offer: o.i })} className="btn" style={{ padding: "10px 14px" }}>בחירה בהצעה</button>
+              <button onClick={() => c.setSheet({ n: "chat", id: r.id, offer: o.i })} aria-label="הודעה" className="btn btn-ghost" style={{ width: 48, padding: 10 }}><Icon name="MessageCircle" size={18} /></button></div>
+          </article>))}
+      </>)}
+
+      {ch && (<>
+        <section className="card p-4">
+          <div className="flex items-center gap-3"><Avatar p={ch.pro} /><div className="flex-1"><div className="font-bold">{ch.pro.name}</div><Stars r={ch.pro.rating} /></div>
+            <button onClick={() => c.toast("מחייג…")} aria-label="התקשר" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}><Icon name="Phone" size={18} /></button>
+            <button onClick={() => c.setSheet({ n: "chat", id: r.id, offer: r.chosen })} aria-label="הודעה" className="grid h-10 w-10 place-items-center rounded-full" style={{ background: "var(--chip)" }}><Icon name="MessageCircle" size={18} /></button></div>
+          <div className="mt-3 flex items-center justify-between rounded-xl p-2.5 text-sm" style={{ background: "var(--bg)" }}><span>מחיר מוסכם</span><b className="num">{ils(ch.price)}</b></div>
+          {r.pay === "in_app" && <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: "var(--ok)" }}><Icon name="Lock" size={14} />הכסף מוחזק אצלנו ומשתחרר רק אחרי שתאשר</div>}
+        </section>
+        <section className="card p-4">
+          <h3 className="display mb-3 font-extrabold">{done ? "הושלם ✓" : wait ? "הושלם – ממתין לאישורך" : "מעקב"}</h3>
+          {r.mode !== "remote" && !done && !wait && (
+            <div className="relative mb-3 h-28 overflow-hidden rounded-2xl" style={{ background: "linear-gradient(135deg,#dfe7f7,#eef2fb)" }} aria-hidden="true">
+              <svg viewBox="0 0 300 110" className="h-full w-full"><path d="M20 90 C80 90 70 30 140 40 S230 20 280 25" fill="none" stroke="#9db0e8" strokeWidth="5" strokeLinecap="round" strokeDasharray="2 9" /><circle cx="280" cy="25" r="9" fill="var(--brand)" /><circle cx={20 + (r.step / last) * 240} cy={90 - (r.step / last) * 50} r="8" fill="#1d2759" stroke="#fff" strokeWidth="3" /></svg>
+              <span className="absolute bottom-2 left-2 rounded-full px-2 py-1 text-[11px] font-bold" style={{ background: "#fff", color: "var(--navy)" }}>ETA {Math.max(3, ch.etaMin - r.step * 4)} דק׳</span></div>)}
+          <ol className="flex flex-col gap-3">{flow.map((s, i) => (<li key={s} className="flex items-center gap-3 text-sm"><span className="grid h-7 w-7 place-items-center rounded-full text-xs font-bold" style={{ background: i <= r.step ? "var(--ok)" : "var(--chip)", color: i <= r.step ? "#fff" : "var(--muted)" }}>{i <= r.step ? <Icon name="Check" size={14} /> : i + 1}</span><span className={i === r.step && !done ? "font-bold" : ""} style={{ color: i <= r.step ? "var(--ink)" : "var(--muted)" }}>{s}</span>{i === r.step && !done && i < last && <span className="live mr-auto text-xs" style={{ color: "var(--brand)" }}>עכשיו</span>}</li>))}</ol>
+          {r.log.length > 0 && <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}><div className="mb-1 text-xs font-bold" style={{ color: "var(--muted)" }}>תיעוד מהמקצוען</div>{r.log.map((l, i) => <div key={i} className="text-sm">• {l}</div>)}</div>}
+          {wait && <button onClick={() => c.setSheet({ n: "rate", id: r.id })} className="btn mt-4"><Icon name="CheckCircle2" size={18} />אשר סיום{r.pay === "in_app" ? " ושחרר תשלום" : ""}</button>}
+          {done && <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--ok)" }}><Icon name="BadgeCheck" size={16} />תודה! {r.rated ? `דירגת ${r.rated}★` : ""}</div>}
+        </section>
+      </>)}
+      {view && <Lightbox m={view} onClose={() => setView(null)} />}
+    </div>
+  );
+}
+
+function MyRequests({ c }) {
+  const [seg, setSeg] = useState("active");
+  const list = c.requests.filter((r) => (seg === "active") === (r.status !== "done"));
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-1 rounded-2xl p-1" style={{ background: "var(--chip)" }}>{[["active", "פעילות"], ["done", "היסטוריה"]].map(([k, l]) => <button key={k} onClick={() => setSeg(k)} className="flex-1 rounded-xl py-1.5 text-sm font-bold" style={{ background: seg === k ? "var(--card)" : "transparent", boxShadow: seg === k ? "0 1px 4px #0002" : "none" }}>{l}</button>)}</div>
+      {list.length ? list.map((r) => (
+        <button key={r.id} onClick={() => c.open("req", r.id)} className="card p-4 text-right">
+          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ background: `${r.cat.color}1a`, color: r.cat.color }}><Icon name={r.cat.icon} size={20} /></span>
+            <div className="min-w-0 flex-1"><div className="truncate font-bold">{r.title}</div><div className="text-xs" style={{ color: "var(--muted)" }}>{r.ago} · {MODE[r.mode]}</div></div>
+            {r.media.length > 0 && <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted)" }}><Icon name="Paperclip" size={12} />{r.media.length}</span>}</div>
+          <div className="mt-3 flex items-center justify-between">
+            {r.status === "done" ? <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "var(--ok-soft)", color: "var(--ok)" }}>הושלם</span>
+              : r.chosen != null ? <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{FLOW[r.mode][r.step]}</span>
+              : <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "var(--chip)" }}>{r.offers.length ? `${r.offers.length} הצעות` : "ממתין להצעות"}</span>}
+            <Icon name="ChevronLeft" size={16} className="opacity-40" /></div></button>
+      )) : <Empty icon="Inbox" t={seg === "active" ? "אין קריאות פעילות" : "אין היסטוריה עדיין"} s="פתח קריאה והמקצוענים יתחרו עליה" action={seg === "active" && <button onClick={() => c.startNew()} className="btn" style={{ width: "auto" }}>פתח קריאה</button>} />}
+    </div>
+  );
+}
+
+function Messages({ c }) {
+  const chats = c.requests.flatMap((r) => r.offers.map((o, i) => ({ r, o, i })).filter((x) => r_has(x.r, x.i)));
+  function r_has(r, i) { return r.chosen === i || (r.chosen == null && r.chats?.[i]?.length); }
+  return (
+    <div className="flex flex-col gap-2">{chats.length ? chats.map(({ r, o, i }) => (
+      <button key={r.id + "-" + i} onClick={() => c.setSheet({ n: "chat", id: r.id, offer: i })} className="card flex items-center gap-3 p-3 text-right"><Avatar p={o.pro} /><span className="min-w-0 flex-1"><span className="block font-bold">{o.pro.name}</span><span className="block truncate text-sm" style={{ color: "var(--muted)" }}>{(r.chats?.[i] || []).slice(-1)[0]?.t || o.msg}</span></span><span className="text-[11px]" style={{ color: "var(--muted)" }}>{r.title.slice(0, 12)}…</span></button>
+    )) : <Empty icon="MessageCircle" t="אין שיחות" s="אחרי שתבחר הצעה או תשלח הודעה למקצוען השיחה תופיע כאן" />}</div>
+  );
+}
+
+function ChatSheet({ c, id, offer }) {
+  const r = c.requests.find((x) => x.id === id); const o = r.offers[offer]; const msgs = r.chats?.[offer] || [];
+  const [t, setT] = useState(""); const end = useRef();
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs.length]);
+  const send = (text) => { if (text.trim()) { c.chat(id, offer, text.trim()); setT(""); } };
+  return (
+    <Sheet title={o.pro.name} onClose={() => c.setSheet(null)}>
+      <div className="scroll flex h-64 flex-col gap-2 overflow-y-auto rounded-2xl p-3" style={{ background: "var(--card)" }}>
+        <div className="self-start rounded-2xl rounded-br-md px-3 py-2 text-sm" style={{ background: "var(--chip)" }}>{o.msg}</div>
+        {msgs.map((m, i) => <div key={i} className={"max-w-[85%] rounded-2xl px-3 py-2 text-sm " + (m.me ? "self-end rounded-bl-md" : "self-start rounded-br-md")} style={{ background: m.me ? "var(--brand)" : "var(--chip)", color: m.me ? "#fff" : "var(--ink)" }}>{m.t}</div>)}<div ref={end} /></div>
+      <div className="scroll mt-2 flex gap-1.5 overflow-x-auto">{["אפשר להקדים?", "יש חניה ליד הבית", "שלחתי עוד תמונה"].map((q) => <Chip key={q} on={false} onClick={() => send(q)}>{q}</Chip>)}</div>
+      <div className="mt-2 flex gap-2"><input id="chat-input" className="field" placeholder="כתוב הודעה…" value={t} onChange={(e) => setT(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send(t)} /><button onClick={() => send(t)} aria-label="שלח" className="grid w-12 place-items-center rounded-2xl" style={{ background: "var(--brand)", color: "#fff" }}><Icon name="Send" size={18} /></button></div>
+    </Sheet>
+  );
+}
+
+function PaySheet({ c, id, offer }) {
+  const r = c.requests.find((x) => x.id === id); const o = r.offers[offer];
+  const total = o.price + (r.itemsCost || 0);
+  const [card, setCard] = useState(0);
+  return (
+    <Sheet title="אישור הזמנה" onClose={() => c.setSheet(null)}>
+      <div className="card flex items-center gap-3 p-3"><Avatar p={o.pro} /><div className="flex-1"><div className="font-bold">{o.pro.name}</div><div className="text-xs" style={{ color: "var(--muted)" }}>{o.eta}</div></div></div>
+      <div className="card mt-3 flex flex-col gap-2 p-4 text-sm num">
+        <div className="flex justify-between"><span>מחיר העבודה</span><b>{ils(o.price)}</b></div>
+        {r.itemsCost ? <div className="flex justify-between"><span>קנייה עבורך (מוחזר לשליח)</span><b>{ils(r.itemsCost)}</b></div> : null}
+        <div className="flex justify-between border-t pt-2 text-base" style={{ borderColor: "var(--line)" }}><span>{r.pay === "in_app" ? "לתשלום עכשיו" : "תשלום בסיום"}</span><b>{ils(total)}</b></div></div>
+      {r.pay === "in_app" ? (<>
+        <Label>אמצעי תשלום</Label>
+        <div className="flex gap-2">{[["CreditCard", "·· 4417"], ["Smartphone", "Bit"], ["Apple", "Apple Pay"]].map(([ic, t], i) => <button key={t} onClick={() => setCard(i)} className="card flex flex-1 flex-col items-center gap-1 p-2.5 text-xs font-bold" style={{ outline: card === i ? "2px solid var(--brand)" : "none" }}><Icon name={ic} size={18} />{t}</button>)}</div>
+        <div className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--muted)" }}><Icon name="ShieldCheck" size={15} className="shrink-0" style={{ color: "var(--ok)" }} />הכסף מוחזק אצלנו ומשתחרר למקצוען רק אחרי שתאשר שהעבודה הסתיימה.</div></>)
+        : <div className="mt-3 flex items-start gap-2 text-xs" style={{ color: "var(--muted)" }}><Icon name="Banknote" size={15} className="shrink-0" />התשלום מתבצע ישירות מול המקצוען בסיום העבודה.</div>}
+      <button onClick={() => c.accept(id, offer)} className="btn mt-4"><Icon name="CheckCircle2" size={18} />{r.pay === "in_app" ? `שלם ${ils(total)} והזמן` : "אשר הזמנה"}</button>
+    </Sheet>
+  );
+}
+
+function RateSheet({ c, id }) {
+  const r = c.requests.find((x) => x.id === id); const o = r.offers[r.chosen];
+  const [s, setS] = useState(5); const [tip, setTip] = useState(0); const [tags, setTags] = useState([]);
+  const T = ["דייקן", "מקצועי", "נעים", "נקי", "מחיר הוגן"];
+  return (
+    <Sheet title="איך היה?" onClose={() => c.setSheet(null)}>
+      <div className="flex items-center gap-3"><Avatar p={o.pro} /><div className="font-bold">{o.pro.name}</div></div>
+      <div className="my-3 flex justify-center gap-1">{[1, 2, 3, 4, 5].map((n) => <button key={n} onClick={() => setS(n)} aria-label={`${n} כוכבים`} style={{ color: n <= s ? "var(--warn)" : "var(--line)" }}><Icon name="Star" size={36} style={{ fill: "currentColor" }} /></button>)}</div>
+      <div className="flex flex-wrap justify-center gap-2">{T.map((t) => <Chip key={t} on={tags.includes(t)} onClick={() => setTags((x) => x.includes(t) ? x.filter((y) => y !== t) : [...x, t])}>{t}</Chip>)}</div>
+      <Label>טיפ למקצוען (לא חובה)</Label>
+      <div className="flex gap-2">{[0, 10, 20, 30].map((v) => <button key={v} onClick={() => setTip(v)} className="card flex-1 py-2 text-sm font-bold num" style={{ outline: tip === v ? "2px solid var(--brand)" : "none" }}>{v ? ils(v) : "בלי"}</button>)}</div>
+      <button onClick={() => c.finish(id, s, tip)} className="btn mt-4">שליחה{r.pay === "in_app" ? " ושחרור תשלום" : ""}</button>
+    </Sheet>
+  );
+}
+
+function Profile({ c }) {
+  const [on, setOn] = useState({ push: true, sms: false, calls: false });
+  const Tg = ({ k, icon, label }) => (<button role="switch" aria-checked={on[k]} onClick={() => setOn((s) => ({ ...s, [k]: !s[k] }))} className="flex w-full items-center gap-3 px-3 py-3 text-right"><Icon name={icon} size={18} className="opacity-70" /><span className="flex-1 text-sm font-semibold">{label}</span><span className="relative h-6 w-11 rounded-full transition" style={{ background: on[k] ? "var(--brand)" : "var(--line)" }}><span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" style={{ right: on[k] ? "2px" : "22px" }} /></span></button>);
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="card flex items-center gap-4 p-4"><div className="display grid h-16 w-16 place-items-center rounded-full text-2xl font-extrabold text-white" style={{ background: "linear-gradient(135deg,#ff6a00,#ff9a4d)" }}>ד</div>
+        <div className="flex-1"><div className="display text-lg font-extrabold">דנה כהן</div><div className="text-xs num" style={{ color: "var(--muted)" }}>050-555-0142</div><Stars r={4.9} /></div></section>
+      <section className="grid grid-cols-3 gap-2 text-center">{[["קריאות", c.requests.length], ["הושלמו", c.requests.filter((r) => r.status === "done").length], ["קרדיט", "₪30"]].map(([k, v]) => <div key={k} className="card p-3"><div className="display num text-xl font-extrabold">{v}</div><div className="text-xs" style={{ color: "var(--muted)" }}>{k}</div></div>)}</section>
+      <section className="card divide-y" style={{ borderColor: "var(--line)" }}>
+        {[["MapPin", "הכתובות שלי", "הרצל 12, תל אביב"], ["CreditCard", "אמצעי תשלום", "כרטיס ·· 4417"], ["Receipt", "קבלות וחשבוניות", "3 חדשות"], ["LifeBuoy", "עזרה ותמיכה", "צ׳אט עם נציג"]].map(([ic, t, s]) => (
+          <button key={t} onClick={() => c.toast(t)} className="flex w-full items-center gap-3 px-3 py-3 text-right"><Icon name={ic} size={18} className="opacity-70" /><span className="flex-1 text-sm font-semibold">{t}<span className="block text-xs font-normal" style={{ color: "var(--muted)" }}>{s}</span></span><Icon name="ChevronLeft" size={16} className="opacity-40" /></button>))}</section>
+      <section className="card divide-y"><Tg k="push" icon="Bell" label="התראות על הצעות חדשות" /><Tg k="sms" icon="MessageSquare" label="עדכונים ב-SMS" /><Tg k="calls" icon="Phone" label="לאפשר שיחות כברירת מחדל" /></section>
+      <section className="card p-4"><div className="text-sm font-bold">הזמן חבר וקבל ₪30</div><div className="mt-2 flex items-center justify-between rounded-xl p-2.5 num" style={{ background: "var(--bg)" }}><b className="tracking-widest">DANA30</b><button onClick={() => { navigator.clipboard?.writeText("DANA30").catch(() => {}); c.toast("הקוד הועתק"); }} className="flex items-center gap-1 text-sm font-bold" style={{ color: "var(--brand)" }}><Icon name="Copy" size={14} />העתק</button></div></section>
+    </div>
+  );
+}
+
+/* ---------- app ---------- */
+const seedMedia = (n) => Array.from({ length: n }, (_, i) => ({ id: "s" + i, kind: "image", hue: SAMPLE[i % 3].hue, icon: SAMPLE[i % 3].icon, name: "דוגמה" }));
+const mkOffer = (cat, i, budget, urgent) => {
+  const p = PROS[i % PROS.length]; const base = budget || cat.base;
+  const price = Math.round((base * [0.95, 1.1, 0.85, 1.25][i % 4]) / 5) * 5; const etaMin = urgent ? [18, 30, 12, 45][i % 4] : [45, 90, 30, 120][i % 4];
+  return { pro: p, price, etaMin, eta: etaMin < 60 ? `מגיע תוך ${etaMin} דק׳` : `מגיע תוך ${Math.round(etaMin / 60)} שעות`, msg: ["אני באזור, אפשר להגיע מיד. ראיתי את התמונות ואני יודע מה צריך.", "ניסיון של 12 שנה בתחום, אחריות על העבודה.", "מתחיל היום, יש לי את כל הציוד.", "מחיר סופי בלי הפתעות."][i % 4] };
+};
+
+function App() {
+  const [tab, setTab] = useState("home");
+  const [stack, setStack] = useState([]);
+  const [sheet, setSheet] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [notif, setNotif] = useState(0);
+  const timers = useRef([]);
+  const [requests, setRequests] = useState(() => {
+    const cat = CATS[1];
+    return [
+      { id: 1, title: "נזילה מתחת לכיור במטבח", cat, mode: "onsite", desc: "המים מציפים את הארון. צריך היום.", address: "הרצל 12, תל אביב", ago: "לפני 6 דק׳", urgency: "urgent", budget: 300, pay: "direct", calls: false, media: seedMedia(2), offers: [mkOffer(cat, 0, 300, true), mkOffer(cat, 1, 300, true), mkOffer(cat, 3, 300, true)], chosen: null, step: 0, log: [], chats: {}, status: "open" },
+      { id: 2, title: "הסרת וירוסים מהלפטופ", cat: CATS[3], mode: "remote", desc: "המחשב איטי ומקפיץ פרסומות.", address: "", ago: "אתמול", urgency: "normal", budget: null, pay: "in_app", calls: true, media: [], offers: [mkOffer(CATS[3], 2, null, false)], chosen: 0, step: 2, log: ["התחברתי מרחוק וסרקתי את המחשב", "הוסרו 4 תוכנות זדוניות"], chats: {}, status: "open" },
+    ];
+  });
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const later = (fn, ms) => timers.current.push(setTimeout(fn, ms));
+  const toast = (text, kind = "ok") => { const id = Date.now() + Math.random(); setToasts((t) => [...t, { id, text, kind }]); later(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800); };
+  const upd = (id, fn) => setRequests((rs) => rs.map((r) => (r.id === id ? fn(r) : r)));
+
+  const c = {
+    requests, toast, setSheet,
+    open: (t, id) => setStack((s) => [...s, { t, id }]),
+    startNew: (catId) => setStack((s) => [...s, { t: "new", id: catId || null, k: Date.now() }]),
+    publish: (d) => {
+      const id = Date.now();
+      const r = { id, title: d.desc.length > 38 ? d.desc.slice(0, 38) + "…" : d.desc, cat: d.cat, mode: d.mode, desc: d.desc, address: d.address, ago: "עכשיו", urgency: d.urgency, budget: d.budget, pay: d.pay, calls: d.calls, media: d.media, itemsCost: d.itemsCost, offers: [], chosen: null, step: 0, log: [], chats: {}, status: "open" };
+      setRequests((rs) => [r, ...rs]); setStack([{ t: "req", id }]); setTab("mine");
+      toast(`הקריאה פורסמה${d.media.length ? ` עם ${d.media.length} קבצי מדיה` : ""}`);
+      [2200, 5200, 8800].forEach((ms, i) => later(() => { upd(id, (x) => (x.chosen == null ? { ...x, offers: [...x.offers, mkOffer(d.cat, i, d.budget, d.urgency === "urgent")] } : x)); setNotif((n) => n + 1); toast(`הצעה חדשה מ-${PROS[i % PROS.length].name}`); }, ms));
+    },
+    accept: (id, i) => {
+      setSheet(null);
+      upd(id, (r) => ({ ...r, chosen: i, step: 0 }));
+      toast("ההזמנה אושרה! המקצוען בדרך");
+      const mode = requests.find((x) => x.id === id).mode; const last = FLOW[mode].length - 1;
+      for (let s = 1; s <= last; s++) later(() => { upd(id, (r) => ({ ...r, step: s, log: s === last ? [...r.log, "העבודה הסתיימה, מחכה לאישורך"] : r.log })); if (s === last) { toast("העבודה הסתיימה – אשר כדי לסגור"); setNotif((n) => n + 1); } else toast(FLOW[mode][s]); }, s * 4500);
+    },
+    finish: (id, rating, tip) => { setSheet(null); upd(id, (r) => ({ ...r, status: "done", rated: rating })); toast(tip ? `תודה! נשלח טיפ ${ils(tip)}` : "תודה על הדירוג"); },
+    chat: (id, i, text) => {
+      upd(id, (r) => ({ ...r, chats: { ...r.chats, [i]: [...(r.chats[i] || []), { me: true, t: text }] } }));
+      later(() => upd(id, (r) => ({ ...r, chats: { ...r.chats, [i]: [...(r.chats[i] || []), { me: false, t: "קיבלתי, תודה! אעדכן אותך עוד רגע 👍" }] } })), 1400);
+    },
+  };
+
+  const top = stack[stack.length - 1];
+  const reqTitle = top?.t === "req" ? "הקריאה שלי" : top?.t === "new" ? "קריאה חדשה" : null;
+  const tabs = [{ id: "home", label: "בית", icon: "Home" }, { id: "mine", label: "הקריאות שלי", icon: "ClipboardList", badge: requests.filter((r) => r.status !== "done" && (r.chosen == null && r.offers.length)).length }, { id: "msgs", label: "הודעות", icon: "MessageCircle" }, { id: "me", label: "פרופיל", icon: "User" }];
+  const title = reqTitle || { home: "ProMarket", mine: "הקריאות שלי", msgs: "הודעות", me: "הפרופיל שלי" }[tab];
+  const body = top ? (top.t === "req" ? <RequestScreen key={top.id} c={c} id={top.id} /> : <NewRequest key={top.k} c={c} catId={top.id} />)
+    : tab === "home" ? <Home c={c} /> : tab === "mine" ? <MyRequests c={c} /> : tab === "msgs" ? <Messages c={c} /> : <Profile c={c} />;
+
+  return (
+    <div className="flex justify-center">
+      <div className="relative w-full max-w-[390px] rounded-[44px] p-[10px]" style={{ background: "var(--frame)", boxShadow: "0 30px 80px #000a, inset 0 0 0 2px #2d3350" }}>
+        <div dir="rtl" className="relative flex flex-col overflow-hidden rounded-[36px]" style={{ background: "var(--bg)", height: "min(840px, calc(100dvh - 68px))" }}>
+          <div className="flex items-center justify-between px-6 pt-3 pb-1 text-xs num"><span className="font-bold">9:41</span>
+            <div className="absolute left-1/2 top-2 h-6 w-28 -translate-x-1/2 rounded-full" style={{ background: "#000" }} />
+            <span className="flex items-center gap-1"><Icon name="Signal" size={14} /><Icon name="Wifi" size={14} /><Icon name="BatteryFull" size={16} /></span></div>
+          <div className="pointer-events-none absolute inset-x-3 top-12 z-[60] flex flex-col gap-2" aria-live="polite">
+            {toasts.map((t) => (<div key={t.id} className="toast flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold shadow-xl" style={{ background: t.kind === "err" ? "#fde8ec" : "#e3f6ed", color: t.kind === "err" ? "var(--err)" : "var(--ok)" }}><Icon name={t.kind === "err" ? "AlertCircle" : "CheckCircle2"} size={18} />{t.text}</div>))}</div>
+          <header className="flex items-center gap-2 px-4 pt-2 pb-3">
+            {top && <button onClick={() => setStack((s) => s.slice(0, -1))} aria-label="חזרה" className="grid h-9 w-9 place-items-center rounded-full" style={{ background: "var(--card)", boxShadow: "0 1px 4px #0002" }}><Icon name="ArrowRight" size={18} /></button>}
+            <h1 className="display flex-1 text-xl font-extrabold" style={{ color: !top && tab === "home" ? "var(--brand)" : "var(--ink)" }}>{title}</h1>
+            <button onClick={() => { setNotif(0); toast("אין התראות חדשות"); }} aria-label="התראות" className="relative grid h-9 w-9 place-items-center rounded-full" style={{ background: "var(--card)", boxShadow: "0 1px 4px #0002" }}><Icon name="Bell" size={18} />
+              {notif > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold num" style={{ background: "var(--err)", color: "#fff" }}>{notif}</span>}</button>
+          </header>
+          <main className="scroll flex-1 overflow-y-auto px-4 pb-28">{body}</main>
+          {sheet?.n === "pay" && <PaySheet c={c} id={sheet.id} offer={sheet.offer} />}
+          {sheet?.n === "chat" && <ChatSheet c={c} id={sheet.id} offer={sheet.offer} />}
+          {sheet?.n === "rate" && <RateSheet c={c} id={sheet.id} />}
+          <nav className="absolute inset-x-0 bottom-0 z-30 grid grid-cols-5 items-end px-2 pb-5 pt-2" style={{ background: "#fffffff2", backdropFilter: "blur(12px)", borderTop: "1px solid var(--line)" }}>
+            {[tabs[0], tabs[1], null, tabs[2], tabs[3]].map((t, i) => t ? (
+              <button key={t.id} onClick={() => { setTab(t.id); setStack([]); }} aria-current={tab === t.id && !top ? "page" : undefined} className="relative flex flex-col items-center gap-0.5 pb-0.5 text-[11px] font-bold" style={{ color: tab === t.id && !top ? "var(--brand)" : "var(--muted)" }}>
+                <Icon name={t.icon} size={22} />{t.label}{t.badge > 0 && <span className="absolute right-3 top-0 h-2.5 w-2.5 rounded-full" style={{ background: "var(--err)" }} />}</button>
+            ) : (
+              <button key="new" onClick={() => c.startNew()} aria-label="פתח קריאה" className="mx-auto -mt-6 grid h-14 w-14 place-items-center rounded-full" style={{ background: "var(--brand)", color: "#fff", boxShadow: "0 8px 20px -4px #ff6a0099" }}><Icon name="Plus" size={28} /></button>))}
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>

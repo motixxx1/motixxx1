@@ -165,7 +165,7 @@ export class Marketplace {
   // allowed calls and the pro sent an offer, or after the client accepted the pro.
   teaser(job, viewer) {
     const pub = { id: job.id, categoryId: job.categoryId, mode: job.mode, description: job.description,
-      media: job.media, urgency: job.urgency, budget: job.budget, allowCalls: job.allowCalls,
+      urgency: job.urgency, budget: job.budget, allowCalls: job.allowCalls,
       paymentMode: job.paymentMode, leadPrice: job.leadPrice, status: job.status, createdAt: job.createdAt,
       itemsCost: job.itemsCost, offersLeft: MAX_OFFERS - job.offers.length };
     const approx = (l) => ({ lat: +l.lat.toFixed(2), lng: +l.lng.toFixed(2) });
@@ -176,6 +176,7 @@ export class Marketplace {
     }
     if (viewer?.location && job.location) pub.distanceKm = round1(distanceKm(viewer.location, job.location));
     if (!viewer) return pub;
+    pub.media = job.media; // photos/videos are shown to signed-in pros only, not on the public board
     const offer = job.offers.find((o) => o.proId === viewer.id);
     const assigned = job.assignedProId === viewer.id;
     // Agents never see the supplier's net price or the platform's cut.

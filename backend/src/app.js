@@ -4,6 +4,9 @@ import { CATEGORIES, searchCategories } from './categories.js';
 import { Auth, normalizePhone } from './auth.js';
 import { Catalog } from './catalog.js';
 import { Partners } from './partners.js';
+import { Media } from './media.js';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const STATUS = { not_found: 404, forbidden: 403, unauthorized: 401, too_soon: 429, too_many_attempts: 429,
   supplier_error: 502, booking_failed: 502, payments_disabled: 501 };
@@ -14,6 +17,7 @@ const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.htm
 // geocode: address -> {lat,lng} | null. onChange: called after every successful write (persistence).
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
   catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null,
+  media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
   onChange = () => {}, dev = false, echoOtp = dev } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
@@ -95,7 +99,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     const dropoff = body.mode === 'delivery' && body.dropoff
       ? { address: body.dropoff.address, location: await locate(body.dropoff.address, body.dropoff.location) } : null;
     const { myLocation, ...rest } = body;
-    return pub(market.createJob({ ...rest, location, dropoff, clientId: me }));
+    return pub(market.createJob({ ...rest, location, dropoff, clientId: me, media: media.attach(body.media ?? [], me) }));
   });
   on('GET', '/api/client/jobs', 'client', ({ me }) => market.clientJobs(me, me));
   on('POST', '/api/jobs/:id/offers/:offer/accept', 'client', async ({ p, me, body }) => {
@@ -123,6 +127,21 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     const url = new URL(req.url, 'http://x');
     if (url.pathname === '/healthz') return send(200, { ok: true });
+    const m = url.pathname.match(/^\/media\/([0-9a-f-]{36})$/);
+    if (req.method === 'GET' && m) return media.serve(req, res, m[1]);
+    if (req.method === 'POST' && url.pathname === '/api/uploads') {
+      try {
+        const token = auth.verifyToken((req.headers.authorization ?? '').replace(/^Bearer /, ''));
+        if (!token || !['client', 'pro'].includes(token.role)) fail('unauthorized', 'Login required');
+        const saved = await media.save(req, token.sub);
+        onChange();
+        return send(200, saved);
+      } catch (e) {
+        if (e instanceof MarketplaceError) return send({ too_large: 413, bad_type: 415, unauthorized: 401 }[e.code] ?? 400, { error: e.code, message: e.message });
+        console.error(e);
+        return send(500, { error: 'internal' });
+      }
+    }
     if (req.method === 'GET' && PAGES[url.pathname]) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       return res.end(await readFile(new URL(`../public/${PAGES[url.pathname]}`, import.meta.url)));

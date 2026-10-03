@@ -71,8 +71,9 @@ class MainActivity : AppCompatActivity() {
         pendingGeo = null
         if (granted) startLocationUpdates()
     }
-    private val pickImages = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-        pendingFiles?.onReceiveValue(uris.toTypedArray())
+    // File chooser for <input type="file">: honors accept (photos / video) and multiple selection.
+    private val pickFiles = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        pendingFiles?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
         pendingFiles = null
     }
 
@@ -124,8 +125,13 @@ class MainActivity : AppCompatActivity() {
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 pendingFiles?.onReceiveValue(null)
                 pendingFiles = callback
-                pickImages.launch("image/*")
-                return true
+                return try {
+                    pickFiles.launch(params.createIntent())
+                    true
+                } catch (e: ActivityNotFoundException) {
+                    pendingFiles = null
+                    false
+                }
             }
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {

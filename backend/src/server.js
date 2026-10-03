@@ -12,6 +12,7 @@ import { providersFromEnv } from './providers/index.js';
 import { createFileStore } from './store.js';
 import { nominatimGeocoder } from './geocode.js';
 import { twilioSms } from './sms.js';
+import { Media } from './media.js';
 
 // Settings come from environment variables, or from config.env next to package.json
 // (the downloadable server package ships one; real env vars win).
@@ -47,11 +48,12 @@ const auth = new Auth({
 const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', userId, msg) });
 const partners = new Partners();
 const catalog = new Catalog({ providers: [partners.provider(), ...providersFromEnv(env, { dev })] });
-const store = createFileStore(dataFile, { market, partners });
+const media = new Media(join(dirname(dataFile), 'uploads'));
+const store = createFileStore(dataFile, { market, partners, media });
 const geocode = nominatimGeocoder({ userAgent: env.GEOCODER_USER_AGENT ?? 'ProMarket/0.1' });
 
 const port = env.PORT || 3000;
-const server = createServer(createApp({ market, auth, partners, catalog, geocode, onChange: store.save, dev, echoOtp: dev && !sms }))
+const server = createServer(createApp({ market, auth, partners, catalog, geocode, media, onChange: store.save, dev, echoOtp: dev && !sms }))
   .listen(port, () => {
     console.log(`ProMarket is running on port ${port}${dev ? '  [demo mode]' : ''}`);
     console.log(`  customers: http://<this-computer-ip>:${port}/    pros: http://<this-computer-ip>:${port}/pro`);
