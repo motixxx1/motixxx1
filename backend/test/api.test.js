@@ -55,6 +55,35 @@ test('HTTP: sign up in one step, offer, accept, work, confirm', async () => {
   } finally { srv.close(); }
 });
 
+test('HTTP: account deletion erases personal data and blocks the old token', async () => {
+  const { srv, call, login } = await start();
+  try {
+    const client = await login('0503333333', 'client', { name: 'נועה' });
+    const loc = { lat: 32.08, lng: 34.78 };
+    const j = (await call('/api/jobs', { token: client.token, body: { categoryId: 'plumbing.unclog', description: 'סתימה', location: loc, address: 'הרצל 1' } })).b;
+    assert.equal((await call('/api/me', { method: 'DELETE' })).s, 401);
+    assert.equal((await call('/api/me', { method: 'DELETE', token: client.token })).s, 200);
+    assert.equal((await call('/api/client/jobs', { token: client.token })).s, 401); // old token no longer works
+    assert.equal((await call('/api/jobs')).b.some((x) => x.id === j.id), false);    // open request removed
+    assert.equal((await login('0503333333', 'client', { name: 'נועה' })).isNew, true); // number can sign up again
+  } finally { srv.close(); }
+});
+
+test('HTTP: a job in progress blocks deleting the pro account', async () => {
+  const { srv, call, login } = await start();
+  try {
+    const pro = await login('0524444444', 'pro', { name: 'שליח', categories: ['computers'] });
+    await call('/api/pro/me', { method: 'PUT', token: pro.token, body: { location: { lat: 32.08, lng: 34.78 } } });
+    await call('/api/pro/availability', { method: 'PUT', token: pro.token, body: { available: true } });
+    const client = await login('0505555555', 'client', { name: 'דנה' });
+    const job = (await call('/api/jobs', { token: client.token, body: { categoryId: 'computers.network', mode: 'phone', description: 'x' } })).b;
+    await call(`/api/jobs/${job.id}/offers`, { token: pro.token, body: { price: 100 } });
+    const [mine] = (await call('/api/client/jobs', { token: client.token })).b;
+    await call(`/api/jobs/${job.id}/offers/${mine.offers[0].id}/accept`, { token: client.token, body: {} });
+    assert.equal((await call('/api/me', { method: 'DELETE', token: pro.token })).s, 409);
+  } finally { srv.close(); }
+});
+
 test('HTTP: travel agent sells a hotel from the supplier API', async () => {
   const { srv, call, login } = await start();
   try {

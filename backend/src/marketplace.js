@@ -210,6 +210,30 @@ export class Marketplace {
         }) }));
   }
 
+  // ---- Account deletion (Google Play / privacy law). Personal data is erased; the record stays
+  // as an anonymous shell so finished jobs, ratings and the ledger keep their references.
+  // Refused while a job is in progress, so nobody is left halfway through an order.
+  deleteAccount(role, id) {
+    const FINISHED = ['open', 'closed_done', 'booking_failed'];
+    const user = role === 'pro' ? this.#pro(id) : this.#client(id);
+    if (user.deletedAt) fail('not_found', 'Account already deleted');
+    const mine = [...this.jobs.values()].filter((j) => (role === 'pro' ? j.assignedProId : j.clientId) === id);
+    if (mine.some((j) => !FINISHED.includes(j.status))) fail('active_jobs', 'יש עבודה פעילה – אפשר למחוק את החשבון אחרי שהיא מסתיימת');
+    for (const j of this.jobs.values()) {
+      if (role === 'client' && j.clientId === id) {
+        if (j.status === 'open') this.jobs.delete(j.id);
+        else Object.assign(j, { description: '', phone: null, address: null, location: null, dropoff: null, media: [] });
+      } else if (role === 'pro') {
+        j.offers = j.offers.filter((o) => o.proId !== id || j.status !== 'open');
+      }
+    }
+    if (role === 'pro' && user.balance > 0) this.#record(id, 'account_deleted', -user.balance, {});
+    Object.assign(user, { name: 'משתמש שנמחק', phone: `deleted:${id}`, deletedAt: Date.now(), available: false,
+      location: null, categories: [], documents: [], approvedRequirements: [], refCode: null,
+      ...(role === 'pro' ? { balance: 0 } : {}) });
+  }
+  isDeleted(role, id) { return !!(role === 'pro' ? this.pros : this.clients).get(id)?.deletedAt; }
+
   // ---- Pro side ----
   feed(proId, { maxKm, urgency, mode } = {}) {
     const pro = this.#pro(proId);

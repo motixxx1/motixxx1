@@ -2,6 +2,8 @@
     <string name="server_title">כתובת השרת</string>
     <string name="server_first_time">הזינו את כתובת השרת של ProMarket (למשל https://promarket.onrender.com)</string>
     <string name="server_unreachable">לא הצלחנו להתחבר לשרת. בדקו את החיבור לאינטרנט או את כתובת השרת.</string>
+    <string name="offline_title">אין חיבור</string>
+    <string name="offline_message">לא הצלחנו להתחבר לשירות. בדקו את החיבור לאינטרנט ונסו שוב.</string>
     <string name="connect">התחברות</string>
     <string name="retry">נסו שוב</string>
 </resources>

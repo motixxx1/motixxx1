@@ -9,8 +9,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const STATUS = { not_found: 404, forbidden: 403, unauthorized: 401, too_soon: 429, too_many_attempts: 429,
-  supplier_error: 502, booking_failed: 502, payments_disabled: 501 };
-const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html' };
+  supplier_error: 502, booking_failed: 502, payments_disabled: 501, active_jobs: 409 };
+const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html',
+  '/privacy': 'privacy.html', '/terms': 'terms.html', '/delete-account': 'delete-account.html' };
 
 // dev: allows wallet top-up without a payment provider. echoOtp: returns the SMS code in the
 // response (only while no SMS provider is configured). Never enable either with real users.
@@ -48,6 +49,13 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     }
     return { token: auth.issueToken({ sub: user.id, role, phone }), isNew,
       user: role === 'pro' ? market.publicPro(user) : { id: user.id, name: user.name } };
+  });
+
+  // Delete my account and uploads (Google Play requires this in the app and on a public web page).
+  on('DELETE', '/api/me', ['client', 'pro'], async ({ me, role }) => {
+    market.deleteAccount(role, me);
+    await media.removeOwner(me);
+    return { ok: true };
   });
 
   on('GET', '/api/categories', null, ({ query }) => query.q ? searchCategories(query.q) : CATEGORIES);
@@ -132,7 +140,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     if (req.method === 'POST' && url.pathname === '/api/uploads') {
       try {
         const token = auth.verifyToken((req.headers.authorization ?? '').replace(/^Bearer /, ''));
-        if (!token || !['client', 'pro'].includes(token.role)) fail('unauthorized', 'Login required');
+        if (!token || !['client', 'pro'].includes(token.role) || market.isDeleted(token.role, token.sub)) fail('unauthorized', 'Login required');
         const saved = await media.save(req, token.sub);
         onChange();
         return send(200, saved);
@@ -161,17 +169,20 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
       if (!m) continue;
       try {
         let me = null;
+        let role = null;
         if (r.role === 'partner') me = partners.authenticate(req.headers['x-api-key']).id;
         else if (r.role) {
           const token = auth.verifyToken((req.headers.authorization ?? '').replace(/^Bearer /, ''));
           if (!token) fail('unauthorized', 'Login required');
           if (![r.role].flat().includes(token.role)) fail('forbidden', `Requires ${r.role} account`);
           me = token.sub;
+          role = token.role;
+          if (['client', 'pro'].includes(role) && market.isDeleted(role, me)) fail('unauthorized', 'Account deleted');
         }
         let raw = '';
         for await (const c of req) raw += c;
         const body = raw ? JSON.parse(raw) : {};
-        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me });
+        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role });
         if (req.method !== 'GET') onChange();
         return send(200, out);
       } catch (e) {

@@ -40,6 +40,15 @@ const sms = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM
   ? twilioSms({ accountSid: env.TWILIO_ACCOUNT_SID, authToken: env.TWILIO_AUTH_TOKEN, from: env.TWILIO_FROM })
   : null;
 
+// A real (non-demo) server must be able to text login codes; otherwise nobody could sign in.
+if (!dev && !sms) {
+  console.error('Production mode needs SMS: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM (or DEMO_MODE=1 for a demo).');
+  process.exit(1);
+}
+if (env.DEMO_MODE === '1' && env.NODE_ENV === 'production') {
+  console.warn('WARNING: DEMO_MODE is on — anyone can log in as any phone number. Do not use with real users.');
+}
+
 const auth = new Auth({
   secret: env.AUTH_SECRET || loadOrCreateSecret(dirname(dataFile)),
   adminPhones: (env.ADMIN_PHONES ?? '').split(',').filter(Boolean),

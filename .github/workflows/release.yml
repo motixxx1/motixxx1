@@ -12,6 +12,9 @@ permissions:
 # (Settings → Secrets and variables → Actions → Variables).
 env:
   SERVER_URL: ${{ vars.SERVER_URL || 'http://87.68.15.249:3000,http://192.168.1.244:3000' }}
+  # Address baked into the Google Play build: your https domain (variable STORE_SERVER_URL).
+  STORE_SERVER_URL: ${{ vars.STORE_SERVER_URL || vars.SERVER_URL || 'http://87.68.15.249:3000,http://192.168.1.244:3000' }}
+  KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
 jobs:
   android:
@@ -25,12 +28,29 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build both apps
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug -PserverUrl="$SERVER_URL"
+        run: ./gradlew --no-daemon assembleDebug -PserverUrl="$SERVER_URL" -PversionCode=$((100 + GITHUB_RUN_NUMBER))
+      # Google Play bundles: only when the private upload key is stored in repository secrets
+      # (see docs/PUBLISHING.md). Without it no .aab is produced, so nothing signed with a public key can be uploaded.
+      - name: Build Play bundles (signed)
+        if: env.KS_B64 != ''
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          export KEYSTORE_FILE="$RUNNER_TEMP/upload.jks"
+          ./gradlew --no-daemon bundleRelease -Pstore=true -PserverUrl="$STORE_SERVER_URL" -PversionCode=$((100 + GITHUB_RUN_NUMBER))
       - name: Collect APKs
         run: |
           mkdir out
           cp android/app/build/outputs/apk/client/debug/*.apk out/ProMarket-client.apk
           cp android/app/build/outputs/apk/pro/debug/*.apk out/ProMarket-pro.apk
+          if [ -n "$KS_B64" ]; then
+            cp android/app/build/outputs/bundle/clientRelease/*.aab out/ProMarket-client-play.aab
+            cp android/app/build/outputs/bundle/proRelease/*.aab out/ProMarket-pro-play.aab
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: apks
@@ -98,5 +118,6 @@ jobs:
             --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server addresses in the APKs (tried in order): ${SERVER_URL}
 
           **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents).
+          **Google Play:** ProMarket-*-play.aab (only when the signing secrets are set).
           **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).
           Extract, run start.sh (Linux) or start.bat (Windows). See README-SERVER.txt."

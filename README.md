@@ -30,6 +30,9 @@ cd promarket-server
 - **192.168.x.x היא כתובת ברשת הביתית** – הטלפונים צריכים להיות על אותו Wi-Fi. לגישה מכל מקום: הפניית פורט + דומיין + HTTPS, או שרת בענן (למטה).
 - פורט 3000 צריך להיות פתוח בחומת האש (`sudo ufw allow 3000`).
 
+## 🛒 פרסום ב-Google Play
+מדריך שלם: [`docs/PUBLISHING.md`](docs/PUBLISHING.md) · טקסטים וגרפיקה לחנות: [`store/`](store/). דפי פרטיות/תנאים/מחיקת חשבון: `/privacy`, `/terms`, `/delete-account`.
+
 ## 🌐 אפשרות: שרת בענן (Render)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/motixxx1/motixxx1)
 לוחצים, נכנסים עם GitHub, ממלאים `ADMIN_PHONES`, ומקבלים כתובת `https://...onrender.com` (תוכנית Starter ~7$ לחודש כולל דיסק).

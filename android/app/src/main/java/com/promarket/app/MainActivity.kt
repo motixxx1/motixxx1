@@ -8,9 +8,12 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
+import android.view.View
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
@@ -20,11 +23,14 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 /**
@@ -89,7 +95,25 @@ class MainActivity : AppCompatActivity() {
             addView(web)
             setOnRefreshListener { web.reload() }
         }
-        setContentView(refresh)
+        // Android 15+ draws apps edge to edge: keep the page clear of the status bar, the
+        // navigation bar and the keyboard, with a brand-colored strip under the status bar.
+        val top = View(this).apply { setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.brand)) }
+        val bottom = View(this).apply { setBackgroundColor(Color.parseColor("#F5F6FA")) }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(top, LinearLayout.LayoutParams(MATCH_PARENT, 0))
+            addView(refresh, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(bottom, LinearLayout.LayoutParams(MATCH_PARENT, 0))
+        }
+        setContentView(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            top.layoutParams.height = bars.top
+            bottom.layoutParams.height = maxOf(bars.bottom, ime.bottom)
+            top.requestLayout(); bottom.requestLayout()
+            insets
+        }
 
         web.settings.apply {
             javaScriptEnabled = true
@@ -216,6 +240,15 @@ class MainActivity : AppCompatActivity() {
     /** First launch, or the server can't be reached: let the user set or retry the address. */
     private fun askServer(message: String) {
         if (isFinishing) return
+        if (BuildConfig.STORE) { // store build: end users never see server addresses
+            AlertDialog.Builder(this)
+                .setTitle(R.string.offline_title)
+                .setMessage(R.string.offline_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.retry) { _, _ -> connect() }
+                .show()
+            return
+        }
         val input = EditText(this).apply {
             setText(serverUrl.ifBlank { "https://" })
             setSingleLine()

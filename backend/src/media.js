@@ -48,6 +48,14 @@ export class Media {
     return { id: f.id, kind, url: `/media/${f.id}` };
   }
 
+  // Deletes every file a user uploaded (account deletion).
+  async removeOwner(owner) {
+    for (const f of [...this.files.values()].filter((x) => x.owner === owner)) {
+      this.files.delete(f.id);
+      await unlink(this.#path(f)).catch(() => {});
+    }
+  }
+
   // Turns ids sent by a client into media entries, only if the client uploaded them.
   attach(ids = [], owner) {
     if (!Array.isArray(ids)) fail('bad_media', 'media must be a list');

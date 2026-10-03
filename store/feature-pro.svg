@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" width="1024" height="500"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f5eff"/><stop offset="1" stop-color="#4a82ff"/></linearGradient></defs>
+<rect width="1024" height="500" fill="url(#g)"/><circle cx="880" cy="120" r="220" fill="#fff" opacity=".1"/><circle cx="120" cy="470" r="160" fill="#fff" opacity=".1"/>
+<g transform="translate(180 250) scale(3.2) translate(-54 -54)"><path fill="#fff" d="M66,34a12,12 0,0 0,-11.4 15.7L36.3,68a4,4 0,0 0,5.7 5.7l18.3,-18.3A12,12 0,0 0,76 44l-6.6,6.6 -5.7,-1.4 -1.4,-5.7L69,37A12,12 0,0 0,66 34z"/><path fill="#fff" d="M38,34l2,5 5,2 -5,2 -2,5 -2,-5 -5,-2 5,-2z"/></g>
+<text x="940" y="235" text-anchor="start" direction="rtl" font-family="Rubik,Assistant,Arial,sans-serif" font-weight="800" font-size="64" fill="#fff">ProMarket למקצוענים</text>
+<text x="940" y="320" text-anchor="start" direction="rtl" font-family="Assistant,Arial,sans-serif" font-size="40" fill="#fff" opacity=".95">כל מומחיות יכולה להרוויח</text></svg>

@@ -57,6 +57,7 @@
   @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .quick button{background:#2a2e38}}
   :root[data-theme="dark"] .quick button{background:#2a2e38}
   @media (prefers-reduced-motion:reduce){button{transition:none}}
+  .legal{text-align:center;font-size:13px;color:var(--muted);margin:28px 0 8px}
 </style>
 </head>
 <body>
@@ -102,6 +103,7 @@
     <h2>העבודות שלי</h2>
     <div id="jobs"></div>
   </div>
+<footer class="legal"><a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a><span id="acct" hidden> · <a href="#" id="logoutLink">התנתקות</a> · <a href="#" id="deleteLink" style="color:#d92d4a">מחיקת החשבון שלי</a></span></footer>
 </main>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
@@ -317,6 +319,17 @@ async function boot() {
 }
 show(); boot();
 setInterval(load, 5000);
+
+// Account: logout, and deletion (required by Google Play; erases personal data on the server).
+function syncAcct() { $('#acct').hidden = !token; }
+$('#logoutLink').onclick = (e) => { e.preventDefault(); token = null; store.set('proToken', null); show(); syncAcct(); };
+$('#deleteLink').onclick = async (e) => {
+  e.preventDefault();
+  if (!confirm('למחוק את החשבון?\nהשם, הטלפון, המיקום והתמונות שלך יימחקו, ואי אפשר לשחזר.')) return;
+  try { await api('/api/me', null, 'DELETE'); token = null; store.set('proToken', null); show(); syncAcct(); alert('החשבון נמחק'); }
+  catch (err) { alert(err.message); }
+};
+syncAcct(); setInterval(syncAcct, 1000);
 </script>
 </body>
 </html>
