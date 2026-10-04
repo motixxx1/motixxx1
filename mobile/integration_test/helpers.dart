@@ -78,3 +78,16 @@ Future<String> login(String phone, String role, String name) async {
   final r = await call('POST', '/api/auth/verify', body: {'phone': phone, 'code': c['devCode'], 'role': role, 'name': name});
   return r['token'] as String;
 }
+
+
+/// Tap, and tap again if the next screen did not show up (the keyboard can still be closing).
+Future<void> tapUntil(WidgetTester t, Finder button, Finder next, {int tries = 3}) async {
+  for (var i = 0; i < tries; i++) {
+    await tapOn(t, button);
+    for (var k = 0; k < 30; k++) {
+      await t.pump(const Duration(milliseconds: 100));
+      if (next.hitTestable().evaluate().isNotEmpty) return;
+    }
+  }
+  await waitFor(t, next.hitTestable());
+}

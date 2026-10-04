@@ -36,9 +36,9 @@ void main() {
     await tapOn(t, find.text('סתימה בכיור או באסלה'));
     await typeInto(t, field(0), 'הכיור במטבח סתום');
     await shot(b, t, 'c5-desc');
-    await tapOn(t, find.text('המשך'));
+    await tapUntil(t, find.text('המשך'), find.text('לאיזו כתובת להגיע?'));
     await typeInto(t, field(0), 'הרצל 10, תל אביב');
-    await tapOn(t, find.text('המשך'));
+    await tapUntil(t, find.text('המשך'), find.text('כמה שיותר מהר'));
     await tapOn(t, find.text('כמה שיותר מהר'));
     await tapOn(t, find.text('אני קובע/ת מחיר'));
     await typeInto(t, field(0), '300');
