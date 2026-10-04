@@ -11,13 +11,18 @@ LatLng? toLatLng(dynamic l) {
   return lat == null || lng == null ? null : LatLng(lat.toDouble(), lng.toDouble());
 }
 
-/// Map tiles: OpenStreetMap; the pro app shows them dark.
-TileLayer tiles() => TileLayer(
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      userAgentPackageName: 'com.promarket.app',
-      maxZoom: 19,
-      tileBuilder: isPro ? darkModeTileBuilder : null,
-    );
+/// Map tiles from the server's settings (MapTiler: light for customers, dark for pros).
+/// Without a map key: OpenStreetMap, shown dark in the pro app.
+TileLayer tiles() {
+  final m = asMap(Api.config['maps']);
+  final url = (isPro ? m['dark'] : m['light'])?.toString();
+  return TileLayer(
+    urlTemplate: url ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    userAgentPackageName: 'com.promarket.app',
+    maxZoom: 19,
+    tileBuilder: url == null && isPro ? darkModeTileBuilder : null,
+  );
+}
 
 Widget attribution() => Positioned(
       left: 6,
@@ -26,7 +31,7 @@ Widget attribution() => Positioned(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(color: Pal.card.withValues(alpha: .8), borderRadius: BorderRadius.circular(6)),
-          child: Text('© OpenStreetMap', style: TextStyle(fontSize: 10, color: Pal.muted)),
+          child: Text(asMap(Api.config['maps'])['attribution']?.toString() ?? '© OpenStreetMap', style: TextStyle(fontSize: 10, color: Pal.muted)),
         ),
       ),
     );

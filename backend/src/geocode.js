@@ -15,3 +15,50 @@ export function nominatimGeocoder({ fetchImpl = fetch, userAgent = 'ProMarket/0.
     return loc;
   };
 }
+
+// Coordinates -> street address (for "use my location"), via Nominatim.
+export function nominatimReverse({ fetchImpl = fetch, userAgent = 'Zariz/1.0' } = {}) {
+  return async ({ lat, lng }) => {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&accept-language=he&lat=${lat}&lon=${lng}`;
+    const r = await fetchImpl(url, { headers: { 'user-agent': userAgent }, signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const a = (await r.json()).address ?? {};
+    const street = [a.road, a.house_number].filter(Boolean).join(' ');
+    const city = a.city ?? a.town ?? a.village ?? a.suburb ?? '';
+    return [street, city].filter(Boolean).join(', ') || null;
+  };
+}
+
+// MapTiler (with MAPTILER_KEY): better Hebrew addresses, same interface as above.
+export function maptilerGeocoder({ key, fetchImpl = fetch } = {}) {
+  const cache = new Map();
+  return async (address) => {
+    const q = String(address ?? '').trim();
+    if (!q) return null;
+    if (cache.has(q)) return cache.get(q);
+    const r = await fetchImpl(`https://api.maptiler.com/geocoding/${encodeURIComponent(q)}.json?key=${key}&country=il&language=he&limit=1`,
+      { signal: AbortSignal.timeout(5000) });
+    const f = r.ok ? (await r.json()).features?.[0] : null;
+    const loc = f?.center ? { lat: f.center[1], lng: f.center[0] } : null;
+    cache.set(q, loc);
+    return loc;
+  };
+}
+export function maptilerReverse({ key, fetchImpl = fetch } = {}) {
+  return async ({ lat, lng }) => {
+    const r = await fetchImpl(`https://api.maptiler.com/geocoding/${lng},${lat}.json?key=${key}&language=he&limit=1`,
+      { signal: AbortSignal.timeout(5000) });
+    const f = r.ok ? (await r.json()).features?.[0] : null;
+    return f?.place_name?.replace(/, ישראל$/, '') ?? null;
+  };
+}
+
+// Map tiles for the apps. With a MapTiler key: MapTiler streets (light) / dark.
+// Without: OpenStreetMap (fine for testing; heavy use needs a tile provider).
+export function mapTiles(key) {
+  return key
+    ? { light: `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${key}`,
+        dark: `https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}.png?key=${key}`,
+        attribution: '© MapTiler © OpenStreetMap' }
+    : null;
+}

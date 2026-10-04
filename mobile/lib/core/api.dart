@@ -74,16 +74,54 @@ class Api {
   static String base = _primary;
   static void Function()? onLoggedOut;
 
+  /// Server settings (map tiles, fees on/off...). Kept on the phone so the app opens
+  /// with them even before the server answers.
+  static J config = {};
+
   static Future<void> init() async {
     prefs = await SharedPreferences.getInstance();
     token = prefs.getString('token_$appKind');
     final saved = prefs.getString('server');
     if (saved != null && saved.isNotEmpty) base = saved;
+    config = asMap(readCache('config'));
+    refreshConfig();
+  }
+
+  static Future<J> refreshConfig() async {
+    try {
+      config = asMap(await get('/api/config'));
+      writeCache('config', config);
+    } catch (_) {}
+    return config;
+  }
+
+  // ---- what the app remembers on the phone (shown instantly, refreshed from the server)
+  static dynamic readCache(String key) {
+    final s = prefs.getString('cache_${appKind}_$key');
+    if (s == null) return null;
+    try {
+      return jsonDecode(s);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void writeCache(String key, Object? value) {
+    try {
+      prefs.setString('cache_${appKind}_$key', jsonEncode(value));
+    } catch (_) {}
+  }
+
+  static void clearCache() {
+    for (final k in prefs.getKeys().where((k) => k.startsWith('cache_${appKind}_') && k != 'cache_${appKind}_config').toList()) {
+      prefs.remove(k);
+    }
   }
 
   static Future<void> setToken(String? t) async {
     token = t;
     if (t == null) {
+      clearCache();
       await prefs.remove('token_$appKind');
     } else {
       await prefs.setString('token_$appKind', t);

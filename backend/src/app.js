@@ -21,7 +21,7 @@ const VENDOR_TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png',
 // response (only while no SMS provider is configured). Never enable either with real users.
 // geocode: address -> {lat,lng} | null. onChange: called after every successful write (persistence).
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
-  catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null,
+  catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null, reverseGeocode = async () => null, maps = null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
   onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }),
   site = { name: 'זריז', email: '' }, topup = {} } = {}) {
@@ -62,7 +62,13 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   // What the pages should show: credit/lead fees, secure in-app payment, support contact.
   on('GET', '/api/config', null, () => ({ leadFees: market.leadFees, payments: market.payments, demo: dev,
     supportEmail: site.email || null,
-    topupPackages: TOPUP_PACKAGES, topup: !!topup.url || dev }));
+    topupPackages: TOPUP_PACKAGES, topup: !!topup.url || dev, maps }));
+  // "Use my location" -> a street address the customer can check.
+  on('GET', '/api/geocode/reverse', ['client', 'pro'], async ({ query }) => {
+    const lat = +query.lat, lng = +query.lng;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) fail('bad_location', 'lat and lng required');
+    return { address: await reverseGeocode({ lat, lng }).catch(() => null) };
+  });
   on('DELETE', '/api/me', ['client', 'pro'], ({ me, role }) => market.deleteAccount(role, me));
   on('GET', '/api/jobs', null, ({ query }) => [...market.jobs.values()]
     .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))

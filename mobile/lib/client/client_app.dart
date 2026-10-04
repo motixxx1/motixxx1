@@ -23,15 +23,22 @@ class ClientStore extends ChangeNotifier {
       list.sort((a, b) => (asNum(b['createdAt']) ?? 0).compareTo(asNum(a['createdAt']) ?? 0));
       jobs = list;
       loaded = true;
+      Api.writeCache('jobs', list.map((j) => {...j, 'tracking': null}).toList());
       notifyListeners();
     } catch (_) {}
   }
 
   void start() {
+    // what was here last time shows right away, then the server's answer replaces it
+    if (jobs.isEmpty) {
+      jobs = asList(Api.readCache('jobs'));
+      loaded = jobs.isNotEmpty;
+    }
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => load());
     load();
-    Api.get('/api/config').then((c) => cfg = asMap(c)).catchError((_) => cfg);
+    cfg = Api.config;
+    Api.refreshConfig().then((c) => cfg = c);
   }
 
   void stop() => _timer?.cancel();

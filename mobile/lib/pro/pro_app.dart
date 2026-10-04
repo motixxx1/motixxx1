@@ -63,9 +63,16 @@ class ProStore extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> start() async {
     WidgetsBinding.instance.addObserver(this);
     _seen.addAll(Api.prefs.getStringList('seen') ?? []);
-    try {
-      cfg = asMap(await Api.get('/api/config'));
-    } catch (_) {}
+    // what was here last time shows right away, then the server's answer replaces it
+    final cached = asMap(Api.readCache('pro'));
+    if (me.isEmpty && cached.isNotEmpty) {
+      feed = asList(cached['feed']);
+      jobs = asList(cached['jobs']);
+      me = asMap(cached['me']);
+      notifyListeners();
+    }
+    if (Api.config.isNotEmpty) cfg = Api.config;
+    cfg = await Api.refreshConfig().then((c) => c.isEmpty ? cfg : c);
     await load(first: true);
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => load());
@@ -92,6 +99,7 @@ class ProStore extends ChangeNotifier with WidgetsBindingObserver {
       jobs = asList(r[1]);
       me = asMap(r[2]);
       loaded = true;
+      Api.writeCache('pro', {'feed': feed, 'jobs': jobs, 'me': me});
       notifyListeners();
       _checkNew(silent: first);
       await syncService();

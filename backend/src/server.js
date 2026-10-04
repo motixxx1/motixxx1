@@ -10,7 +10,7 @@ import { Catalog } from './catalog.js';
 import { Partners } from './partners.js';
 import { providersFromEnv } from './providers/index.js';
 import { createFileStore } from './store.js';
-import { nominatimGeocoder } from './geocode.js';
+import { nominatimGeocoder, nominatimReverse, maptilerGeocoder, maptilerReverse, mapTiles } from './geocode.js';
 import { twilioSms, httpSms } from './sms.js';
 import { Media } from './media.js';
 import { createUpdater } from './updater.js';
@@ -76,7 +76,11 @@ if (env.DB !== 'json') {
   }
 }
 store ??= createFileStore(dataFile, { market, partners, media });
-const geocode = nominatimGeocoder({ userAgent: env.GEOCODER_USER_AGENT ?? 'ProMarket/0.1' });
+// Addresses and map tiles: MapTiler when MAPTILER_KEY is set, otherwise OpenStreetMap.
+const ua = env.GEOCODER_USER_AGENT ?? 'Zariz/1.0';
+const geocode = env.MAPTILER_KEY ? maptilerGeocoder({ key: env.MAPTILER_KEY }) : nominatimGeocoder({ userAgent: ua });
+const reverseGeocode = env.MAPTILER_KEY ? maptilerReverse({ key: env.MAPTILER_KEY }) : nominatimReverse({ userAgent: ua });
+const maps = mapTiles(env.MAPTILER_KEY);
 
 // Automatic updates from the GitHub release: on by default for the downloadable package
 // (it ships build.json), off for Docker and development. AUTO_UPDATE=0 / 1 forces it.
@@ -101,7 +105,7 @@ if (env.AUTO_UPDATE === '1' || (existsSync(join(root, 'build.json')) && env.AUTO
 }
 
 const port = env.PORT || 3000;
-const server = createServer(createApp({ market, auth, partners, catalog, geocode, media, onChange: store.save, dev, echoOtp: dev && !sms,
+const server = createServer(createApp({ market, auth, partners, catalog, geocode, reverseGeocode, maps, media, onChange: store.save, dev, echoOtp: dev && !sms,
   version: updater.info, site: { name: env.BUSINESS_NAME || 'זריז', email: env.SUPPORT_EMAIL || '' },
   topup: { url: env.TOPUP_URL || '', secret: env.PAYMENT_WEBHOOK_SECRET || '' } }))
   .listen(port, () => {

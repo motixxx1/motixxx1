@@ -290,8 +290,14 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 toast(context, 'לא הצלחנו לקבל מיקום. כתבו כתובת', err: true);
               } else {
                 myLocation = l;
-                if (address.text.trim().isEmpty) address.text = 'המיקום שלי';
-                toast(context, 'המיקום נשמר');
+                // turn the position into a street address the customer can check
+                String? street;
+                try {
+                  street = asMap(await Api.get('/api/geocode/reverse?lat=${l['lat']}&lng=${l['lng']}'))['address']?.toString();
+                } catch (_) {}
+                if (!mounted) return;
+                setState(() => address.text = street ?? 'המיקום שלי');
+                toast(context, street != null ? 'מצאנו: $street. אפשר לתקן' : 'המיקום נשמר');
               }
             },
             icon: const Icon(Icons.my_location_rounded),
