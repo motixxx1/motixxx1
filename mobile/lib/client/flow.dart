@@ -378,7 +378,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _sum(catIcon(categoryId), Cats.name(categoryId)),
               _sum(Icons.notes_rounded, desc.text.trim()),
-              if (physical) _sum(Icons.place_rounded, mode == 'delivery' ? 'איסוף: ${address.text.trim()}\nמסירה: ${dropoff.text.trim().isEmpty ? 'אליי' : dropoff.text.trim()}' : address.text.trim()),
+              if (physical) _sum(Icons.place_rounded, mode == 'delivery' ? 'איסוף: ${address.text.trim()}\nמסירה: ${dropoff.text.trim().isEmpty ? 'אליי' : dropoff.text.trim()}' : (address.text.trim().isEmpty ? 'המיקום שלי' : address.text.trim())),
               _sum(Icons.schedule_rounded, urgency == 'urgent' ? 'דחוף' : 'לא דחוף'),
               _sum(Icons.sell_rounded, priceMode == 'fixed' ? 'מחיר קבוע: ${ils(asNum(price.text.trim()))}' : 'מקבלים הצעות מחיר'),
               if (photos.isNotEmpty) _sum(Icons.photo_rounded, 'צורפו ${photos.length} תמונות'),

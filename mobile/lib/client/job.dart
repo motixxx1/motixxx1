@@ -204,12 +204,16 @@ class _JobScreenState extends State<JobScreen> {
               child: Column(children: [
                 Text('איך היה?', style: TextStyle(fontSize: 21 * fs, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Row(children: [
                   for (var n = 1; n <= 5; n++)
-                    IconButton(
-                      iconSize: 44,
+                    Expanded(
+                      child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 42,
+                      tooltip: '$n כוכבים',
                       onPressed: busy ? null : () => _act(() => Api.post('/api/jobs/${j['id']}/rate', {'score': n}), 'תודה על הדירוג'),
                       icon: Icon(Icons.star_rounded, color: Pal.brand),
+                    ),
                     ),
                 ]),
               ]),
