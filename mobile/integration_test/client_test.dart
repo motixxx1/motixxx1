@@ -57,11 +57,12 @@ void main() {
     await call('PUT', '/api/pro/location', token: pro, body: {'lat': 32.095, 'lng': 34.795});
     await call('POST', '/api/jobs/$id/status', token: pro, body: {'status': 'en_route'});
     await waitFor(t, find.text('דקות'), secs: 30);
-    await settle(t, 4000);
+    await settle(t, 9000); // let the map tiles load
     await shot(b, t, 'c9-live');
     await call('PUT', '/api/pro/location', token: pro, body: {'lat': 32.0805, 'lng': 34.7805});
     await call('POST', '/api/jobs/$id/status', token: pro, body: {'status': 'arrived'});
     await waitFor(t, find.text('צאו לפגוש אותו'), secs: 30);
+    await settle(t, 5000);
     await shot(b, t, 'c10-arrived');
     await call('POST', '/api/jobs/$id/status', token: pro, body: {'status': 'in_progress'});
     await call('POST', '/api/jobs/$id/status', token: pro, body: {'status': 'completed', 'signature': 'רחל'});
