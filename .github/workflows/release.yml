@@ -2,7 +2,7 @@ name: Release (APK + server)
 
 on:
   push:
-    paths: ['android/**', 'backend/**', 'server-package/**', '.github/workflows/release.yml']
+    paths: ['mobile/**', 'backend/**', 'server-package/**', '.github/workflows/release.yml']
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,8 @@ env:
   FALLBACK_URL: ${{ vars.FALLBACK_URL || 'http://192.168.1.244:3000' }}
 
 jobs:
-  android:
+  # The phone apps: Flutter (native Android), one codebase, two apps (customers / pros).
+  mobile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,15 +25,41 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-      - name: Build both apps
-        working-directory: android
-        run: ./gradlew --no-daemon assembleDebug -PserverUrl="$SERVER_URL" -PfallbackUrl="$FALLBACK_URL"
-      - name: Collect APKs
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get packages
+        working-directory: mobile
         run: |
-          mkdir out
-          cp android/app/build/outputs/apk/client/debug/*.apk out/ProMarket-client.apk
-          cp android/app/build/outputs/apk/pro/debug/*.apk out/ProMarket-pro.apk
+          set -o pipefail
+          flutter --version
+          flutter pub get 2>&1 | tee ../pub.txt || { echo "::error title=pub get::$(tail -40 ../pub.txt | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; exit 1; }
+      - name: Check code
+        working-directory: mobile
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > ../analyze.txt 2>&1 && ok=1 || ok=0
+          cat ../analyze.txt
+          if [ "$ok" = 0 ]; then
+            msg=$(grep -E "^ *error" ../analyze.txt | head -60 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+            echo "::error title=analyze::$msg"
+            exit 1
+          fi
+      - name: Build both apps
+        working-directory: mobile
+        run: |
+          set -o pipefail
+          CODE=$((100 + GITHUB_RUN_NUMBER))
+          for app in client pro; do
+            flutter build apk --release --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
+              --dart-define=APP=$app --dart-define=BUILD=$CODE --dart-define=SIDELOAD=true \
+              --dart-define=SERVER_URL="$SERVER_URL" --dart-define=FALLBACK_URL="$FALLBACK_URL" 2>&1 | tee ../build-$app.txt \
+              || { echo "::error title=build $app::$(grep -vE '^\s*$' ../build-$app.txt | tail -60 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; exit 1; }
+          done
+          mkdir -p ../out
+          cp build/app/outputs/flutter-apk/app-client-release.apk ../out/ProMarket-client.apk
+          cp build/app/outputs/flutter-apk/app-pro-release.apk ../out/ProMarket-pro.apk
+          ls -la ../out
       - uses: actions/upload-artifact@v4
         with:
           name: apks
@@ -57,22 +84,30 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: subosito/flutter-action@v2
         if: steps.ready.outputs.ok
+        with:
+          channel: stable
+          cache: true
       - name: Build signed bundles
         if: steps.ready.outputs.ok
-        working-directory: android
+        working-directory: mobile
         env:
-          STORE_PASSWORD: ${{ secrets.PLAY_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.PLAY_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.PLAY_KEY_PASSWORD }}
+          ORG_GRADLE_PROJECT_uploadStorePassword: ${{ secrets.PLAY_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_uploadKeyAlias: ${{ secrets.PLAY_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_uploadKeyPassword: ${{ secrets.PLAY_KEY_PASSWORD }}
         run: |
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
-          ./gradlew --no-daemon bundleRelease -PserverUrl="$STORE_SERVER_URL" -PuploadStoreFile="$RUNNER_TEMP/upload.jks" \
-            -PuploadStorePassword="$STORE_PASSWORD" -PuploadKeyAlias="$KEY_ALIAS" -PuploadKeyPassword="$KEY_PASSWORD"
+          export ORG_GRADLE_PROJECT_uploadStoreFile="$RUNNER_TEMP/upload.jks"
+          CODE=$((100 + GITHUB_RUN_NUMBER))
+          flutter pub get
           mkdir -p ../out
-          cp app/build/outputs/bundle/clientRelease/*.aab ../out/ProMarket-client-play.aab
-          cp app/build/outputs/bundle/proRelease/*.aab ../out/ProMarket-pro-play.aab
+          for app in client pro; do
+            flutter build appbundle --release --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
+              --dart-define=APP=$app --dart-define=BUILD=$CODE --dart-define=SIDELOAD=false \
+              --dart-define=SERVER_URL="$STORE_SERVER_URL" --dart-define=FALLBACK_URL=
+            cp build/app/outputs/bundle/${app}Release/*.aab ../out/ProMarket-$app-play.aab
+          done
       - uses: actions/upload-artifact@v4
         if: steps.ready.outputs.ok
         with:
@@ -91,7 +126,7 @@ jobs:
           set -e
           mkdir -p out
           export BUILD="${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
-          export APK=$(grep -oP 'versionCode = \K[0-9]+' android/app/build.gradle.kts)
+          export APK=$((100 + GITHUB_RUN_NUMBER))
           echo "{\"build\":\"$BUILD\",\"apk\":$APK}" > backend/build.json
           node -e '
             const fs = require("fs"), path = require("path"), files = {};
@@ -135,7 +170,7 @@ jobs:
           path: out/
 
   publish:
-    needs: [android, server, play]
+    needs: [mobile, server, play]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -154,7 +189,7 @@ jobs:
             --title "זריז – latest build" \
             --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server address in the APKs: ${SERVER_URL} (fallback on the home network: ${FALLBACK_URL})
 
-          **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents). Install once: new screens and features arrive through the server.
+          **Phone apps (native, Flutter):** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents). They install over the earlier versions and offer new versions by themselves.
           **Automatic updates:** installed servers download promarket-update.json and update themselves.
           **Google Play:** ProMarket-client-play.aab / ProMarket-pro-play.aab (when the signing key is set up).
           **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).

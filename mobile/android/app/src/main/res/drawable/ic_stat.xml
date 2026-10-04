@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification icon: the pin with the bolt cut out (white only, as Android requires). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M32,4C19.8,4 10,13.6 10,25.6C10,41.2 32,60 32,60C32,60 54,41.2 54,25.6C54,13.6 44.2,4 32,4zM35,12L22,30L31,30L28,46L42,26L33,26z" />
+</vector>

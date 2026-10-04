@@ -1,0 +1,5 @@
+<resources>
+    <color name="brand">#FF6A00</color>
+    <!-- page background behind the status and navigation bars -->
+    <color name="bg">#F6F6F8</color>
+</resources>
