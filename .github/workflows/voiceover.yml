@@ -4,7 +4,7 @@ name: Promo voiceover (Hebrew)
 # voices (female: Hila, male: Avri). The files are published to the "voiceover" release.
 on:
   push:
-    paths: ['marketing/voiceover/lines.json', '.github/workflows/voiceover.yml']
+    paths: ['marketing/voiceover/**', '.github/workflows/voiceover.yml']
   workflow_dispatch:
 
 permissions:
@@ -18,20 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Record
+      - name: Record and check
         run: |
-          pip install edge-tts
-          mkdir -p out
-          python - <<'PY'
-          import json, subprocess
-          lines = json.load(open('marketing/voiceover/lines.json'))
-          for voice, tag in (('he-IL-HilaNeural', 'hila'), ('he-IL-AvriNeural', 'avri')):
-              for l in lines:
-                  subprocess.run(['edge-tts', '--voice', voice, '--rate=+4%', '--text', l['text'],
-                                  '--write-media', f"out/{tag}-{l['id']}.mp3"], check=True)
-          print('done')
-          PY
-          ls -la out
+          pip install edge-tts faster-whisper
+          python marketing/voiceover/record.py
+          ls out | head -80
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
