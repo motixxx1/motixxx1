@@ -2,141 +2,155 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f5f6fa">
+<meta name="theme-color" content="#f6f6f8">
 <title>ProMarket · קריאה למקצוען</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap">
 <style>
-  :root{color-scheme:light;--bg:#f5f6fa;--card:#fff;--ink:#171a26;--muted:#646b80;--line:#e3e6ef;--chip:#eceef5;
-    --brand:#ff6a00;--brand-ink:#c2410c;--brand-soft:#fff0e5;--ok:#12945a;--ok-soft:#e3f6ed;--err:#d92d4a;--err-soft:#fde8ec;--warn:#b7791f;
-    --shadow:0 1px 0 var(--line),0 6px 18px -12px rgba(29,39,89,.33);
-    --display:"Rubik","Assistant",system-ui,sans-serif;--body:"Assistant","Rubik",system-ui,sans-serif}
+  /* Built for everyone, including older users: one font, large text, strong contrast,
+     one question per screen and big tap targets. */
+  :root{color-scheme:light;--bg:#f6f6f8;--card:#fff;--ink:#14161f;--muted:#4f5568;--line:#d9dce5;--chip:#eceef3;
+    --brand:#ff6a00;--btn:#cf5200;--brand-ink:#a83a00;--brand-soft:#fff1e6;
+    --ok:#0f7a4a;--ok-soft:#e2f4ea;--err:#c8102e;--err-soft:#fde8ec;
+    --font:"Rubik","Assistant",system-ui,sans-serif}
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
-  body.nonav{padding-bottom:24px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.5;padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+  body.nonav{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
   button,input,select,textarea{font:inherit;color:inherit}
   a{color:var(--brand-ink)}
   svg.i{flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .app{max-width:560px;margin:0 auto}
-  .disp{font-family:var(--display);font-weight:800}
-  .muted{color:var(--muted);font-size:13px}
   [hidden]{display:none!important}
+  .app{max-width:560px;margin:0 auto}
+  .muted{color:var(--muted);font-size:16px}
+  .ltr{direction:ltr;unicode-bidi:isolate}
+  main{padding:4px 18px 24px}
+  h1{font-size:30px;font-weight:700;line-height:1.2;margin:10px 0 18px}
+  h2{font-size:22px;font-weight:700;margin:26px 0 12px}
 
   /* top bar */
-  .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(245,246,250,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-  .top .title{flex:1;font-family:var(--display);font-weight:800;font-size:19px}
-  .top .brand{flex:1;font-family:var(--display);font-weight:800;font-size:25px;color:var(--brand)}
-  .ib{position:relative;width:44px;height:44px;border-radius:22px;border:0;background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.13);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);padding:0}
-  .badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--err);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
-  main{padding:4px 16px 24px}
+  .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;min-height:68px;padding:10px 18px;background:rgba(246,246,248,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .top .brand{flex:1;font-weight:700;font-size:26px;color:var(--brand)}
+  .top .title{flex:1;font-weight:700;font-size:22px}
+  .back{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 16px 0 18px;border-radius:24px;border:2px solid var(--line);background:var(--card);font-weight:500;font-size:18px;cursor:pointer}
 
-  /* building blocks */
-  .card{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
-  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border:0;border-radius:16px;background:var(--brand);color:#fff;font-weight:700;font-size:16px;cursor:pointer;text-decoration:none;padding:0 16px}
-  .btn.ok{background:var(--ok)} .btn.ghost{background:var(--chip);color:var(--ink)} .btn.line{background:transparent;color:var(--brand-ink);border:1.5px solid var(--brand)}
-  .btn:disabled{opacity:.45;cursor:default}
-  .field{width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 13px;min-height:48px;font-size:16px}
-  .field:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+  /* buttons and fields */
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:60px;border:0;border-radius:18px;background:var(--btn);color:#fff;font-weight:700;font-size:20px;cursor:pointer;text-decoration:none;padding:0 18px}
+  .btn.ok{background:var(--ok)}
+  .btn.soft{background:var(--card);color:var(--ink);border:2px solid var(--line)}
+  .btn.line{background:var(--card);color:var(--brand-ink);border:2px solid var(--brand)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .field{width:100%;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 16px;min-height:60px;font-size:20px}
+  .field::placeholder{color:#7c8296}
+  .field:focus{outline:3px solid var(--brand);outline-offset:1px;border-color:transparent}
+  .field.bad{border-color:var(--err)}
+  textarea.field{resize:none;min-height:140px;line-height:1.45}
   input[type=number].field{-moz-appearance:textfield}
   input[type=number].field::-webkit-inner-spin-button,input[type=number].field::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-  textarea.field{resize:none;min-height:96px}
-  .field.bad{border:2px solid var(--err)}
-  .err{color:var(--err);font-size:13px;margin-top:4px}
-  label.lb{display:block;font-weight:700;font-size:14px;margin:16px 0 6px}
-  label.lb .opt{font-weight:400;color:var(--muted);font-size:13px}
-  .row{display:flex;gap:8px} .row>*{flex:1;min-width:0}
-  .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 8px}
-  .chips::-webkit-scrollbar{display:none}
-  .chip{flex:none;min-height:38px;padding:0 14px;border-radius:19px;border:0;background:var(--chip);color:var(--ink);font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
-  .chip.on{background:var(--ink);color:#fff}
-  .tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;background:var(--chip);color:var(--muted);white-space:nowrap}
-  .tag.brand{background:var(--brand-soft);color:var(--brand-ink)} .tag.ok{background:var(--ok-soft);color:var(--ok)} .tag.err{background:var(--err-soft);color:var(--err)}
-  .seg{display:flex;gap:8px;flex-wrap:wrap}
-  .seg label{flex:1 1 30%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);font-weight:700;font-size:14px;cursor:pointer;text-align:center;padding:6px}
-  .seg input{position:absolute;opacity:0;pointer-events:none}
-  .seg label:has(input:checked){border:2px solid var(--brand);color:var(--brand-ink);background:var(--brand-soft)}
-  .seg label.urgent:has(input:checked){border-color:var(--err);color:var(--err);background:var(--err-soft)}
-  .pay label{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px;margin-bottom:8px;cursor:pointer}
-  .pay label:has(input:checked){border:2px solid var(--brand)}
-  .pay input{width:20px;height:20px;accent-color:var(--brand);margin:2px 0 0;flex:none}
-  .pay label:has(input:disabled){opacity:.5;cursor:default}
-  .check{display:flex;gap:12px;align-items:flex-start;min-height:44px;margin-top:14px;cursor:pointer}
-  .check input{width:22px;height:22px;accent-color:var(--brand);margin:0;flex:none}
-  .icon-tile{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex:none}
+  label.lb{display:block;font-weight:700;font-size:19px;margin:20px 0 8px}
+  .opt{font-weight:400;color:var(--muted);font-size:16px}
+  .err{color:var(--err);font-size:17px;font-weight:500;margin-top:6px}
+  .err:empty{display:none}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px 18px;margin-bottom:12px}
 
-  /* home */
-  .hello{color:var(--muted);font-size:15px;margin:4px 0 0}
-  h1.big{font-family:var(--display);font-weight:800;font-size:30px;margin:0 0 14px;line-height:1.15}
-  .search{display:flex;align-items:center;gap:10px;height:56px;border-radius:18px;background:var(--card);border:1.5px solid var(--line);padding:0 16px;color:#8b91a5;margin-bottom:14px}
-  .search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:16px;color:var(--ink)}
-  .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 8px;margin:6px 0 18px}
-  .tile{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;font-weight:700;font-size:12px;color:var(--ink);text-align:center}
-  .tile span{width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center}
-  .tile.all{grid-column:span 2}
-  .tile.all span{width:100%;background:var(--card);border:1.5px dashed #dde1ea;gap:6px;font-size:13px}
-  .how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-  .how div{background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:12px 10px;font-size:12px;color:var(--muted);line-height:1.4}
-  .how b{display:block;color:var(--ink);font-size:13px;margin:6px 0 2px}
-  .how span{width:30px;height:30px;border-radius:15px;background:var(--brand-soft);color:var(--brand-ink);font-family:var(--display);font-weight:800;display:flex;align-items:center;justify-content:center}
-  h2.sec{font-family:var(--display);font-weight:800;font-size:18px;margin:18px 0 10px}
+  /* choices: one big row per option, no tiles */
+  .choices{display:flex;flex-direction:column;gap:10px}
+  .choice{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:12px 16px;border-radius:20px;border:2px solid var(--line);background:var(--card);text-align:right;cursor:pointer}
+  .choice:active{border-color:var(--brand);background:var(--brand-soft)}
+  .choice.plain{min-height:66px}
+  .choice .ico{width:50px;height:50px;border-radius:25px;background:var(--brand-soft);color:var(--brand-ink);display:flex;align-items:center;justify-content:center;flex:none}
+  .choice .ico.red{background:var(--err-soft);color:var(--err)}
+  .choice .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+  .choice b{font-size:20px;font-weight:500;line-height:1.3}
+  .choice small{font-size:16px;color:var(--muted)}
+  .choice .go{color:#8a90a3}
+  .choice.on{border-color:var(--brand);background:var(--brand-soft)}
+  .choice .radio{width:28px;height:28px;border-radius:14px;border:2px solid #9aa0b3;flex:none;display:flex;align-items:center;justify-content:center}
+  .choice.on .radio{border-color:var(--btn);background:var(--btn);color:#fff}
+  .search{display:flex;align-items:center;gap:10px;min-height:60px;border-radius:18px;background:var(--card);border:2px solid var(--line);padding:0 16px;color:#6b7186}
+  .search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:19px;color:var(--ink)}
+  .search:focus-within{outline:3px solid var(--brand);outline-offset:1px;border-color:transparent}
 
-  /* category picker */
-  .steps{display:flex;gap:4px;margin:2px 0 6px} .steps span{flex:1;height:4px;border-radius:2px;background:var(--line)} .steps span.on{background:var(--brand)}
-  .list{background:var(--card);border-radius:22px;box-shadow:var(--shadow);overflow:hidden}
-  .list button{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 14px;text-align:right;cursor:pointer;font-size:15px}
-  .list button:last-child{border-bottom:0}
-  .list .dot{width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex:none}
-  .list .grow{flex:1;min-width:0} .list .sub{display:block;font-size:12px;color:var(--muted)}
-  .chosen{display:flex;gap:12px;align-items:center}
-  .mpick{display:flex;gap:8px} .mpick label{flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:14px;border:1.5px dashed #a7adbf;background:var(--card);font-weight:700;font-size:13px;cursor:pointer}
-  .mpick input{display:none}
-  .mthumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
-  .mthumb{position:relative;padding:0;margin:0;border:0;border-radius:12px;overflow:hidden;background:#222;cursor:pointer;flex:0 0 auto}
+  /* steps */
+  .stepinfo{display:flex;align-items:center;gap:12px;margin:4px 0 2px;font-size:16px;color:var(--muted)}
+  .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+  .bar span{display:block;height:100%;background:var(--brand);border-radius:4px}
+  .cta{position:fixed;inset-inline:0;bottom:0;z-index:40;max-width:560px;margin:0 auto;padding:12px 18px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(rgba(246,246,248,0),var(--bg) 28%)}
+  .photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .ph{position:relative}
+  .ph .rm{position:absolute;top:-6px;left:-6px;width:32px;height:32px;border-radius:16px;background:var(--ink);color:#fff;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:2}
+  .addph{display:flex;align-items:center;justify-content:center;gap:10px;min-height:60px;border-radius:18px;border:2px dashed #9aa0b3;background:var(--card);font-weight:500;font-size:19px;cursor:pointer;margin-top:18px}
+  .addph input{display:none}
+  .sum{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .sum:last-child{border-bottom:0}
+  .sum>svg{color:var(--brand-ink);margin-top:3px}
+  .sum span{display:block;font-size:16px;color:var(--muted)}
+  details.more{margin-top:18px}
+  details.more summary{min-height:52px;display:flex;align-items:center;gap:8px;font-weight:500;color:var(--brand-ink);cursor:pointer;list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+  .check{display:flex;gap:14px;align-items:flex-start;padding:12px 0;cursor:pointer}
+  .check input{width:28px;height:28px;accent-color:var(--btn);margin:2px 0 0;flex:none}
+
+  /* media */
+  .mthumbs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+  .mthumb{position:relative;padding:0;margin:0;border:0;border-radius:14px;overflow:hidden;background:#222;cursor:pointer;flex:0 0 auto}
   .mthumb img,.mthumb video{width:100%;height:100%;object-fit:cover;display:block}
   .mplay{position:absolute;inset:0;display:grid;place-items:center;color:#fff;background:#0004}
-  .mprev{position:relative} .mprev .rm{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:12px;background:#000b;color:#fff;padding:0;border:0;z-index:2;display:flex;align-items:center;justify-content:center;cursor:pointer}
-  .lightbox{position:fixed;inset:0;z-index:99;background:#000d;display:grid;place-items:center;padding:16px}
+  .lightbox{position:fixed;inset:0;z-index:99;background:#000e;display:grid;place-items:center;padding:16px}
   .lightbox img,.lightbox video{max-width:100%;max-height:85vh;border-radius:12px}
-  .lbclose{position:absolute;top:12px;left:12px;width:44px;height:44px;border-radius:22px;background:#fff3;color:#fff;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .lbclose{position:absolute;top:14px;left:14px;width:52px;height:52px;border-radius:26px;background:#fff3;color:#fff;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 
-  /* my requests */
-  .job-h{display:flex;gap:12px;align-items:flex-start}
-  .job-h .grow{flex:1;min-width:0}
-  .job-h b{display:block;font-size:16px}
-  .prog{display:flex;gap:4px;margin:12px 0 4px} .prog span{flex:1;height:6px;border-radius:3px;background:var(--line)} .prog span.done{background:var(--ok)} .prog span.cur{background:var(--brand)}
-  .offer{border:1.5px solid var(--line);border-radius:18px;padding:12px;margin-top:10px;cursor:pointer;background:var(--card)}
-  .offer.sel{border:2px solid var(--brand)}
-  .offer.won{border:2px solid var(--ok);cursor:default}
-  .offer.lost{opacity:.55;cursor:default}
-  .av{width:40px;height:40px;border-radius:20px;color:#fff;font-family:var(--display);font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
-  .price{font-family:var(--display);font-weight:800;font-size:20px;white-space:nowrap}
-  .item{background:var(--bg);border-radius:12px;padding:8px 10px;margin:6px 0;font-size:13px;display:flex;gap:8px;align-items:flex-start}
-  .log{display:flex;gap:10px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
-  .stars{display:flex;justify-content:center;gap:2px}
-  .stars button{width:48px;height:48px;border:0;background:none;color:var(--brand);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
-  .empty{text-align:center;padding:36px 16px;color:var(--muted)}
-  .empty svg{color:#a7adbf;margin-bottom:8px}
-  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+  /* requests */
+  .req{display:flex;flex-direction:column;gap:6px;width:100%;text-align:right;cursor:pointer;font:inherit}
+  .req b{font-size:20px;font-weight:700}
+  .req .desc{font-size:17px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .status{display:flex;align-items:center;gap:10px;font-weight:500;font-size:18px}
+  .status i{width:12px;height:12px;border-radius:6px;background:var(--brand);flex:none}
+  .status.wait i{background:#9aa0b3} .status.ok i{background:var(--ok)} .status.err i{background:var(--err)}
+  .status.act{color:var(--brand-ink)}
+  .bigstatus{font-size:24px;font-weight:700;line-height:1.3;margin:6px 0 14px}
+  .timeline{list-style:none;margin:0;padding:0}
+  .timeline li{display:flex;gap:14px;align-items:center;min-height:48px;font-size:18px;color:var(--muted);position:relative}
+  .timeline li::before{content:"";position:absolute;right:13px;top:36px;bottom:-12px;width:2px;background:var(--line)}
+  .timeline li:last-child::before{display:none}
+  .timeline .dot{width:28px;height:28px;border-radius:14px;border:2px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;flex:none;z-index:1}
+  .timeline li.done{color:var(--ink)} .timeline li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+  .timeline li.cur{color:var(--ink);font-weight:700} .timeline li.cur .dot{border-color:var(--brand);border-width:3px}
+  .timeline li.now .dot{background:var(--brand);box-shadow:0 0 0 5px var(--brand-soft)}
+  .offer{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}
+  .offer.won{border-color:var(--ok)}
+  .offer .who{display:flex;gap:12px;align-items:center}
+  .av{width:52px;height:52px;border-radius:26px;background:var(--brand-soft);color:var(--brand-ink);font-weight:700;font-size:22px;display:flex;align-items:center;justify-content:center;flex:none}
+  .price{font-size:28px;font-weight:700;white-space:nowrap}
+  .line{display:flex;gap:8px;align-items:center;font-size:17px;margin-top:8px}
+  .item{background:var(--bg);border-radius:14px;padding:10px 12px;margin-top:8px;font-size:16px;display:flex;gap:10px;align-items:flex-start}
+  .stars{display:flex;justify-content:center;gap:4px}
+  .stars button{width:56px;height:56px;border:0;background:none;color:var(--brand);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+  .empty{text-align:center;padding:40px 16px;color:var(--muted);font-size:18px}
+  .empty svg{color:#9aa0b3;margin-bottom:10px}
+  .empty b{display:block;color:var(--ink);font-size:22px;margin-bottom:6px}
+  .done-ic{width:84px;height:84px;border-radius:42px;background:var(--ok-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;margin:10px auto 6px}
 
-  /* bottom nav */
-  nav.bottom{position:fixed;inset-inline:0;bottom:0;z-index:40;max-width:560px;margin:0 auto;height:calc(74px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;background:rgba(255,255,255,.96);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
-  nav.bottom button{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-height:56px;padding-bottom:10px;border:0;background:none;color:var(--muted);font-weight:700;font-size:11px;cursor:pointer}
-  nav.bottom button.on{color:var(--brand)}
-  nav.bottom .fab{color:var(--ink)}
-  nav.bottom .fab span{width:60px;height:60px;border-radius:30px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;margin-top:-30px;box-shadow:0 8px 20px -4px rgba(255,106,0,.6)}
-  nav.bottom .fab.on{color:var(--brand)}
+  /* bottom nav: three tabs */
+  nav.bottom{position:fixed;inset-inline:0;bottom:0;z-index:40;max-width:560px;margin:0 auto;height:calc(84px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-top:2px solid var(--line)}
+  nav.bottom button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:500;font-size:16px;cursor:pointer;position:relative}
+  nav.bottom button.on{color:var(--brand-ink);font-weight:700}
+  nav.bottom button.on::before{content:"";position:absolute;top:0;width:56px;height:4px;border-radius:0 0 4px 4px;background:var(--brand)}
+  .badge{position:absolute;top:6px;left:50%;margin-left:8px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--err);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;font-style:normal}
 
   /* sheet + toast */
   .scrim{position:fixed;inset:0;z-index:60;background:rgba(10,12,20,.55);display:flex;align-items:flex-end;justify-content:center}
-  .sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));animation:up .22s ease-out}
-  .sheet .handle{width:40px;height:4px;border-radius:2px;background:#dde1ea;margin:0 auto 10px}
+  .sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:12px 18px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+  .sheet .handle{width:44px;height:5px;border-radius:3px;background:#c9cdd8;margin:0 auto 12px}
+  .shead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .shead h2{flex:1;margin:0}
+  .xbtn{width:52px;height:52px;border-radius:26px;border:2px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
   @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
-  .ln{display:flex;justify-content:space-between;gap:10px;min-height:30px;align-items:center;font-size:14px}
+  .ln{display:flex;justify-content:space-between;gap:10px;min-height:40px;align-items:center;font-size:18px}
   .ln span:first-child{color:var(--muted)}
-  .toasts{position:fixed;top:12px;inset-inline:12px;z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
-  .toast{max-width:520px;width:100%;display:flex;gap:8px;align-items:center;border-radius:16px;padding:12px 14px;font-weight:700;font-size:14px;background:var(--ok-soft);color:var(--ok);box-shadow:0 8px 24px -8px rgba(0,0,0,.3);animation:up .2s ease-out}
-  .toast.err{background:var(--err-soft);color:var(--err)}
-  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .toasts{position:fixed;top:14px;inset-inline:14px;z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .toast{max-width:520px;width:100%;display:flex;gap:10px;align-items:center;border-radius:18px;padding:14px 16px;font-weight:500;font-size:18px;background:var(--ok);color:#fff;box-shadow:0 10px 28px -10px rgba(0,0,0,.4);animation:up .2s ease-out}
+  .toast.err{background:var(--err)}
+  :focus-visible{outline:3px solid var(--brand);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){.sheet,.toast{animation:none}}
 </style>
 </head>
@@ -144,126 +158,67 @@
 <div class="app">
   <!-- login -->
   <section id="login" hidden>
-    <main style="padding-top:56px">
-      <div class="disp" style="font-size:24px;color:var(--brand)">ProMarket</div>
-      <h1 class="big" style="margin-top:18px">כניסה מהירה</h1>
-      <p class="muted" style="font-size:15px;margin:-6px 0 18px">שם וטלפון. נשלח אליכם קוד ב-SMS.</p>
+    <main style="padding-top:48px">
+      <div style="font-size:28px;font-weight:700;color:var(--brand)">ProMarket</div>
+      <h1 style="margin-top:22px">כניסה</h1>
+      <p class="muted" style="margin:-8px 0 8px">שם וטלפון. נשלח לכם קוד בהודעת SMS.</p>
       <form id="loginForm" novalidate>
-        <label class="lb" for="lName">שם</label><input class="field" id="lName" name="name" autocomplete="name">
-        <label class="lb" for="lPhone">טלפון נייד</label><input class="field" id="lPhone" name="phone" inputmode="tel" autocomplete="tel" style="direction:ltr;text-align:right">
-        <div id="codeRow" hidden><label class="lb" for="lCode">הקוד מה-SMS</label><input class="field" id="lCode" name="code" inputmode="numeric" autocomplete="one-time-code" style="direction:ltr;text-align:right"></div>
+        <label class="lb" for="lName">השם שלכם</label><input class="field" id="lName" name="name" autocomplete="name">
+        <label class="lb" for="lPhone">מספר טלפון נייד</label><input class="field" id="lPhone" name="phone" inputmode="tel" autocomplete="tel" style="direction:ltr;text-align:right">
+        <div id="codeRow" hidden><label class="lb" for="lCode">הקוד שקיבלתם ב-SMS</label><input class="field" id="lCode" name="code" inputmode="numeric" autocomplete="one-time-code" style="direction:ltr;text-align:right;letter-spacing:4px"></div>
         <div class="err" id="loginErr" role="alert"></div>
-        <button class="btn" id="loginBtn" style="margin-top:18px">שלחו לי קוד</button>
+        <button class="btn" id="loginBtn" style="margin-top:22px">שלחו לי קוד</button>
       </form>
-      <p style="text-align:center;margin-top:28px"><a href="/pro" style="color:#0f766e;font-weight:700">יש לך מקצוע? הצטרף</a></p>
+      <p style="text-align:center;margin-top:32px"><a href="/pro" style="color:#0f766e;font-weight:500">יש לכם מקצוע? הצטרפו כמקצוענים</a></p>
     </main>
   </section>
 
   <!-- signed in -->
   <div id="shell" hidden>
     <header class="top">
-      <button class="ib" id="backBtn" aria-label="חזרה" hidden></button>
+      <button class="back" id="backBtn" hidden></button>
       <span class="brand" id="topBrand">ProMarket</span>
       <span class="title" id="topTitle" hidden></span>
-      <button class="ib" id="bell" aria-label="התראות"></button>
     </header>
 
     <!-- home -->
     <main data-view="home">
-      <p class="hello" id="hello"></p>
-      <h1 class="big">מה צריך היום?</h1>
-      <label class="search"><span id="sIc"></span><input id="homeSearch" placeholder="שליח, אינסטלטור, מסירה משפטית…" autocomplete="off" aria-label="חיפוש תחום"></label>
-      <div id="activeCard"></div>
-      <div class="tiles" id="tiles"></div>
-      <div id="howBox">
-        <h2 class="sec">איך זה עובד</h2>
-        <div class="how">
-          <div><span>1</span><b>פותחים קריאה</b>מתארים מה צריך, בדקה</div>
-          <div><span>2</span><b>מקבלים הצעות</b>עד 5, בלי לדבר עם אף אחד</div>
-          <div><span>3</span><b>בוחרים ומשלמים</b>בתשלום מאובטח הכסף משתחרר רק באישורכם</div>
-        </div>
-      </div>
+      <div class="muted" id="hello" style="font-size:19px"></div>
+      <div id="homeJobs"></div>
+      <h1>במה אפשר לעזור?</h1>
+      <div class="choices" id="groups"></div>
+      <h2 style="font-size:19px;font-weight:500;color:var(--muted);margin:24px 0 10px">לא מצאתם? חפשו</h2>
+      <label class="search"><span data-i="search" data-s="24"></span><input id="homeSearch" placeholder="למשל: אינסטלטור, שליח, עורך דין" autocomplete="off" aria-label="חיפוש"></label>
     </main>
 
-    <!-- new request -->
-    <main data-view="new" hidden>
-      <div class="steps" aria-hidden="true"><span class="on"></span><span id="st2"></span><span id="st3"></span></div>
-      <div id="picker">
-        <p class="muted" style="margin:4px 0 10px">שלב 1 · בוחרים תחום</p>
-        <label class="search"><span id="sIc2"></span><input id="catSearch" placeholder="חיפוש: שליח, אינסטלטור, מסירה משפטית, בייביסיטר" autocomplete="off" aria-label="חיפוש תחום"></label>
-        <div class="list" id="catList"></div>
-      </div>
-      <form id="f" novalidate hidden>
-        <input type="hidden" name="categoryId" id="cat">
-        <div class="card chosen" id="chosen"></div>
-        <label class="lb" for="desc">תיאור</label>
-        <textarea class="field" id="desc" name="description" placeholder="תארו בקצרה את הבעיה"></textarea>
-        <div class="err" id="descErr"></div>
-        <label class="lb">תמונות וסרטון <span class="opt">· עד 8 תמונות וסרטון אחד, רק מקצוענים מחוברים רואים</span></label>
-        <div class="mpick">
-          <label><span data-i="image"></span>תמונות<input type="file" id="pickImages" accept="image/*" multiple></label>
-          <label><span data-i="video"></span>סרטון<input type="file" id="pickVideo" accept="video/*"></label>
-          <label><span data-i="camera"></span>צילום<input type="file" id="pickCamera" accept="image/*" capture="environment"></label>
-        </div>
-        <div class="mthumbs" id="mediaPrev"></div>
-        <div class="muted" id="uploadStatus" hidden></div>
-        <label class="lb">איך תרצו שיטפלו?</label>
-        <div class="seg" id="modes"></div>
-        <div id="addrBox">
-          <label class="lb" for="address" id="addrLabel">כתובת</label>
-          <input class="field" name="address" id="address" autocomplete="street-address">
-          <div class="err" id="addrErr"></div>
-        </div>
-        <div id="noAddr" class="muted" style="margin-top:12px" hidden>העבודה לא דורשת הגעה.</div>
-        <div id="deliveryBox" hidden>
-          <label class="lb" for="dropoff">לאן להביא? <span class="opt">ריק = המיקום שלי</span></label>
-          <input class="field" name="dropoff" id="dropoff">
-          <label class="lb" for="itemsCost">השליח קונה עבורך? כמה זה עולה בערך <span class="opt">לא חובה</span></label>
-          <input class="field" name="itemsCost" id="itemsCost" type="number" min="0" inputmode="numeric" placeholder="ש״ח">
-          <div class="muted" style="margin-top:6px">סכום הקנייה מוחזר לשליח במלואו, בלי עמלה.</div>
-        </div>
-        <label class="lb">דחיפות</label>
-        <div class="seg"><label><input type="radio" name="urgency" value="normal" checked>רגיל</label><label class="urgent"><input type="radio" name="urgency" value="urgent">דחוף</label></div>
-        <label class="lb" for="budget">תקציב <span class="opt">לא חובה</span></label>
-        <input class="field" name="budget" id="budget" type="number" min="0" inputmode="numeric" placeholder="ש״ח">
-        <label class="lb">איך משלמים?</label>
-        <div class="pay">
-          <label><input type="radio" name="paymentMode" value="direct" checked><span><b>תשלום ישירות למקצוען</b><br><span class="muted">משלמים לו בסיום, בדרך שסיכמתם</span></span></label>
-          <label><input type="radio" name="paymentMode" value="in_app"><span><b>תשלום מאובטח באפליקציה</b><br><span class="muted">הכסף ננעל עכשיו ומשתחרר רק אחרי שתאשרו שהעבודה הסתיימה</span></span></label>
-        </div>
-        <div class="muted" id="payLocked" hidden>בנסיעות התשלום הוא תמיד מאובטח באפליקציה.</div>
-        <label class="check"><input type="checkbox" name="allowCalls"><span>מותר למקצוענים שהציעו להתקשר אליי</span></label>
-        <div class="muted" style="margin:4px 0 18px">הטלפון שלכם לא נחשף אם לא סימנתם. אפשר לבחור הצעה בלי לדבר.</div>
-        <button class="btn" id="submitBtn">פרסמו קריאה וקבלו הצעות</button>
-      </form>
-    </main>
+    <!-- new request: one question per screen -->
+    <main data-view="flow" hidden><div id="flow"></div></main>
 
     <!-- my requests -->
-    <main data-view="mine" hidden>
-      <div class="chips" id="mineFilter"></div>
-      <div id="mine"></div>
-    </main>
+    <main data-view="mine" hidden><div id="mine"></div></main>
 
-    <!-- board -->
-    <main data-view="board" hidden>
-      <div class="card" style="display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)"><span data-i="info"></span>קריאות פתוחות של אחרים, בלי פרטי קשר. ככה נראית קריאה טובה.</div>
-      <div id="board"></div>
-    </main>
+    <!-- one request -->
+    <main data-view="job" hidden><div id="job"></div></main>
 
     <!-- account -->
     <main data-view="account" hidden>
-      <div class="list" id="acct"></div>
-      <p class="muted" style="margin:12px 4px">הטלפון נחשף למקצוען רק אם סימנתם שמותר להתקשר, או אחרי שבחרתם בו.</p>
-      <button class="btn ghost" id="logout"><span data-i="logout"></span>יציאה</button>
-      <p style="text-align:center;margin-top:28px"><a href="/pro" style="color:#0f766e;font-weight:700">יש לך מקצוע? הצטרף</a></p>
+      <div class="card" id="acct"></div>
+      <p class="muted">הטלפון שלכם נחשף למקצוען רק אם אישרתם שמותר להתקשר, או אחרי שבחרתם בו.</p>
+      <button class="btn soft" id="toBoard" style="margin-top:12px"><span data-i="list"></span>איך נראות קריאות של אחרים</button>
+      <button class="btn soft" id="logout" style="margin-top:12px"><span data-i="logout"></span>יציאה מהחשבון</button>
+      <p style="text-align:center;margin-top:30px"><a href="/pro" style="color:#0f766e;font-weight:500">יש לכם מקצוע? הצטרפו כמקצוענים</a></p>
+    </main>
+
+    <!-- public board -->
+    <main data-view="board" hidden>
+      <p class="muted" style="margin-top:0">קריאות פתוחות של אחרים, בלי פרטים אישיים.</p>
+      <div id="board"></div>
     </main>
 
     <nav class="bottom" aria-label="ניווט ראשי">
-      <button data-go="home"><span data-i="home" data-s="24"></span>בית</button>
-      <button data-go="mine"><span data-i="list" data-s="24"></span>הקריאות שלי</button>
-      <button data-go="new" class="fab" aria-label="פתיחת קריאה"><span><span data-i="plus" data-s="28"></span></span>קריאה</button>
-      <button data-go="board"><span data-i="grid" data-s="24"></span>לוח</button>
-      <button data-go="account"><span data-i="user" data-s="24"></span>חשבון</button>
+      <button data-go="home"><span data-i="home" data-s="28"></span>בית</button>
+      <button data-go="mine"><span data-i="list" data-s="28"></span>הקריאות שלי<i class="badge" id="mineBadge" hidden></i></button>
+      <button data-go="account"><span data-i="user" data-s="28"></span>חשבון</button>
     </nav>
   </div>
 </div>
@@ -274,21 +229,17 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
-const ils = (n) => `${(+n || 0).toLocaleString('he-IL', { maximumFractionDigits: 2 })}\u00a0ש״ח`;
+const ils = (n) => `${(+n || 0).toLocaleString('he-IL', { maximumFractionDigits: 2 })} ש״ח`;
 // Phones are stored as E.164 digits (972501234567): dial with +, show the local form.
 const tel = (p) => (/^972/.test(p) ? `+${p}` : p);
 const showPhone = (p) => (/^972/.test(p) ? `0${p.slice(3)}` : p);
-const offersOf = (n) => (n === 1 ? 'הצעה אחת מתוך 5' : `${n} הצעות מתוך 5`);
 
-// ---- icons (line, 24 grid, stroke 2)
+// ---- icons (line, 24 grid, stroke 2) — one color, no decoration
 const P = {
   home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   user: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.4a7 7 0 0 1 11.6 0"/>',
   person: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   back: '<path d="M5 12h14M13 6l6 6-6 6"/>', chev: '<path d="M15 6l-6 6 6 6"/>',
   x: '<path d="M18 6L6 18M6 6l12 12"/>', check: '<path d="M5 12l5 5L20 7"/>',
@@ -298,53 +249,32 @@ const P = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   star: '<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
   camera: '<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
-  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',
-  video: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
   play: '<path d="M8 5l11 7-11 7z"/>', info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M14 17l5-5-5-5M19 12H9"/>',
-  hotel: '<path d="M3 21h18M5 21V5h10v16M15 9h4v12"/><path d="M8 9h4M8 13h4"/>', flight: '<path d="M2 16l20-8-2-2-7 3-6-3-2 1 4 4-4 2-2-1-1 1z"/>',
-  ticket: '<path d="M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 0 0-4V4H3z"/><path d="M12 9l1 2 2 .3-1.5 1.4.4 2.3-1.9-1-1.9 1 .4-2.3L9 11.3l2-.3z"/>',
+  text: '<path d="M4 6h16M4 12h16M4 18h10"/>', calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  flame: '<path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  bag: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+  mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  car: '<path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>',
+  doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/>',
+  heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  dots: '<circle cx="12" cy="12" r="10"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>',
+  monitor: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
   box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  hotel: '<path d="M3 21h18M5 21V5h10v16M15 9h4v12"/><path d="M8 9h4M8 13h4"/>', flight: '<path d="M2 16l20-8-2-2-7 3-6-3-2 1 4 4-4 2-2-1-1 1z"/>',
+  ticket: '<path d="M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 0 0-4V4H3z"/>',
 };
-const CAT = { // parent id -> [icon paths, color]
-  delivery: [P.box, '#ff6a00'], errands: ['<path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><path d="M9 10l2 2 4-4"/>', '#db2777'],
-  plumbing: ['<path d="M3 10h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z"/><path d="M12 17v4M9 21h6M12 10V5a2 2 0 0 1 2-2"/>', '#2563eb'],
-  electric: ['<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', '#d97706'],
-  renovation: ['<rect x="3" y="3" width="14" height="6" rx="1"/><path d="M17 6h3v5h-8v3"/><rect x="10" y="14" width="4" height="7" rx="1"/>', '#92400e'],
-  carpentry: ['<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16M3 12h18"/>', '#0d9488'],
-  locksmith: ['<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', '#475569'],
-  hvac: ['<rect x="2" y="5" width="20" height="8" rx="2"/><path d="M7 17v2M12 17v3M17 17v2"/>', '#0284c7'],
-  appliances: ['<rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="13" r="4"/>', '#9333ea'],
-  help: ['<path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7L3 15l3 3 8-8"/>', '#be185d'],
-  cleaning: ['<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>', '#0891b2'],
-  garden: ['<path d="M12 22V12"/><path d="M12 12c0-5 4-8 8-8 0 5-3 8-8 8zM12 15c0-4-3-6-7-6 0 4 3 6 7 6z"/>', '#15803d'],
-  pest: ['<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 6V3M4 10h4M16 10h4M4 16h4M16 16h4"/>', '#65a30d'],
-  moving: ['<rect x="1" y="6" width="14" height="11" rx="1"/><path d="M15 9h4l3 4v4h-7"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>', '#16a34a'],
-  auto: ['<path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>', '#334155'],
-  computers: ['<rect x="4" y="5" width="16" height="11" rx="1"/><path d="M2 19h20"/>', '#7c3aed'],
-  digital: ['<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 13h6M7 16h4"/>', '#4f46e5'],
-  legal: ['<path d="M6 3h9l4 4v14H6z"/><circle cx="12" cy="14" r="3"/>', '#1d4ed8'],
-  professional: ['<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>', '#0f766e'],
-  tutoring: ['<path d="M2 4h7a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h8z"/>', '#9333ea'],
-  care: ['<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>', '#e11d48'],
-  wellness: ['<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>', '#059669'],
-  beauty: ['<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1L20 20M8.1 15.9L20 4"/>', '#c026d3'],
-  events: [P.camera, '#ea580c'], travel: [P.flight, '#0ea5e9'],
-  other: ['<circle cx="12" cy="12" r="10"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>', '#64748b'],
-};
-const ic = (name, size = 20) => `<svg class="i" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${P[name] ?? name}</svg>`;
-const catOf = (id) => CAT[String(id).split('.')[0]] ?? CAT.other;
-const catTile = (id, size = 44, isz = 22) => { const [d, c] = catOf(id); return `<span class="icon-tile" style="width:${size}px;height:${size}px;background:${c}1a;color:${c}">${ic(d, isz)}</span>`; };
-const fillIcons = (root = document) => $$('[data-i]', root).forEach((el) => { el.outerHTML = ic(el.dataset.i, +(el.dataset.s || 20)); });
+const ic = (name, size = 24) => `<svg class="i" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">${P[name] ?? name}</svg>`;
+const fillIcons = (root = document) => $$('[data-i]', root).forEach((el) => { el.outerHTML = ic(el.dataset.i, +(el.dataset.s || 24)); });
 fillIcons();
-$('#sIc').innerHTML = ic('search'); $('#sIc2').innerHTML = ic('search');
-$('#bell').innerHTML = ic('bell');
-$('#backBtn').innerHTML = ic('back', 22);
+$('#backBtn').innerHTML = `${ic('back', 22)}חזרה`;
 
 function toast(text, kind = 'ok') {
   const t = document.createElement('div'); t.className = `toast ${kind}`; t.innerHTML = `${ic(kind === 'err' ? 'alert' : 'check')}<span>${esc(text)}</span>`;
-  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 3500);
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 4000);
 }
 function sheet(html, onClose) {
   const s = document.createElement('div'); s.className = 'scrim';
@@ -355,68 +285,131 @@ function sheet(html, onClose) {
   return { el: s, close };
 }
 
-// ---- session & navigation
+// ---- plain-language groups instead of a wall of professions.
+// Each option points to one real sub-category; everything else is reachable by search.
+const GROUPS = [
+  { id: 'fix', icon: 'wrench', title: 'משהו התקלקל בבית', sub: 'מים, חשמל, מזגן, מכשירים', ex: 'למשל: הכיור במטבח סתום והמים לא יורדים', opts: [
+    ['plumbing.unclog', 'סתימה בכיור או באסלה'], ['plumbing.leak_camera', 'נזילת מים'], ['plumbing.boiler', 'דוד ומים חמים'],
+    ['electric.short', 'תקלת חשמל'], ['hvac.repair', 'המזגן לא עובד'], ['appliances.washer', 'מכונת כביסה או מייבש'],
+    ['appliances.fridge', 'מקרר או מקפיא'], ['locksmith.door', 'דלת נעולה או מנעול'], ['help.handyman', 'תיקון קטן אחר'] ] },
+  { id: 'errand', icon: 'bag', title: 'משלוח או סידור', sub: 'קניות, תרופות, דואר, בנק', ex: 'למשל: לקנות לחם, חלב וביצים ולהביא הביתה', opts: [
+    ['delivery.groceries', 'קניות מהסופר או מהמכולת'], ['delivery.pharmacy', 'תרופות מבית המרקחת'], ['delivery.food', 'אוכל ממסעדה'],
+    ['delivery.package', 'חבילה או מסמכים'], ['errands.post', 'דואר ודואר רשום'], ['errands.office', 'סידור בבנק או במשרד ממשלתי'] ] },
+  { id: 'home', icon: 'sparkle', title: 'ניקיון ועזרה בבית', sub: 'ניקיון, רהיטים, תלייה, הובלה', ex: 'למשל: ניקיון דירת 3 חדרים, פעם אחת', opts: [
+    ['cleaning.home', 'ניקיון הבית'], ['cleaning.windows', 'ניקוי חלונות'], ['cleaning.ironing', 'כביסה וגיהוץ'],
+    ['help.furniture', 'הרכבת רהיטים'], ['help.tv_mount', 'תליית תמונות, מדפים או טלוויזיה'], ['help.garden', 'עבודה בגינה'], ['moving.small', 'הובלה קטנה'] ] },
+  { id: 'tech', icon: 'mobile', title: 'טלפון ומחשב', sub: 'תקלה, אינטרנט, הדרכה', ex: 'למשל: הטלפון לא נדלק מאז אתמול', opts: [
+    ['computers.phone_repair', 'הטלפון לא עובד'], ['computers.repair', 'המחשב לא עובד'], ['computers.network', 'אינטרנט ו-WiFi'],
+    ['tutoring.tech_seniors', 'ללמוד להשתמש בטלפון או במחשב'] ] },
+  { id: 'car', icon: 'car', title: 'רכב', sub: 'לא מניע, פנצ׳ר, גרירה', ex: 'למשל: הרכב לא מניע, נראה שהמצבר נגמר', opts: [
+    ['auto.battery', 'הרכב לא מניע'], ['auto.tire', 'פנצ׳ר'], ['auto.mechanic', 'מכונאי עד הבית'], ['auto.towing', 'גרירה'] ] },
+  { id: 'care', icon: 'heart', title: 'ליווי וטיפול', sub: 'ליווי לבדיקות, מטפל, כלב', ex: 'למשל: ליווי לבדיקה בבית החולים ביום שלישי בבוקר', opts: [
+    ['errands.elderly_companion', 'ליווי לבדיקות ולסידורים'], ['care.elderly', 'מטפל או מטפלת'], ['care.dog_walking', 'להוציא את הכלב'],
+    ['beauty.hair', 'תספורת בבית'] ] },
+  { id: 'expert', icon: 'doc', title: 'עזרה ממומחה', sub: 'טפסים, עורך דין, מס', ex: 'למשל: צריך עזרה במילוי טופס לביטוח לאומי', opts: [
+    ['legal.documents', 'מילוי טפסים ומסמכים'], ['legal.consult', 'עורך דין'], ['professional.tax', 'החזרי מס'], ['professional.insurance', 'ביטוח'] ] },
+];
+const PHOTO_PARENTS = ['plumbing', 'electric', 'renovation', 'carpentry', 'locksmith', 'hvac', 'appliances', 'help', 'cleaning', 'garden', 'pest', 'moving', 'auto', 'computers', 'other'];
+const MODE_ASK = { onsite: ['home', 'שיבוא אליי', 'מקצוען מגיע לכתובת שלכם'], phone: ['phone', 'בשיחת טלפון', 'בלי שמישהו יגיע'],
+  remote: ['monitor', 'מרחוק', 'דרך המחשב או שיחת וידאו'], delivery: ['box', 'לאסוף ולהביא', 'ממקום אחד למקום אחר'] };
+const MODE = { onsite: 'אצלי', remote: 'מרחוק', phone: 'בטלפון', delivery: 'איסוף ומשלוח' };
+const ERR = { bad_phone: 'מספר הטלפון לא נכון', bad_code: 'הקוד לא נכון', code_expired: 'הקוד כבר לא בתוקף. בקשו קוד חדש', too_soon: 'חכו רגע לפני שמבקשים קוד נוסף',
+  too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש', bad_name: 'צריך שם', bad_description: 'צריך לכתוב מה צריך', bad_location: 'לא הצלחנו למצוא את הכתובת',
+  bad_dropoff: 'צריך כתובת איסוף וכתובת מסירה', closed: 'הקריאה כבר נסגרה', price_required: 'בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר',
+  traveler_required: 'נא למלא שם ואימייל של הנוסע', already_rated: 'כבר דירגתם', supplier_error: 'הספק לא זמין כרגע. נסו שוב' };
+
 let token = store.get('clientToken');
-let view = 'home';
-const TITLES = { new: 'קריאה חדשה', mine: 'הקריאות שלי', board: 'לוח', account: 'חשבון' };
+let view = 'home', backTo = null, openJobId = null;
+let cats = {}, tree = [], jobs = [], lastJobsJson = '';
+let loc = { lat: 32.0853, lng: 34.7818 }; // fallback: Tel Aviv
+// In the Android app the location comes from the app itself (works on plain http:// too);
+// in a browser it comes from geolocation (which browsers only allow on https/localhost).
+function appLoc() { try { const s = window.ProMarketApp?.location(); return s ? JSON.parse(s) : null; } catch { return null; } }
+function refreshLoc() {
+  const a = appLoc();
+  if (a) { loc = a; return; }
+  navigator.geolocation?.getCurrentPosition((p) => { loc = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
+}
+refreshLoc();
+
+async function api(path, body, method) {
+  const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
+    headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && token) { token = null; store.set('clientToken', null); showLogin(); }
+  if (!r.ok) throw Object.assign(new Error(ERR[data.error] || data.message || data.error || 'משהו השתבש. נסו שוב'), { status: r.status });
+  return data;
+}
+
+// ---- session & navigation
+const TITLES = { mine: 'הקריאות שלי', job: 'הקריאה שלי', account: 'חשבון', board: 'קריאות של אחרים', flow: 'קריאה חדשה' };
 function showLogin() {
   $('#login').hidden = !!token; $('#shell').hidden = !token;
   document.body.classList.toggle('nonav', !token);
-  if (token) { $('#hello').textContent = `שלום, ${store.get('clientName') || ''}`.trim(); go(view); }
+  if (token) { $('#hello').textContent = `שלום ${store.get('clientName') || ''}`.trim(); go('home'); }
 }
-function go(v) {
-  view = v;
+function go(v, back = null) {
+  view = v; backTo = back;
   for (const m of $$('main[data-view]')) m.hidden = m.dataset.view !== v;
-  for (const b of $$('nav.bottom button')) { b.classList.toggle('on', b.dataset.go === v); b.toggleAttribute('aria-current', b.dataset.go === v); }
+  const tab = v === 'job' ? 'mine' : v === 'board' ? 'account' : v;
+  for (const b of $$('nav.bottom button')) { const on = b.dataset.go === tab; b.classList.toggle('on', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); }
   $('#topBrand').hidden = v !== 'home'; $('#topTitle').hidden = v === 'home'; $('#topTitle').textContent = TITLES[v] ?? '';
-  $('#backBtn').hidden = !(v === 'new' && !$('#f').hidden);
+  $('#backBtn').hidden = !back;
+  $('nav.bottom').hidden = v === 'flow';
+  document.body.classList.toggle('nonav', v === 'flow');
   if (v === 'account') renderAccount();
+  if (v === 'mine') renderMine();
+  if (v === 'job') renderJob();
+  if (v === 'board') renderBoard();
   window.scrollTo(0, 0);
 }
-$('nav.bottom').onclick = (e) => { const b = e.target.closest('[data-go]'); if (!b) return; if (b.dataset.go === 'new') startNew(); else go(b.dataset.go); };
-$('#bell').onclick = () => go('mine');
-$('#backBtn').onclick = () => { $('#f').hidden = true; $('#picker').hidden = false; setSteps(1); go('new'); };
-showLogin();
+$('nav.bottom').onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); };
+$('#backBtn').onclick = () => (view === 'flow' ? flowBack() : go(backTo ?? 'home'));
+$('#toBoard').onclick = () => go('board', 'account');
 
 $('#loginForm').onsubmit = async (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(e.target));
   $('#loginErr').textContent = '';
-  for (const [k, id] of [['name', 'lName'], ['phone', 'lPhone']]) $('#' + id).classList.toggle('bad', !d[k]);
-  if (!d.name || !d.phone) return ($('#loginErr').textContent = 'שדה חובה');
+  for (const [k, id] of [['name', 'lName'], ['phone', 'lPhone']]) $('#' + id).classList.toggle('bad', !d[k].trim());
+  if (!d.name.trim() || !d.phone.trim()) return ($('#loginErr').textContent = 'צריך למלא שם וטלפון');
+  const btn = $('#loginBtn'); btn.disabled = true;
   try {
     if ($('#codeRow').hidden) {
       const res = await api('/api/auth/request', { phone: d.phone });
-      $('#codeRow').hidden = false; $('#loginBtn').textContent = 'כניסה';
+      $('#codeRow').hidden = false; btn.textContent = 'כניסה';
       if (res.devCode) e.target.code.value = res.devCode; // dev mode only
+      else $('#lCode').focus();
     } else {
+      if (!d.code.trim()) { btn.disabled = false; return ($('#loginErr').textContent = 'צריך להקליד את הקוד מה-SMS'); }
       token = (await api('/api/auth/verify', { phone: d.phone, code: d.code, role: 'client', name: d.name })).token;
       store.set('clientToken', token); store.set('clientName', d.name); store.set('clientPhone', d.phone);
-      view = 'home'; showLogin(); load();
+      showLogin(); load();
     }
   } catch (err) { $('#loginErr').textContent = err.message; }
+  btn.disabled = false;
 };
+for (const id of ['lName', 'lPhone', 'lCode']) $('#' + id).addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#loginErr').textContent = ''; });
 $('#logout').onclick = () => { token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
 function renderAccount() {
-  $('#acct').innerHTML = `<button type="button" tabindex="-1">${ic('person')}<span class="grow"><span class="sub">שם</span>${esc(store.get('clientName') || '')}</span></button>
-    <button type="button" tabindex="-1">${ic('phone')}<span class="grow"><span class="sub">טלפון</span><span style="direction:ltr;unicode-bidi:isolate">${esc(store.get('clientPhone') || '')}</span></span></button>`;
+  $('#acct').innerHTML = `<div class="sum">${ic('person')}<div><span>שם</span>${esc(store.get('clientName') || '')}</div></div>
+    <div class="sum">${ic('phone')}<div><span>טלפון</span><bdi class="ltr">${esc(store.get('clientPhone') || '')}</bdi></div></div>`;
 }
 
-// ---- photos & videos
-const mediaHtml = (list, size = 64) => (list?.length ? `<div class="mthumbs">${list.map((m) => m.kind === 'video'
-  ? `<button type="button" class="mthumb" style="width:${size}px;height:${size}px" data-media="${esc(m.url)}" data-kind="video" aria-label="נגן סרטון"><video src="${esc(m.url)}#t=0.1" preload="metadata" muted playsinline></video><span class="mplay">${ic('play', 18)}</span></button>`
-  : `<button type="button" class="mthumb" style="width:${size}px;height:${size}px" data-media="${esc(m.url)}" data-kind="image" aria-label="הצג תמונה"><img src="${esc(m.url)}" alt="" loading="lazy"></button>`).join('')}</div>` : '');
+// ---- photos (only where a picture helps)
+const mediaHtml = (list, size = 76) => (list?.length ? `<div class="mthumbs">${list.map((m) => m.kind === 'video'
+  ? `<button type="button" class="mthumb" style="width:${size}px;height:${size}px" data-media="${esc(m.url)}" data-kind="video" aria-label="נגן סרטון"><video src="${esc(m.url)}#t=0.1" preload="metadata" muted playsinline></video><span class="mplay">${ic('play', 22)}</span></button>`
+  : `<button type="button" class="mthumb" style="width:${size}px;height:${size}px" data-media="${esc(m.url)}" data-kind="image" aria-label="הצגת תמונה"><img src="${esc(m.url)}" alt="" loading="lazy"></button>`).join('')}</div>` : '');
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-media]');
   if (!t) return;
   const box = document.createElement('div'); box.className = 'lightbox';
-  box.innerHTML = `<button type="button" class="lbclose" aria-label="סגירה">${ic('x')}</button>` + (t.dataset.kind === 'video'
+  box.innerHTML = `<button type="button" class="lbclose" aria-label="סגירה">${ic('x', 26)}</button>` + (t.dataset.kind === 'video'
     ? `<video src="${esc(t.dataset.media)}" controls autoplay playsinline></video>` : `<img src="${esc(t.dataset.media)}" alt="">`);
   box.onclick = (ev) => { if (ev.target === box || ev.target.closest('.lbclose')) box.remove(); };
   document.body.appendChild(box);
 });
-const picked = []; // { id, kind, file, url }
-const MAX_IMG = 8, MAX_VID = 1, MAX_VID_MB = 100;
+const MAX_IMG = 8;
 async function shrink(file) {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
   try {
@@ -429,229 +422,298 @@ async function shrink(file) {
     return blob && blob.size < file.size ? blob : file;
   } catch { return file; } // e.g. HEIC the browser can't decode: upload as is
 }
-function renderPicked() {
-  $('#mediaPrev').innerHTML = picked.map((m) => `<div class="mprev"><button type="button" class="rm" data-rm="${m.id}" aria-label="הסר">${ic('x', 14)}</button>${mediaHtml([{ kind: m.kind, url: m.url }], 72)}</div>`).join('');
-}
-function addPicked(files, kind) {
-  for (const f of files) {
-    const n = picked.filter((m) => m.kind === kind).length;
-    if (n >= (kind === 'image' ? MAX_IMG : MAX_VID)) { toast(kind === 'image' ? `אפשר עד ${MAX_IMG} תמונות` : 'אפשר סרטון אחד לקריאה', 'err'); break; }
-    if (f.size > MAX_VID_MB * 1048576) { toast(`הקובץ גדול מדי (עד ${MAX_VID_MB}MB)`, 'err'); continue; }
-    picked.push({ id: Math.random().toString(36).slice(2), kind, file: f, url: URL.createObjectURL(f) });
-  }
-  renderPicked();
-}
-$('#pickImages').onchange = (e) => { addPicked([...e.target.files], 'image'); e.target.value = ''; };
-$('#pickCamera').onchange = (e) => { addPicked([...e.target.files], 'image'); e.target.value = ''; };
-$('#pickVideo').onchange = (e) => { addPicked([...e.target.files], 'video'); e.target.value = ''; };
-$('#mediaPrev').onclick = (e) => { const id = e.target.closest('[data-rm]')?.dataset.rm; if (id) { const i = picked.findIndex((m) => m.id === id); if (i >= 0) picked.splice(i, 1); renderPicked(); } };
-async function uploadPicked() {
+async function uploadPicked(list, onStep) {
   const ids = [];
-  for (const [i, m] of picked.entries()) {
-    $('#uploadStatus').hidden = false; $('#uploadStatus').textContent = `מעלה ${i + 1} מתוך ${picked.length}…`;
-    const body = m.kind === 'image' ? await shrink(m.file) : m.file;
+  for (const [i, m] of list.entries()) {
+    onStep?.(i + 1, list.length);
+    const body = await shrink(m.file);
     const r = await fetch('/api/uploads', { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': body.type || m.file.type || 'application/octet-stream' }, body });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.message || 'ההעלאה נכשלה');
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || 'העלאת התמונה נכשלה');
     ids.push(data.id);
   }
   return ids;
 }
 
-// ---- data
-const MODE = { onsite: 'אצלי', remote: 'מרחוק', phone: 'בטלפון', delivery: 'איסוף ומשלוח' };
-const MODE_I = { onsite: 'home', remote: '<rect x="4" y="5" width="16" height="11" rx="1"/><path d="M2 19h20"/>', phone: 'phone', delivery: 'box' };
-const FLOW = { onsite: ['open', 'assigned', 'en_route', 'in_progress', 'completed', 'closed_done'],
-  delivery: ['open', 'assigned', 'en_route', 'picked_up', 'completed', 'closed_done'],
-  remote: ['open', 'assigned', 'in_progress', 'completed', 'closed_done'] };
-FLOW.phone = FLOW.remote;
-const STEP = { open: 'פתוח · ממתין להצעות', assigned: 'נבחר מקצוען', en_route: 'בדרך', picked_up: 'נאסף, בדרך אליכם', in_progress: 'בטיפול',
-  completed: 'ממתין לאישורכם', closed_done: 'הושלם', booking_failed: 'ההזמנה נכשלה, הכסף הוחזר' };
-const stepLabel = (j) => j.mode === 'delivery' ? ({ assigned: 'שליח נבחר', en_route: 'בדרך לאיסוף', completed: 'נמסר וממתין לאישור' }[j.status] ?? STEP[j.status]) : STEP[j.status];
-const FILTERS = [['all', 'הכל'], ['open', 'פתוחות'], ['active', 'בטיפול'], ['approve', 'לאישור'], ['done', 'הסתיימו']];
-const inFilter = (j, f) => f === 'all' || (f === 'open' && j.status === 'open') || (f === 'approve' && j.status === 'completed')
-  || (f === 'done' && ['closed_done', 'booking_failed'].includes(j.status)) || (f === 'active' && ['assigned', 'en_route', 'picked_up', 'in_progress'].includes(j.status));
-const QUICK = [['delivery.food', 'שליח אוכל'], ['delivery.package', 'משלוח'], ['plumbing.unclog', 'אינסטלטור'],
-  ['computers.repair', 'טכנאי מחשבים'], ['cleaning.home', 'ניקיון'], ['help.handyman', 'הנדימן'],
-  ['travel.package', 'חופשה'], ['legal.process_serving', 'מסירה משפטית'], ['care.dog_walking', 'הוצאת כלב'], ['other.general', 'משהו אחר']];
-let cats = {}, tree = [], jobs = [], mineFilter = 'all';
-const sel = {}; // jobId -> selected offerId
-let loc = { lat: 32.0853, lng: 34.7818 }; // fallback: Tel Aviv
-// In the Android app the location comes from the app itself (works on plain http:// too);
-// in a browser it comes from geolocation (which browsers only allow on https/localhost).
-function appLoc() { try { const s = window.ProMarketApp?.location(); return s ? JSON.parse(s) : null; } catch { return null; } }
-function refreshLoc() {
-  const a = appLoc();
-  if (a) { loc = a; return; }
-  navigator.geolocation?.getCurrentPosition((p) => { loc = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
-}
-refreshLoc();
-
-const ERR = { bad_phone: 'מספר טלפון לא תקין', bad_code: 'הקוד שגוי', code_expired: 'פג תוקף הקוד. בקשו קוד חדש', too_soon: 'חכו רגע לפני בקשת קוד נוסף',
-  too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש', bad_name: 'צריך שם', bad_description: 'תיאור חובה', bad_location: 'לא הצלחנו לאתר את הכתובת',
-  bad_dropoff: 'צריך כתובת איסוף וכתובת מסירה', closed: 'הקריאה כבר נסגרה', price_required: 'בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר',
-  traveler_required: 'נא למלא שם ואימייל של הנוסע', already_rated: 'כבר דירגתם', supplier_error: 'הספק לא זמין כרגע. נסו שוב' };
-async function api(path, body, method) {
-  const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
-    headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
-  const data = await r.json();
-  if (r.status === 401) { token = null; store.set('clientToken', null); showLogin(); }
-  if (!r.ok) throw Object.assign(new Error(ERR[data.error] || data.message || data.error), { status: r.status });
-  return data;
-}
-
 // ---- home
-$('#tiles').innerHTML = QUICK.map(([id, label]) => { const [d, c] = catOf(id);
-  return `<button type="button" class="tile" data-cat="${id}"><span style="background:${c}1a;color:${c}">${ic(d, 28)}</span>${label}</button>`; }).join('')
-  + `<button type="button" class="tile all" data-all><span>${ic('grid')}כל התחומים</span></button>`;
-$('#tiles').onclick = (e) => { const b = e.target.closest('.tile'); if (!b) return; if (b.dataset.cat) choose(b.dataset.cat); else startNew(); };
-$('#homeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); startNew(e.target.value.trim()); e.target.value = ''; } });
-$('#homeSearch').addEventListener('input', (e) => { if (e.target.value.trim().length >= 2) { const q = e.target.value.trim(); e.target.value = ''; startNew(q); } });
-function renderHome() {
-  const active = jobs.find((j) => !['closed_done', 'booking_failed'].includes(j.status));
-  $('#howBox').hidden = jobs.length > 0;
-  $('#activeCard').innerHTML = active ? `<button type="button" class="card" data-open-job="${active.id}" style="display:flex;gap:12px;align-items:center;width:100%;border:0;text-align:right;cursor:pointer">
-    ${catTile(active.categoryId)}<span style="flex:1;min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(active.description)}</b>
-    <span class="muted" style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:4px;background:var(--brand)"></span>${esc(stepLabel(active))}${active.status === 'open' ? ` · ${offersOf(active.offers.length)}` : ''}</span></span>
-    <span style="color:var(--brand-ink);font-weight:700;display:flex;align-items:center;gap:2px;font-size:14px">${active.status === 'open' ? 'להצעות' : 'למעקב'}${ic('chev', 18)}</span></button>` : '';
-}
-document.addEventListener('click', (e) => { const b = e.target.closest('[data-open-job]'); if (b) { mineFilter = 'all'; go('mine'); renderMine(); $(`[data-job="${b.dataset.openJob}"]`)?.scrollIntoView({ block: 'start' }); } });
-
-// ---- new request: pick a category, then details
-let openParent = null;
-function setSteps(n) { $('#st2').classList.toggle('on', n >= 2); $('#st3').classList.toggle('on', n >= 3); }
-function startNew(q = '') { $('#f').hidden = true; $('#picker').hidden = false; openParent = null; $('#catSearch').value = q; renderCatList(); setSteps(1); go('new'); }
-function renderCatList() {
-  const q = $('#catSearch').value.trim();
-  const row = (id, title, sub, chevron = true) => { const [d, c] = catOf(id);
-    return `<button type="button" data-pick="${id}"><span class="dot" style="background:${c}1a;color:${c}">${ic(d)}</span><span class="grow">${sub ? `<span class="sub">${esc(sub)}</span>` : ''}<b>${esc(title)}</b></span>${chevron ? `<span style="color:#8b91a5">${ic('chev', 18)}</span>` : ''}</button>`; };
-  if (q) {
-    const hits = tree.flatMap((p) => p.name.includes(q) ? p.subs.map((s) => [s, p]) : p.subs.filter((s) => s.name.includes(q)).map((s) => [s, p]));
-    $('#catList').innerHTML = hits.map(([s, p]) => row(s.id, s.name, p.name, false)).join('') || `<button type="button" data-pick="other.general">${ic('info')}<span class="grow">לא מצאנו. <b>משהו אחר – כל מומחיות</b></span></button>`;
-  } else if (openParent) {
-    const p = tree.find((x) => x.id === openParent);
-    $('#catList').innerHTML = `<button type="button" data-up>${ic('back')}<span class="grow"><b>${esc(p.name)}</b><span class="sub">בחרו תת-תחום</span></span></button>` + p.subs.map((s) => row(s.id, s.name, '', false)).join('');
-  } else $('#catList').innerHTML = tree.map((p) => row(p.id, p.name, '')).join('');
-}
-$('#catSearch').oninput = renderCatList;
-$('#catList').onclick = (e) => {
+$('#groups').innerHTML = GROUPS.map((g) => `<button type="button" class="choice" data-group="${g.id}"><span class="ico">${ic(g.icon, 26)}</span>
+    <span class="txt"><b>${g.title}</b><small>${g.sub}</small></span><span class="go">${ic('chev')}</span></button>`).join('')
+  + `<button type="button" class="choice" data-pick="other.general"><span class="ico">${ic('dots', 26)}</span><span class="txt"><b>משהו אחר</b><small>ספרו במילים שלכם</small></span><span class="go">${ic('chev')}</span></button>`;
+$('#groups').onclick = (e) => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.hasAttribute('data-up')) { openParent = null; return renderCatList(); }
-  const id = b.dataset.pick;
-  if (tree.some((p) => p.id === id)) { openParent = id; return renderCatList(); }
-  choose(id);
+  if (b.dataset.group) startFlow({ group: b.dataset.group }); else startFlow({ categoryId: b.dataset.pick });
 };
-function choose(id) {
-  if (!cats[id]) return;
-  $('#cat').value = id;
-  $('#chosen').innerHTML = `${catTile(id)}<span style="flex:1;min-width:0"><span class="muted">${esc(cats[id].parentName)}</span><b style="display:block">${esc(cats[id].name)}</b></span>
-    <button type="button" class="chip" id="changeCat">שינוי</button>`;
-  $('#picker').hidden = true; $('#f').hidden = false; setSteps(2);
-  renderModes(); go('new');
-}
-document.addEventListener('click', (e) => { if (e.target.id === 'changeCat') { $('#f').hidden = true; $('#picker').hidden = false; setSteps(1); go('new'); } });
-function renderModes() {
-  const cat = cats[$('#cat').value];
-  const modes = cat?.modes ?? ['onsite'];
-  const locked = cat?.payment === 'in_app';
-  $('#payLocked').hidden = !locked;
-  for (const r of $$('[name=paymentMode]')) { r.disabled = locked && r.value === 'direct'; if (locked) r.checked = r.value === 'in_app'; }
-  $('#modes').innerHTML = modes.map((m, i) => `<label><input type="radio" name="mode" value="${m}" ${i ? '' : 'checked'}>${ic(MODE_I[m], 18)}${MODE[m]}</label>`).join('');
-  syncAddress();
-}
-function syncAddress() {
-  const mode = new FormData($('#f')).get('mode');
-  const physical = mode === 'onsite' || mode === 'delivery';
-  $('#addrBox').hidden = !physical; $('#noAddr').hidden = physical;
-  $('#addrLabel').textContent = mode === 'delivery' ? 'מאיפה לאסוף? (שם מסעדה או חנות וכתובת)' : 'כתובת';
-  $('#deliveryBox').hidden = mode !== 'delivery';
-  setSteps(3);
-}
-$('#modes').onchange = syncAddress;
-$('#desc').oninput = () => { $('#desc').classList.remove('bad'); $('#descErr').textContent = ''; };
-$('#address').oninput = () => { $('#address').classList.remove('bad'); $('#addrErr').textContent = ''; };
-for (const id of ['lName', 'lPhone']) $('#' + id).addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#loginErr').textContent = ''; });
+$('#homeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); openSearch(e.target.value.trim()); e.target.value = ''; } });
+$('#homeSearch').addEventListener('input', (e) => { const q = e.target.value.trim(); if (q.length >= 2) { e.target.value = ''; openSearch(q); } });
 
-api('/api/categories').then((t) => {
-  tree = t;
-  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, modes: s.modes ?? p.modes, payment: p.payment, parentName: p.name };
-  renderCatList(); load();
-});
+// Plain-language status for a request.
+function proName(j) { return j.offers.find((o) => o.status === 'accepted')?.pro?.name ?? 'המקצוען'; }
+function statusOf(j) {
+  const n = j.offers.length, p = proName(j), del = j.mode === 'delivery';
+  switch (j.status) {
+    case 'open': return n ? [n === 1 ? 'קיבלתם הצעה אחת' : `קיבלתם ${n} הצעות`, 'act'] : ['מחכים להצעות ממקצוענים', 'wait'];
+    case 'assigned': return [`בחרתם ב${p}. מחכים שיתחיל`, ''];
+    case 'en_route': return [del ? `${p} בדרך לאיסוף` : `${p} בדרך אליכם`, ''];
+    case 'picked_up': return [`${p} אסף ובדרך אליכם`, ''];
+    case 'in_progress': return [`${p} עובד על זה`, ''];
+    case 'completed': return [`${p} סיים. אשרו שהכל תקין`, 'act'];
+    case 'closed_done': return ['הסתיים', 'ok'];
+    case 'booking_failed': return ['ההזמנה לא אושרה. הכסף הוחזר', 'err'];
+    default: return [j.status, ''];
+  }
+}
+const needsMe = (j) => (j.status === 'open' && j.offers.length) || j.status === 'completed' || (j.status === 'closed_done' && !j.rated);
+const isOpen = (j) => !['closed_done', 'booking_failed'].includes(j.status);
+function reqCard(j) {
+  const [s, cls] = statusOf(j);
+  return `<button type="button" class="card req" data-open-job="${j.id}"><b>${esc(cats[j.categoryId]?.name ?? '')}</b>
+    <span class="desc">${esc(j.description)}</span>
+    <span class="status ${cls}"><i></i>${esc(s)}</span>
+    ${needsMe(j) ? `<span class="btn" style="margin-top:8px;min-height:54px;font-size:18px">${j.status === 'open' ? 'לראות את ההצעות' : j.status === 'completed' ? 'לאשר' : 'לדרג'}</span>` : ''}</button>`;
+}
+function renderHome() {
+  const top = [...jobs.filter(needsMe), ...jobs.filter((j) => isOpen(j) && !needsMe(j))].slice(0, 2);
+  $('#homeJobs').innerHTML = top.length ? `<h2 style="margin-top:14px">הקריאות שלכם</h2>${top.map(reqCard).join('')}` : '';
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-open-job]'); if (b) { openJobId = b.dataset.openJob; go('job', view === 'home' ? 'home' : 'mine'); } });
+
+// ---- new request: one question per screen
+let draft = null, stepIx = 0;
+function stepsFor(d) {
+  // Before the exact option is picked, estimate with the group's first option.
+  if (d.group && !d.categoryId) return ['sub', ...stepsFor({ ...d, group: null, categoryId: GROUPS.find((g) => g.id === d.group).opts[0][0] })];
+  const cat = cats[d.categoryId];
+  const s = [];
+  if (d.group) s.push('sub');
+  if (d.categoryId || !d.group) {
+    s.push('desc');
+    if ((cat?.modes ?? []).length > 1) s.push('mode');
+    const mode = d.mode ?? (cat?.modes ?? ['onsite'])[0];
+    if (mode === 'onsite' || mode === 'delivery') s.push('place');
+    s.push('when', 'summary');
+  }
+  return s;
+}
+function startFlow(init) {
+  draft = { group: null, categoryId: null, mode: null, description: '', photos: [], address: '', dropoff: '', itemsCost: '', urgency: null,
+    allowCalls: false, paymentMode: 'direct', budget: '', ...init };
+  if (draft.search != null) { stepIx = -1; } else stepIx = 0;
+  if (draft.categoryId) draft.mode = (cats[draft.categoryId]?.modes ?? ['onsite']).length === 1 ? cats[draft.categoryId].modes[0] : null;
+  go('flow', 'home'); renderStep();
+}
+function openSearch(q) { startFlow({ search: q }); }
+function flowBack() {
+  if (stepIx <= 0) { draft = null; return go('home'); }
+  stepIx -= 1; renderStep();
+}
+function next() { stepIx += 1; renderStep(); }
+const group = () => GROUPS.find((g) => g.id === draft.group);
+function head(title, sub = '') {
+  const steps = stepsFor(draft), n = steps.length, k = Math.max(1, stepIx + 1);
+  return `<div class="stepinfo"><span>שלב ${k} מתוך ${n}</span><span class="bar"><span style="width:${Math.round(k / n * 100)}%"></span></span></div>
+    <h1>${title}</h1>${sub ? `<p class="muted" style="margin:-8px 0 16px">${sub}</p>` : ''}`;
+}
+const cta = (label, id = 'nextBtn') => `<div class="cta"><button type="button" class="btn" id="${id}">${label}</button></div>`;
+function renderStep() {
+  window.scrollTo(0, 0);
+  const el = $('#flow');
+  if (stepIx === -1) return renderSearch(el);
+  const step = stepsFor(draft)[stepIx];
+  const cat = cats[draft.categoryId];
+  if (step === 'sub') {
+    const g = group();
+    el.innerHTML = head(g.title, 'מה בדיוק?') + `<div class="choices">${g.opts.filter(([id]) => cats[id]).map(([id, t]) => `<button type="button" class="choice plain ${draft.categoryId === id ? 'on' : ''}" data-pick="${id}"><span class="txt"><b>${esc(t)}</b></span><span class="go">${ic('chev')}</span></button>`).join('')}
+      <button type="button" class="choice plain" data-pick="other.general"><span class="txt"><b>משהו אחר</b></span><span class="go">${ic('chev')}</span></button></div>`;
+    el.onclick = (e) => { const b = e.target.closest('[data-pick]'); if (!b) return;
+      draft.categoryId = b.dataset.pick; const m = cats[draft.categoryId]?.modes ?? ['onsite']; draft.mode = m.length === 1 ? m[0] : null; next(); };
+    return;
+  }
+  el.onclick = null;
+  if (step === 'desc') {
+    const photoOk = PHOTO_PARENTS.includes(cat?.parent);
+    el.innerHTML = head('ספרו בקצרה מה צריך', esc(cat?.name ?? '')) + `
+      <textarea class="field" id="desc" rows="4" placeholder="${esc(group()?.ex ?? 'ספרו במילים פשוטות מה צריך')}" aria-label="מה צריך">${esc(draft.description)}</textarea>
+      <div class="err" id="descErr"></div>
+      ${photoOk ? `<label class="addph">${ic('camera', 26)}להוסיף תמונה<input type="file" id="pick" accept="image/*" multiple></label>
+        <p class="muted" style="margin:8px 2px 0">לא חובה. תמונה עוזרת למקצוען להבין מה הבעיה.</p><div class="photos" id="photos"></div>` : ''}
+      ${cta('המשך')}`;
+    const renderPhotos = () => { if (!$('#photos')) return; $('#photos').innerHTML = draft.photos.map((m, i) => `<div class="ph"><button type="button" class="rm" data-rm="${i}" aria-label="הסרת התמונה">${ic('x', 16)}</button>${mediaHtml([{ kind: 'image', url: m.url }], 88)}</div>`).join(''); };
+    renderPhotos();
+    $('#pick')?.addEventListener('change', (e) => {
+      for (const f of e.target.files) { if (draft.photos.length >= MAX_IMG) { toast(`אפשר עד ${MAX_IMG} תמונות`, 'err'); break; } draft.photos.push({ file: f, url: URL.createObjectURL(f) }); }
+      e.target.value = ''; renderPhotos();
+    });
+    $('#photos')?.addEventListener('click', (e) => { const r = e.target.closest('[data-rm]'); if (r) { draft.photos.splice(+r.dataset.rm, 1); renderPhotos(); } });
+    $('#desc').oninput = (e) => { draft.description = e.target.value; e.target.classList.remove('bad'); $('#descErr').textContent = ''; };
+    $('#nextBtn').onclick = () => { if (!draft.description.trim()) { $('#desc').classList.add('bad'); $('#descErr').textContent = 'צריך לכתוב כמה מילים'; return $('#desc').focus(); } next(); };
+  } else if (step === 'mode') {
+    el.innerHTML = head('איך נוח לכם?') + `<div class="choices">${cat.modes.map((m) => { const [i, t, s] = MODE_ASK[m];
+      return `<button type="button" class="choice ${draft.mode === m ? 'on' : ''}" data-mode="${m}"><span class="ico">${ic(i, 26)}</span><span class="txt"><b>${t}</b><small>${s}</small></span><span class="go">${ic('chev')}</span></button>`; }).join('')}</div>`;
+    el.onclick = (e) => { const b = e.target.closest('[data-mode]'); if (b) { draft.mode = b.dataset.mode; next(); } };
+  } else if (step === 'place') {
+    const del = draft.mode === 'delivery';
+    el.innerHTML = head(del ? 'מאיפה ולאן?' : 'לאן להגיע?') + (del ? `
+      <label class="lb" for="addr">מאיפה לאסוף?</label><input class="field" id="addr" placeholder="שם החנות או הכתובת" value="${esc(draft.address)}"><div class="err" id="addrErr"></div>
+      <label class="lb" for="drop">לאן להביא? <span class="opt">אם ריק, אליכם</span></label><input class="field" id="drop" placeholder="רחוב, מספר ועיר" value="${esc(draft.dropoff)}">
+      <label class="lb" for="cost">השליח קונה בשבילכם? כמה זה עולה בערך <span class="opt">לא חובה</span></label>
+      <input class="field" id="cost" type="number" min="0" inputmode="numeric" placeholder="ש״ח" value="${esc(draft.itemsCost)}">
+      <p class="muted" style="margin:8px 2px 0">את הקנייה מחזירים לשליח לפי הקבלה, בלי עמלה.</p>` : `
+      <label class="lb" for="addr">הכתובת</label><input class="field" id="addr" placeholder="רחוב, מספר ועיר" autocomplete="street-address" value="${esc(draft.address)}"><div class="err" id="addrErr"></div>
+      <p class="muted" style="margin:8px 2px 0">הכתובת נשלחת רק למקצוען שתבחרו.</p>`) + cta('המשך');
+    $('#addr').oninput = (e) => { e.target.classList.remove('bad'); $('#addrErr').textContent = ''; };
+    $('#nextBtn').onclick = () => {
+      draft.address = $('#addr').value.trim(); draft.dropoff = $('#drop')?.value.trim() ?? ''; draft.itemsCost = $('#cost')?.value ?? '';
+      if (!draft.address) { $('#addr').classList.add('bad'); $('#addrErr').textContent = 'צריך כתובת'; return $('#addr').focus(); }
+      next();
+    };
+  } else if (step === 'when') {
+    el.innerHTML = head('מתי צריך?') + `<div class="choices">
+      <button type="button" class="choice ${draft.urgency === 'urgent' ? 'on' : ''}" data-u="urgent"><span class="ico red">${ic('flame', 26)}</span><span class="txt"><b>דחוף</b><small>כמה שיותר מהר</small></span><span class="go">${ic('chev')}</span></button>
+      <button type="button" class="choice ${draft.urgency === 'normal' ? 'on' : ''}" data-u="normal"><span class="ico">${ic('calendar', 26)}</span><span class="txt"><b>לא דחוף</b><small>בימים הקרובים</small></span><span class="go">${ic('chev')}</span></button></div>`;
+    el.onclick = (e) => { const b = e.target.closest('[data-u]'); if (b) { draft.urgency = b.dataset.u; next(); } };
+  } else if (step === 'summary') renderSummary(el);
+}
+function renderSearch(el) {
+  el.innerHTML = `<h1 style="margin-top:4px">חיפוש</h1><label class="search">${ic('search')}<input id="q" value="${esc(draft.search)}" placeholder="מה צריך?" autocomplete="off" aria-label="חיפוש"></label><div class="choices" id="hits" style="margin-top:14px"></div>`;
+  const draw = () => {
+    const q = $('#q').value.trim();
+    const hits = q ? tree.flatMap((p) => (p.name.includes(q) ? p.subs : p.subs.filter((s) => s.name.includes(q))).map((s) => [s, p])).slice(0, 30) : [];
+    $('#hits').innerHTML = hits.map(([s, p]) => `<button type="button" class="choice plain" data-pick="${s.id}"><span class="txt"><b>${esc(s.name)}</b><small>${esc(p.name)}</small></span><span class="go">${ic('chev')}</span></button>`).join('')
+      + `<button type="button" class="choice plain" data-pick="other.general"><span class="txt"><b>${hits.length ? 'משהו אחר' : 'לא מצאנו. לפתוח קריאה כללית'}</b><small>ספרו במילים שלכם</small></span><span class="go">${ic('chev')}</span></button>`;
+  };
+  draw(); $('#q').oninput = draw; $('#q').focus();
+  el.onclick = (e) => { const b = e.target.closest('[data-pick]'); if (!b) return;
+    draft.search = null; draft.categoryId = b.dataset.pick; const m = cats[draft.categoryId]?.modes ?? ['onsite']; draft.mode = m.length === 1 ? m[0] : null;
+    stepIx = 0; renderStep(); };
+}
+function renderSummary(el) {
+  const cat = cats[draft.categoryId];
+  const locked = cat?.payment === 'in_app';
+  if (locked) draft.paymentMode = 'in_app';
+  const where = draft.mode === 'delivery' ? `איסוף: ${esc(draft.address)}<br>מסירה: ${esc(draft.dropoff || 'אליכם')}`
+    : draft.mode === 'onsite' ? esc(draft.address) : MODE_ASK[draft.mode][1];
+  el.innerHTML = head('הכל נכון?') + `<div class="card">
+      <div class="sum">${ic('wrench')}<div><span>מה</span>${esc(cat?.name)}</div></div>
+      <div class="sum">${ic('text')}<div><span>פרטים</span>${esc(draft.description)}${draft.photos.length ? `<br><span>${draft.photos.length === 1 ? 'תמונה אחת' : `${draft.photos.length} תמונות`}</span>` : ''}</div></div>
+      <div class="sum">${ic('pin')}<div><span>איפה</span>${where}</div></div>
+      <div class="sum">${ic('clock')}<div><span>מתי</span>${draft.urgency === 'urgent' ? 'דחוף' : 'לא דחוף'}</div></div>
+    </div>
+    <h2>אפשר להתקשר אליכם?</h2>
+    <div class="choices" id="calls">
+      <button type="button" class="choice plain ${draft.allowCalls ? 'on' : ''}" data-calls="1"><span class="radio">${draft.allowCalls ? ic('check', 18) : ''}</span><span class="txt"><b>כן, אפשר להתקשר</b><small>מקצוענים שהציעו יראו את הטלפון שלכם</small></span></button>
+      <button type="button" class="choice plain ${draft.allowCalls ? '' : 'on'}" data-calls="0"><span class="radio">${draft.allowCalls ? '' : ic('check', 18)}</span><span class="txt"><b>לא, רק הצעות כאן</b><small>הטלפון נשאר אצלכם עד שתבחרו</small></span></button>
+    </div>
+    ${locked ? `<div class="item" style="margin-top:16px">${ic('lock')}<span>בנסיעות משלמים תמיד בתשלום מאובטח באפליקציה.</span></div>` : `
+    <details class="more"><summary>${ic('chev', 20)}עוד אפשרויות</summary>
+      <label class="check"><input type="checkbox" id="secure" ${draft.paymentMode === 'in_app' ? 'checked' : ''}><span><b>תשלום מאובטח באפליקציה</b><br><span class="muted">הכסף משתחרר למקצוען רק אחרי שתאשרו שהעבודה הסתיימה</span></span></label>
+      <label class="lb" for="budget">תקציב <span class="opt">לא חובה</span></label><input class="field" id="budget" type="number" min="0" inputmode="numeric" placeholder="ש״ח" value="${esc(draft.budget)}">
+    </details>`}
+    <div class="muted" id="upStatus" style="margin-top:12px" hidden></div>
+    ${cta(`${ic('check')}שלחו לי הצעות`, 'sendBtn')}`;
+  el.onclick = (e) => { const b = e.target.closest('[data-calls]'); if (b) { draft.allowCalls = b.dataset.calls === '1'; draft.budget = $('#budget')?.value ?? draft.budget; draft.paymentMode = locked || $('#secure')?.checked ? 'in_app' : 'direct'; renderSummary(el); } };
+  $('#sendBtn').onclick = publish;
+}
+async function publish() {
+  const btn = $('#sendBtn'); btn.disabled = true;
+  if (!cats[draft.categoryId]?.payment) draft.paymentMode = $('#secure')?.checked ? 'in_app' : 'direct';
+  draft.budget = $('#budget')?.value ?? draft.budget;
+  const physical = draft.mode === 'onsite' || draft.mode === 'delivery';
+  refreshLoc();
+  try {
+    const media = draft.photos.length ? await uploadPicked(draft.photos, (i, n) => { $('#upStatus').hidden = false; $('#upStatus').textContent = `מעלה תמונה ${i} מתוך ${n}…`; }) : [];
+    const job = await api('/api/jobs', { media, categoryId: draft.categoryId, mode: draft.mode, description: draft.description.trim(),
+      address: physical ? draft.address : null, myLocation: physical ? loc : null,
+      dropoff: draft.mode === 'delivery' ? { address: draft.dropoff || 'המיקום שלי' } : null,
+      itemsCost: draft.mode === 'delivery' && draft.itemsCost ? +draft.itemsCost : null,
+      urgency: draft.urgency ?? 'normal', budget: draft.budget ? +draft.budget : null, paymentMode: draft.paymentMode, allowCalls: !!draft.allowCalls });
+    draft = null; lastJobsJson = '';
+    await load();
+    openJobId = job.id; go('job', 'home'); // the screen itself says it was sent
+  } catch (err) { toast(err.message, 'err'); btn.disabled = false; $('#upStatus').hidden = true; }
+}
 
 // ---- my requests
-function offerHtml(job, o) {
-  const p = o.pro;
-  const stars = p.ratingCount ? `${ic('star', 13)} ${p.ratingAvg} · ${p.ratingCount} דירוגים` : 'חדש';
-  const [, color] = catOf(job.categoryId);
-  const items = (o.items ?? []).map((i) => `<div class="item">${ic({ hotel: 'hotel', flight: 'flight', activity: 'ticket' }[i.kind] ?? 'box', 18)}<span style="flex:1"><b>${esc(i.title)}</b> · ${ils(i.price)}
-    <span class="muted" style="display:block">${esc(i.details)}${i.freeCancellationBefore ? ` · <span style="color:var(--ok)">ביטול חינם עד ${esc(i.freeCancellationBefore.slice(0, 10))}</span>` : ''}</span></span></div>`).join('');
-  const open = job.status === 'open';
-  const cls = o.status === 'accepted' ? 'won' : !open ? 'lost' : sel[job.id] === o.id ? 'sel' : '';
-  const noPrice = job.paymentMode === 'in_app' && o.price == null && !o.items;
-  const actions = open && sel[job.id] === o.id && noPrice ? '<div class="muted" style="margin-top:8px">בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר.</div>'
-    : open && sel[job.id] === o.id
-    ? `<button type="button" class="btn" style="margin-top:10px" data-accept="${job.id}|${o.id}">${o.items ? 'הזמנה ותשלום' : 'בחירה בהצעה'}</button>
-       ${p.phone ? `<a href="tel:${esc(tel(p.phone))}" class="btn ghost" style="margin-top:8px;min-height:44px">${ic('phone', 18)}להתקשר</a>` : ''}`
-    : o.status === 'accepted' ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:center;color:var(--ok);font-weight:700">${ic('check', 18)}נבחר ${p.phone ? `· <a href="tel:${esc(tel(p.phone))}" style="direction:ltr;unicode-bidi:isolate">${esc(showPhone(p.phone))}</a>` : ''}</div>`
-    : !open ? '<div class="muted" style="margin-top:6px">לא נבחרה</div>' : '';
-  return `<div class="offer ${cls}" ${open ? `data-sel="${job.id}|${o.id}"` : ''}>
-    <div style="display:flex;gap:10px;align-items:center"><span class="av" style="background:${color}">${esc(p.name?.[0] ?? '')}</span>
-      <span style="flex:1;min-width:0"><b>${esc(p.name)}</b><span class="muted" style="display:flex;gap:3px;align-items:center">${stars}</span></span>
-      ${o.price != null ? `<span class="price">${ils(o.price)}</span>` : '<span class="muted">מחיר אחרי בדיקה</span>'}</div>
-    ${o.eta ? `<div class="muted" style="display:flex;gap:4px;align-items:center;margin-top:6px">${ic('clock', 16)}${esc(o.eta)}</div>` : ''}
-    ${o.message ? `<div style="margin-top:6px;font-size:14px">${esc(o.message)}</div>` : ''}${items}${actions}</div>`;
+function renderMine() {
+  const open = jobs.filter(isOpen), done = jobs.filter((j) => !isOpen(j));
+  $('#mine').innerHTML = jobs.length ? (open.length ? open.map(reqCard).join('') : '<div class="empty" style="padding:18px">אין קריאות פתוחות</div>')
+      + (done.length ? `<h2>הסתיימו</h2>${done.map(reqCard).join('')}` : '')
+    : `<div class="empty">${ic('list', 48)}<b>עוד לא פתחתם קריאה</b>כשתפתחו, היא תופיע כאן.<button type="button" class="btn" style="margin-top:18px" id="mineNew">לפתוח קריאה</button></div>`;
+  $('#mineNew')?.addEventListener('click', () => go('home'));
 }
-function jobHtml(j) {
-  const flow = FLOW[j.mode] ?? FLOW.onsite;
-  const at = flow.indexOf(j.status);
-  const prog = j.status === 'booking_failed' ? '' : `<div class="prog" aria-hidden="true">${flow.map((_, i) => `<span class="${i < at || j.status === 'closed_done' ? 'done' : i === at ? 'cur' : ''}"></span>`).join('')}</div>`;
-  const tag = j.status === 'closed_done' ? 'ok' : j.status === 'booking_failed' ? 'err' : 'brand';
-  return `<div class="card" data-job="${j.id}">
-    <div class="job-h">${catTile(j.categoryId)}<div class="grow"><b>${esc(j.description)}</b>
-      <span class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]}${j.urgency === 'urgent' ? ' · <span style="color:var(--err);font-weight:700">דחוף</span>' : ''}${j.paymentMode === 'in_app' ? ` · ${ic('lock', 13)} מאובטח` : ''}</span></div></div>
-    ${prog}<span class="tag ${tag}">${esc(stepLabel(j))}${at >= 0 && j.status !== 'closed_done' ? ` · שלב ${at + 1} מתוך ${flow.length}` : ''}</span>
-    ${j.dropoff ? `<div class="item">${ic('pin', 18)}<span>איסוף: ${esc(j.address)}<br>מסירה: ${esc(j.dropoff.address)}</span></div>` : ''}
-    ${mediaHtml(j.media)}
-    ${j.booking?.status === 'confirmed' ? `<div class="item" style="background:var(--ok-soft);color:var(--ok)">${ic('check', 18)}<span>ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אסמכתא ${esc(b.supplierRef)})`).join(', ')}</span></div>` : ''}
-    ${j.status === 'booking_failed' ? `<div class="item" style="background:var(--err-soft);color:var(--err)">${ic('alert', 18)}<span>הספק לא אישר את ההזמנה. הכסף הוחזר.</span></div>` : ''}
-    ${j.status === 'open' && j.offers.length ? `<div class="muted" style="margin-top:12px">${offersOf(j.offers.length)} · לחצו על הצעה כדי לבחור</div>` : ''}
-    ${j.offers.length ? j.offers.map((o) => offerHtml(j, o)).join('') : `<div class="empty" style="padding:18px 8px">${ic('clock', 32)}<b>ממתינים להצעות ממקצוענים</b>הצעות נכנסות כאן בזמן אמת</div>`}
-    ${j.workLog.length ? `<div style="margin-top:12px"><b style="font-size:14px">תיעוד</b>${j.workLog.map((l) => `<div class="log"><span style="flex:1">${esc(l.text)}${l.photos?.length ? ` <span class="muted">· צורפו ${l.photos.length} תמונות</span>` : ''}</span></div>`).join('')}</div>` : ''}
-    ${j.status === 'completed' ? `<button class="btn ok" style="margin-top:12px" data-confirm="${j.id}">${ic('check')}אישור שהעבודה הסתיימה${j.escrow ? ' ושחרור התשלום' : ''}</button>` : ''}
-    ${j.status === 'closed_done' && !j.rated ? `<div style="text-align:center;margin-top:12px"><b>דרגו</b><div class="stars" role="group" aria-label="דירוג">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-rate="${j.id}|${n}" aria-label="${n} כוכבים">${ic('star', 30)}</button>`).join('')}</div></div>` : ''}
+
+// ---- one request: status, offers, actions
+function timeline(j) {
+  // Steps up to `last` are done; the next one is where things stand now.
+  const last = { open: 0, assigned: 1, en_route: 1, picked_up: 1, in_progress: 1, completed: 2, closed_done: 3 }[j.status] ?? 0;
+  const now = ['en_route', 'picked_up', 'in_progress'].includes(j.status); // work is happening right now
+  const labels = ['הקריאה נשלחה', 'בחרתם מקצוען', j.mode === 'delivery' ? 'בדרך' : 'בטיפול', 'הסתיים'];
+  return `<ol class="timeline">${labels.map((l, i) => `<li class="${i <= last ? 'done' : i === last + 1 ? `cur${now ? ' now' : ''}` : ''}"><span class="dot">${i <= last ? ic('check', 16) : ''}</span>${l}</li>`).join('')}</ol>`;
+}
+function offerHtml(j, o) {
+  const p = o.pro;
+  const open = j.status === 'open';
+  const noPrice = j.paymentMode === 'in_app' && o.price == null && !o.items;
+  const items = (o.items ?? []).map((i) => `<div class="item">${ic({ hotel: 'hotel', flight: 'flight', activity: 'ticket' }[i.kind] ?? 'box', 20)}<span><b>${esc(i.title)}</b> · ${ils(i.price)}
+    <span class="muted" style="display:block">${esc(i.details)}${i.freeCancellationBefore ? ` · ביטול חינם עד ${esc(i.freeCancellationBefore.slice(0, 10))}` : ''}</span></span></div>`).join('');
+  return `<div class="offer ${o.status === 'accepted' ? 'won' : ''}">
+    <div class="who"><span class="av">${ic('person', 28)}</span><span style="flex:1;min-width:0"><b style="font-size:20px">${esc(p.name)}</b>
+      <span class="muted" style="display:flex;gap:4px;align-items:center">${p.ratingCount ? `${ic('star', 16)} ${p.ratingAvg} · ${p.ratingCount} דירוגים` : 'מקצוען חדש'}</span></span>
+      ${o.price != null ? `<span class="price">${ils(o.price)}</span>` : '<span class="muted" style="text-align:left">מחיר<br>אחרי בדיקה</span>'}</div>
+    ${o.eta ? `<div class="line">${ic('clock', 20)}<span>מתי: ${esc(o.eta)}</span></div>` : ''}
+    ${o.message ? `<div class="line" style="align-items:flex-start">${ic('text', 20)}<span>${esc(o.message)}</span></div>` : ''}${items}
+    ${o.status === 'accepted' ? `<div class="line" style="color:var(--ok);font-weight:700">${ic('check', 22)}בחרתם בו</div>${p.phone ? `<a class="btn soft" style="margin-top:12px" href="tel:${esc(tel(p.phone))}">${ic('phone')}להתקשר ל${esc(p.name)}</a>` : ''}`
+      : open ? (noPrice ? '<p class="muted" style="margin:10px 0 0">בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר.</p>'
+        : `<button type="button" class="btn" style="margin-top:14px" data-accept="${j.id}|${o.id}">${o.items ? 'להזמין ולשלם' : `לבחור ב${esc(p.name)}`}</button>
+           ${p.phone ? `<a class="btn soft" style="margin-top:10px" href="tel:${esc(tel(p.phone))}">${ic('phone')}להתקשר קודם</a>` : ''}`) : ''}
   </div>`;
 }
-function renderMine() {
-  $('#mineFilter').innerHTML = FILTERS.map(([k, l]) => `<button type="button" class="chip ${mineFilter === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('');
-  const list = jobs.filter((j) => inFilter(j, mineFilter));
-  $('#mine').innerHTML = list.length ? list.map(jobHtml).join('')
-    : `<div class="empty">${ic('list', 44)}<b>${jobs.length ? 'אין קריאות במצב הזה' : 'עדיין לא פתחתם קריאות'}</b>${jobs.length ? '' : '<button class="btn" style="margin-top:14px" data-new>פתיחת קריאה</button>'}</div>`;
+function renderJob() {
+  const j = jobs.find((x) => x.id === openJobId);
+  if (!j) { $('#job').innerHTML = `<div class="empty">${ic('clock', 48)}<b>טוען…</b></div>`; return; }
+  const [s, cls] = statusOf(j);
+  const accepted = j.offers.find((o) => o.status === 'accepted');
+  const others = j.status === 'open' ? j.offers : [];
+  $('#job').innerHTML = `
+    <div class="bigstatus status ${cls}" style="font-size:24px"><i style="width:14px;height:14px;border-radius:7px"></i>${esc(s)}</div>
+    ${j.status === 'open' && !j.offers.length ? `<div class="card" style="text-align:center"><div class="done-ic">${ic('check', 44)}</div><b style="font-size:21px">הקריאה נשלחה</b><p class="muted" style="margin:6px 0 0">מקצוענים באזור קיבלו אותה. כשתגיע הצעה, היא תופיע כאן.</p></div>` : ''}
+    ${j.status === 'completed' ? `<button type="button" class="btn ok" data-confirm="${j.id}" style="margin-bottom:14px">${ic('check')}הכל תקין, סיימנו${j.escrow ? ' (התשלום ישוחרר)' : ''}</button>` : ''}
+    ${j.status === 'closed_done' && !j.rated ? `<div class="card" style="text-align:center"><b style="font-size:21px">איך היה?</b><div class="stars" role="group" aria-label="דירוג">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-rate="${j.id}|${n}" aria-label="${n} כוכבים">${ic('star', 38)}</button>`).join('')}</div></div>` : ''}
+    ${j.status === 'booking_failed' ? `<div class="item" style="background:var(--err-soft);color:var(--err)">${ic('alert')}<span>הספק לא אישר את ההזמנה. הכסף הוחזר.</span></div>` : ''}
+    ${j.booking?.status === 'confirmed' ? `<div class="item" style="background:var(--ok-soft);color:var(--ok)">${ic('check')}<span>ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אסמכתא ${esc(b.supplierRef)})`).join(', ')}</span></div>` : ''}
+    ${others.length ? `<h2>ההצעות שקיבלתם</h2>${others.map((o) => offerHtml(j, o)).join('')}` : ''}
+    ${accepted ? `<h2>המקצוען שבחרתם</h2>${offerHtml(j, accepted)}` : ''}
+    ${j.status !== 'booking_failed' ? `<h2>איפה זה עומד</h2><div class="card">${timeline(j)}</div>` : ''}
+    ${j.workLog.length ? `<h2>מה נעשה</h2><div class="card">${j.workLog.map((l) => `<div class="sum">${ic('check')}<div>${esc(l.text)}${l.photos?.length ? ` <span>צורפו ${l.photos.length} תמונות</span>` : ''}</div></div>`).join('')}</div>` : ''}
+    <h2>מה ביקשתם</h2>
+    <div class="card"><b style="font-size:20px">${esc(cats[j.categoryId]?.name ?? '')}</b><p style="margin:6px 0 0">${esc(j.description)}</p>${mediaHtml(j.media)}
+      ${j.address ? `<div class="line">${ic('pin', 20)}<span>${j.dropoff ? `איסוף: ${esc(j.address)}<br>מסירה: ${esc(j.dropoff.address)}` : esc(j.address)}</span></div>` : ''}
+      <div class="line">${ic('clock', 20)}<span>${j.urgency === 'urgent' ? 'דחוף' : 'לא דחוף'} · ${MODE[j.mode]}${j.paymentMode === 'in_app' ? ' · תשלום מאובטח' : ''}</span></div></div>`;
 }
-$('#mineFilter').onclick = (e) => { const f = e.target.dataset.f; if (f) { mineFilter = f; renderMine(); } };
-$('#mine').addEventListener('click', (e) => {
-  if (e.target.closest('[data-new]')) return startNew();
-  const o = e.target.closest('[data-sel]');
-  if (o && !e.target.closest('button,a,input,select')) { const [j, id] = o.dataset.sel.split('|'); sel[j] = id; renderMine(); }
-});
 
 async function load() {
   if (!token) return;
-  if ($('.scrim')) return; // don't redraw under an open sheet
   try {
     jobs = await api('/api/client/jobs');
-    renderHome(); renderMine();
-    const n = jobs.filter((j) => j.status === 'completed' || (j.status === 'open' && j.offers.length)).length;
-    $('#bell').innerHTML = ic('bell') + (n ? `<span class="badge">${n}</span>` : '');
-  } catch (e) { /* 401 handled in api() */ }
-  if (view === 'board' || !$('#board').innerHTML) {
-    const board = await api('/api/jobs').catch(() => []);
-    $('#board').innerHTML = board.length ? board.map((j) => `<div class="card"><div class="job-h">${catTile(j.categoryId)}<div class="grow"><b>${esc(j.description)}</b>
-      <span class="muted">${esc(cats[j.categoryId]?.name)} · ${MODE[j.mode]}${j.urgency === 'urgent' ? ' · דחוף' : ''} · נותרו ${j.offersLeft} מקומות להצעות</span></div></div></div>`).join('')
-      : `<div class="empty">${ic('grid', 44)}<b>אין קריאות פתוחות כרגע</b></div>`;
-  }
+    jobs.sort((a, b) => b.createdAt - a.createdAt);
+  } catch { return; } // 401 handled in api()
+  const n = jobs.filter(needsMe).length;
+  $('#mineBadge').hidden = !n; $('#mineBadge').textContent = n;
+  const json = JSON.stringify(jobs);
+  if (json === lastJobsJson) return; // nothing changed: don't redraw
+  lastJobsJson = json;
+  renderHome();
+  if ($('.scrim')) return; // don't redraw under an open sheet
+  if (view === 'mine') renderMine();
+  if (view === 'job') renderJob();
+}
+async function renderBoard() {
+  const board = await api('/api/jobs').catch(() => []);
+  $('#board').innerHTML = board.length ? board.map((j) => `<div class="card"><b style="font-size:19px">${esc(cats[j.categoryId]?.name ?? '')}</b><p style="margin:4px 0">${esc(j.description)}</p>
+    <span class="muted">${MODE[j.mode]}${j.urgency === 'urgent' ? ' · דחוף' : ''} · נשארו ${j.offersLeft} מקומות להצעות</span></div>`).join('')
+    : `<div class="empty">${ic('list', 48)}<b>אין קריאות פתוחות כרגע</b></div>`;
 }
 
-// ---- choosing an offer (confirmation sheet; travel adds the traveler form)
+// ---- actions: choose an offer (confirmation sheet; travel adds the traveler form), confirm, rate
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('button[data-accept],button[data-confirm],button[data-rate]');
   if (!t) return;
@@ -660,10 +722,11 @@ document.addEventListener('click', async (e) => {
       const [job, score] = t.dataset.rate.split('|');
       await api(`/api/jobs/${job}/rate`, { score: +score }); toast('תודה על הדירוג');
     } else if (t.dataset.confirm) {
-      await api(`/api/jobs/${t.dataset.confirm}/confirm`, {}); toast('העבודה אושרה');
+      t.disabled = true;
+      await api(`/api/jobs/${t.dataset.confirm}/confirm`, {}); toast('תודה. העבודה אושרה');
     } else return confirmOffer(...t.dataset.accept.split('|'));
-  } catch (err) { toast(err.message, 'err'); }
-  load();
+  } catch (err) { t.disabled = false; toast(err.message, 'err'); }
+  lastJobsJson = ''; load();
 });
 function confirmOffer(jobId, offerId) {
   const j = jobs.find((x) => x.id === jobId); const o = j?.offers.find((x) => x.id === offerId);
@@ -671,21 +734,20 @@ function confirmOffer(jobId, offerId) {
   const secure = j.paymentMode === 'in_app' || !!o.items;
   const total = o.items ? o.items.reduce((s, i) => s + +i.price, 0) : o.price;
   const flight = o.items?.some((i) => i.kind === 'flight');
-  const s = sheet(`<div style="display:flex;align-items:center;gap:10px"><h2 class="disp" style="flex:1;margin:0;font-size:20px">בחירה ב${esc(o.pro.name)}</h2>
-      <button type="button" class="ib" data-close aria-label="סגירה" style="box-shadow:none;background:var(--chip)">${ic('x')}</button></div>
-    <div class="card" style="margin-top:12px">
-      ${o.items ? o.items.map((i) => `<div class="ln"><span>${esc(i.title)}</span><b>${ils(i.price)}</b></div>`).join('') : `<div class="ln"><span>המחיר שהוצע</span><b>${total != null ? ils(total) : 'אחרי בדיקה'}</b></div>`}
-      ${j.itemsCost ? `<div class="ln"><span>קנייה עבורכם, לפי קבלה</span><b>עד ${ils(j.itemsCost)}</b></div>` : ''}
+  const s = sheet(`<div class="shead"><h2>לבחור ב${esc(o.pro.name)}?</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
+    <div class="card">
+      ${o.items ? o.items.map((i) => `<div class="ln"><span>${esc(i.title)}</span><b>${ils(i.price)}</b></div>`).join('') : `<div class="ln"><span>המחיר</span><b>${total != null ? ils(total) : 'אחרי בדיקה'}</b></div>`}
+      ${j.itemsCost ? `<div class="ln"><span>הקנייה עבורכם, לפי קבלה</span><b>עד ${ils(j.itemsCost)}</b></div>` : ''}
     </div>
-    ${secure ? `<div class="item" style="background:var(--ok-soft);color:#0f6b42;padding:12px">${ic('lock')}<span>תשלום מאובטח: הכסף ננעל עכשיו ומשתחרר רק אחרי שתאשרו שהעבודה הסתיימה.</span></div>`
-      : `<div class="item" style="padding:12px">${ic('info')}<span>תשלום ישיר: משלמים למקצוען בסיום. אין נעילה.</span></div>`}
-    ${o.items ? `<b style="display:block;margin-top:12px">פרטי הנוסע, כמו בדרכון</b>
-      <div class="row"><input class="field" data-t="firstName" placeholder="First name" style="direction:ltr" aria-label="שם פרטי באנגלית"><input class="field" data-t="lastName" placeholder="Last name" style="direction:ltr" aria-label="שם משפחה באנגלית"></div>
+    <div class="item" style="${secure ? 'background:var(--ok-soft);color:#0b5e39;' : ''}padding:14px;font-size:17px">${ic(secure ? 'lock' : 'info')}<span>${secure ? 'תשלום מאובטח: הכסף משתחרר רק אחרי שתאשרו שהעבודה הסתיימה.' : 'משלמים למקצוען ישירות, בסיום העבודה.'}</span></div>
+    ${o.items ? `<b style="display:block;margin-top:16px">פרטי הנוסע, כמו בדרכון</b>
+      <div style="display:flex;gap:8px;margin-top:8px"><input class="field" data-t="firstName" placeholder="First name" style="direction:ltr" aria-label="שם פרטי באנגלית"><input class="field" data-t="lastName" placeholder="Last name" style="direction:ltr" aria-label="שם משפחה באנגלית"></div>
       <input class="field" data-t="email" type="email" placeholder="Email" style="direction:ltr;margin-top:8px" aria-label="אימייל לשובר">
-      ${flight ? `<div class="row" style="margin-top:8px"><input class="field" data-t="bornOn" type="date" aria-label="תאריך לידה"><select class="field" data-t="gender" aria-label="מין"><option value="f">נקבה</option><option value="m">זכר</option></select></div>` : ''}
+      ${flight ? `<div style="display:flex;gap:8px;margin-top:8px"><input class="field" data-t="bornOn" type="date" aria-label="תאריך לידה"><select class="field" data-t="gender" aria-label="מין"><option value="f">נקבה</option><option value="m">זכר</option></select></div>` : ''}
       <div class="err" id="travErr"></div>` : ''}
-    <div class="muted" style="margin:12px 0">אחרי הבחירה הכתובת והטלפון נפתחים ל${esc(o.pro.name)} בלבד, ושאר המציעים מקבלים הודעה.</div>
-    <button type="button" class="btn" id="doAccept">${o.items ? 'הזמנה ותשלום' : secure ? 'אישור ותשלום' : 'אישור הבחירה'}</button>`);
+    <p class="muted" style="margin:14px 2px">אחרי הבחירה רק ${esc(o.pro.name)} יקבל את הכתובת והטלפון שלכם.</p>
+    <button type="button" class="btn" id="doAccept">${o.items ? 'להזמין ולשלם' : 'כן, לבחור בו'}</button>
+    <button type="button" class="btn soft" data-close style="margin-top:10px">לא עכשיו</button>`);
   $('#doAccept', s.el).onclick = async () => {
     const traveler = Object.fromEntries($$('[data-t]', s.el).map((i) => [i.dataset.t, i.value.trim()]));
     if (o.items && !(traveler.firstName && traveler.lastName && traveler.email)) return ($('#travErr', s.el).textContent = 'נא למלא שם ואימייל של הנוסע');
@@ -693,40 +755,17 @@ function confirmOffer(jobId, offerId) {
     try {
       const res = await api(`/api/jobs/${jobId}/offers/${offerId}/accept`, { traveler });
       s.close();
-      if (res.booking?.status === 'failed') toast('הספק לא אישר את ההזמנה. הכסף הוחזר.', 'err'); else toast('ההצעה נבחרה');
+      if (res.booking?.status === 'failed') toast('הספק לא אישר את ההזמנה. הכסף הוחזר.', 'err'); else toast(`בחרתם ב${o.pro.name}`);
     } catch (err) { $('#doAccept', s.el).disabled = false; toast(err.message, 'err'); }
-    load();
+    lastJobsJson = ''; load();
   };
 }
 
-// ---- publish
-$('#f').onsubmit = async (e) => {
-  e.preventDefault();
-  const d = Object.fromEntries(new FormData(e.target));
-  const physical = d.mode === 'onsite' || d.mode === 'delivery';
-  $('#descErr').textContent = d.description.trim() ? '' : 'תיאור חובה'; $('#desc').classList.toggle('bad', !d.description.trim());
-  const noAddr = physical && !d.address.trim();
-  $('#addrErr').textContent = noAddr ? 'צריך כתובת' : ''; $('#address').classList.toggle('bad', noAddr);
-  if (!d.description.trim()) return $('#desc').focus();
-  if (noAddr) return $('#address').focus();
-  d.paymentMode = $('[name=paymentMode]:checked').value;
-  refreshLoc();
-  const btn = $('#submitBtn'); btn.disabled = true;
-  try {
-    let media;
-    try { media = await uploadPicked(); } finally { $('#uploadStatus').hidden = true; }
-    await api('/api/jobs', { media, categoryId: d.categoryId, mode: d.mode, description: d.description,
-      address: physical ? d.address : null, myLocation: physical ? loc : null,
-      dropoff: d.mode === 'delivery' ? { address: d.dropoff || 'המיקום שלי' } : null,
-      itemsCost: d.mode === 'delivery' && d.itemsCost ? +d.itemsCost : null,
-      urgency: d.urgency, budget: d.budget ? +d.budget : null, paymentMode: d.paymentMode,
-      allowCalls: !!d.allowCalls });
-    for (const n of ['description', 'address', 'dropoff', 'itemsCost', 'budget']) e.target[n].value = '';
-    picked.length = 0; renderPicked();
-    toast('הקריאה פורסמה. ממתינים להצעות'); mineFilter = 'all'; await load(); go('mine');
-  } catch (err) { toast(err.message, 'err'); }
-  btn.disabled = false;
-};
+api('/api/categories').then((t) => {
+  tree = t;
+  for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, modes: s.modes ?? p.modes, payment: p.payment, parentName: p.name };
+  showLogin(); load();
+}).catch(() => { showLogin(); toast('אין חיבור לשרת', 'err'); });
 setInterval(load, 5000);
 </script>
 </body>

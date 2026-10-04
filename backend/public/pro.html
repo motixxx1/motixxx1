@@ -146,15 +146,19 @@
   .grp summary .grow{display:flex;flex-direction:column}
   .grp .chev{color:var(--muted);transition:transform .2s;display:flex}
   .grp[open] .chev{transform:rotate(180deg)}
-  .subs{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px}
-  .sc{position:relative;display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:0 12px;border-radius:20px;border:1.5px solid var(--line);font-size:14px;font-weight:600;cursor:pointer;color:var(--fg)}
-  .sc input,.mc input{position:absolute;opacity:0;pointer-events:none}
-  .sc:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
-  .sc.starter{border-color:rgba(74,222,128,.5)}
-  .sc.starter:has(input:checked){background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
-  .sc:has(input:focus-visible),.mc:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .mc input{position:absolute;opacity:0;pointer-events:none}
+  .mc:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+  .gic{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+  .rows{border-top:1px solid var(--line)}
+  .rw{position:relative;display:flex;align-items:center;gap:12px;min-height:54px;padding:0 14px;border-bottom:1px solid var(--line);cursor:pointer;font-size:16px}
+  .rw input{position:absolute;opacity:0;pointer-events:none}
+  .rw .bx{width:26px;height:26px;border-radius:8px;border:2px solid #4a5270;display:flex;align-items:center;justify-content:center;color:transparent;flex:none}
+  .rw:has(input:checked) .bx{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .rw:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
+  .rw.all{font-weight:700}
+  .rw .lk{color:var(--warn);display:flex}
+  .gmeta{padding:10px 14px 12px;font-size:13px;color:var(--muted)}
   .grp .gnote{padding:0 12px 12px;font-size:13px;color:var(--warn);display:flex;gap:6px;align-items:flex-start}
-  .allbtn{border:0;background:none;color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;min-height:40px;padding:0 4px}
   .mchips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .mc{position:relative;display:flex;align-items:center;gap:8px;min-height:52px;padding:0 12px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;font-size:14px;cursor:pointer}
   .mc:has(input:checked){border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
@@ -293,7 +297,7 @@
     <!-- domains -->
     <main data-view="domains" hidden>
       <p class="muted" style="font-size:14px;margin:2px 0 10px">סמנו מה אתם יודעים לעשות. קריאות מגיעות רק בתחומים שסימנתם, ברדיוס שבחרתם.</p>
-      <div class="legend"><span><i style="border-color:var(--ok);background:var(--ok-soft)"></i>מתאים להתחלה מהירה, בלי רישיון</span><span><span data-i="lock" data-s="14"></span>דורש מסמך מאושר</span></div>
+      <div class="legend"><span><span data-i="lock" data-s="14"></span>דורש מסמך מאושר</span></div>
       <div id="catGroups"></div>
       <h2 class="sec">מסמכים</h2>
       <div id="docs"></div>
@@ -869,16 +873,20 @@ $('#jobs').addEventListener('input', (e) => { e.target.classList.remove('bad'); 
 // ---- domains, documents, modes, radius
 function renderDomains() {
   const sel = new Set(me.categories);
+  // A plain checklist per field: one row per specialty, no chip clouds.
   $('#catGroups').innerHTML = tree.map((p) => {
     const req = p.requirement, ok = !req || me.approvedRequirements.includes(req);
     const n = p.subs.filter((s) => sel.has(s.id) || sel.has(p.id)).length;
-    return `<details class="grp" ${n ? 'open' : ''}><summary>${catTile(p.id, 40, 20)}<span class="grow"><b>${esc(p.name)}</b>
-        <span class="muted">${n ? `${n} נבחרו` : `${p.subs.length} תתי-תחומים`}${p.starter ? ' · התחלה מהירה' : ''} · הצעה ${ils(p.leadPrice)}</span></span>
-        ${req ? `<span class="tag ${ok ? 'ok' : 'warn'}">${ic(ok ? 'check' : 'lock', 13)}${ok ? 'מאושר' : 'דורש מסמך'}</span>` : ''}<span class="chev">${ic('down', 18)}</span></summary>
-      <div class="subs">${p.subs.map((s) => { const r = s.requirement ?? req, locked = r && !me.approvedRequirements.includes(r);
-        return `<label class="sc ${p.starter && !r ? 'starter' : ''}"><input type="checkbox" value="${s.id}" ${sel.has(s.id) || sel.has(p.id) ? 'checked' : ''}>${locked ? ic('lock', 14) : ''}${esc(s.name)}</label>`; }).join('')}
-        <button type="button" class="allbtn" data-all="${p.id}">${n === p.subs.length ? 'ניקוי' : 'בחירת הכל'}</button></div>
-      ${!ok ? `<div class="gnote">${ic('lock', 15)}<span>אפשר לסמן עכשיו. קריאות בתחום יגיעו אחרי שנאשר ${REQ[req] ?? req}.</span></div>` : ''}
+    return `<details class="grp" data-grp="${p.id}"><summary><span class="gic">${ic(catOf(p.id)[0], 20)}</span><span class="grow"><b>${esc(p.name)}</b>
+        <span class="muted" data-count>${n ? `נבחרו ${n} מתוך ${p.subs.length}` : 'לא נבחר'}</span></span>
+        ${req && !ok ? `<span class="tag warn">${ic('lock', 13)}מסמך</span>` : ''}<span class="chev">${ic('down', 18)}</span></summary>
+      <div class="rows">
+        <label class="rw all"><input type="checkbox" data-all ${n === p.subs.length ? 'checked' : ''}><span class="bx">${ic('check', 16)}</span><span class="grow">כל התחום</span></label>
+        ${p.subs.map((s) => { const r = s.requirement ?? req, locked = r && !me.approvedRequirements.includes(r);
+          return `<label class="rw"><input type="checkbox" value="${s.id}" ${sel.has(s.id) || sel.has(p.id) ? 'checked' : ''}><span class="bx">${ic('check', 16)}</span><span class="grow">${esc(s.name)}</span>${locked ? `<span class="lk" title="דורש מסמך">${ic('lock', 16)}</span>` : ''}</label>`; }).join('')}
+      </div>
+      <div class="gmeta">כל הצעה בתחום: ${ils(p.leadPrice)}${p.starter ? ' · אפשר להתחיל בלי רישיון' : ''}</div>
+      ${!ok ? `<div class="gnote">${ic('lock', 15)}<span>אפשר לסמן עכשיו. קריאות יגיעו אחרי שנאשר ${REQ[req] ?? req}.</span></div>` : ''}
     </details>`;
   }).join('');
   $('#modeChips').innerHTML = MODE_PICK.map(([v, l]) => `<label class="mc"><input type="checkbox" value="${v}" ${me.serviceModes.includes(v) ? 'checked' : ''}>${ic(MODE_I[v])}${l}</label>`).join('');
@@ -886,8 +894,9 @@ function renderDomains() {
   $('#modeErr').textContent = ''; $('#radErr').textContent = ''; $('#radius').classList.remove('bad');
   renderDocs();
 }
+const picked = () => $$('#catGroups input[value]:not([data-all]):checked').map((i) => i.value);
 function renderDocs() {
-  const checked = $$('#catGroups input:checked').map((i) => i.value);
+  const checked = picked();
   const reqs = [...new Set(checked.map((c) => cats[c]?.requirement).filter(Boolean))];
   for (const d of me.documents) if (!reqs.includes(d.type)) reqs.push(d.type);
   $('#docs').innerHTML = reqs.length ? `<div class="docs">${reqs.map((r) => {
@@ -898,12 +907,14 @@ function renderDocs() {
   }).join('')}</div><p class="muted" style="margin:8px 4px 0">צלמו את המסמך. הבדיקה ידנית, ובינתיים התחום מסומן במנעול.</p>`
     : `<div class="card muted" style="display:flex;gap:10px;align-items:center">${ic('check')}התחומים שבחרתם לא דורשים מסמכים.</div>`;
 }
-$('#catGroups').addEventListener('change', renderDocs);
-$('#catGroups').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-all]'); if (!b) return;
-  const box = b.closest('.subs'), inputs = $$('input', box), all = inputs.every((i) => i.checked);
-  for (const i of inputs) i.checked = !all;
-  b.textContent = all ? 'בחירת הכל' : 'ניקוי'; renderDocs();
+$('#catGroups').addEventListener('change', (e) => {
+  const g = e.target.closest('[data-grp]'); if (!g) return;
+  const subs = $$('input[value]:not([data-all])', g);
+  if (e.target.matches('[data-all]')) for (const i of subs) i.checked = e.target.checked;
+  const n = subs.filter((i) => i.checked).length;
+  $('[data-all]', g).checked = n === subs.length;
+  $('[data-count]', g).textContent = n ? `נבחרו ${n} מתוך ${subs.length}` : 'לא נבחר';
+  renderDocs();
 });
 async function shrink(file) {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
@@ -935,7 +946,7 @@ $('#radiusR').oninput = (e) => { $('#radius').value = e.target.value; $('#radius
 $('#radius').oninput = (e) => { $('#radiusR').value = Math.min(100, +e.target.value || 1); e.target.classList.remove('bad'); $('#radErr').textContent = ''; };
 $('#modeChips').onchange = () => { $('#modeErr').textContent = ''; };
 $('#saveProfile').onclick = async () => {
-  const categories = $$('#catGroups input:checked').map((i) => i.value);
+  const categories = picked();
   const serviceModes = $$('#modeChips input:checked').map((i) => i.value);
   const r = +$('#radius').value;
   const radOk = Number.isFinite(r) && r >= 1 && r <= 500;
