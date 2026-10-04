@@ -1175,7 +1175,23 @@ $('#catGroups').addEventListener('change', (e) => {
   $('[data-all]', g).checked = n === subs.length;
   $('[data-count]', g).textContent = n ? `נבחרו ${n} מתוך ${subs.length}` : 'לא נבחר';
   renderDocs();
+  autoSave();
 });
+// Every tick is saved by itself a moment later, so nothing is lost when leaving the screen.
+let autoTimer = null;
+function autoSave() {
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(async () => {
+    const serviceModes = $$('#modeChips input:checked').map((i) => i.value);
+    const r = +$('#radius').value;
+    const body = { categories: picked(), ...(serviceModes.length && { serviceModes }), ...(r >= 1 && r <= 500 && { radiusKm: r }) };
+    try { me = await api('/api/pro/me', body, 'PUT'); renderHeader(); toast('נשמר'); }
+    catch (err) { toast(err.message, 'err'); }
+  }, 700);
+}
+$('#modeChips').addEventListener('change', autoSave);
+$('#radius').addEventListener('change', autoSave);
+$('#radiusR').addEventListener('change', autoSave);
 async function shrink(file) {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
   try {
