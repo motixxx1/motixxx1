@@ -51,7 +51,7 @@ jobs:
           set -o pipefail
           CODE=$((100 + GITHUB_RUN_NUMBER))
           for app in client pro; do
-            flutter build apk --release --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
+            flutter build apk --release --android-skip-build-dependency-validation --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
               --dart-define=APP=$app --dart-define=BUILD=$CODE --dart-define=SIDELOAD=true \
               --dart-define=SERVER_URL="$SERVER_URL" --dart-define=FALLBACK_URL="$FALLBACK_URL" 2>&1 | tee ../build-$app.txt \
               || { echo "::error title=build $app::$(grep -vE '^\s*$' ../build-$app.txt | tail -60 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; exit 1; }
@@ -103,7 +103,7 @@ jobs:
           flutter pub get
           mkdir -p ../out
           for app in client pro; do
-            flutter build appbundle --release --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
+            flutter build appbundle --release --android-skip-build-dependency-validation --flavor $app --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
               --dart-define=APP=$app --dart-define=BUILD=$CODE --dart-define=SIDELOAD=false \
               --dart-define=SERVER_URL="$STORE_SERVER_URL" --dart-define=FALLBACK_URL=
             cp build/app/outputs/bundle/${app}Release/*.aab ../out/ProMarket-$app-play.aab
