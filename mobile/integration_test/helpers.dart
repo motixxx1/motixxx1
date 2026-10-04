@@ -21,10 +21,11 @@ Finder field(int i) => find.byType(TextField).hitTestable().at(i);
 Finder lastField() => find.byType(TextField).hitTestable().last;
 
 Future<void> tapOn(WidgetTester t, Finder f0) async {
+  // close the keyboard first: it can cover the button (small emulator screen, big customer type)
+  FocusManager.instance.primaryFocus?.unfocus();
+  await t.pump(const Duration(milliseconds: 600));
   final f = f0.hitTestable();
   await waitFor(t, f);
-  FocusManager.instance.primaryFocus?.unfocus();
-  await t.pump(const Duration(milliseconds: 400));
   try {
     await t.ensureVisible(f.first);
   } catch (_) {}
