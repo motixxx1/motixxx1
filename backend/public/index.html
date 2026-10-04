@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f6f6f8">
-<title>ProMarket · קריאה למקצוען</title>
+<title>זריז · מקצוענים וסידורים בקליק</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23ff6a00'/%3E%3Cpath fill='%23fff' d='M32 8c-10.5 0-19 8.3-19 18.6C13 40 32 56 32 56s19-16 19-29.4C51 16.300 42.500 8 32 8z'/%3E%3Cpath fill='%23ff6a00' d='M35 15 24 31h8l-3 14 12-17h-8z'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
   /* Built for everyone, including older users: one font, large text, strong contrast,
      one question per screen and big tap targets. */
@@ -29,7 +31,14 @@
 
   /* top bar */
   .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;min-height:68px;padding:10px 18px;background:rgba(246,246,248,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-  .top .brand{flex:1;font-weight:700;font-size:26px;color:var(--brand)}
+  .top .brand{flex:1;display:flex;align-items:center;gap:10px;font-weight:800;font-size:28px;color:var(--brand);letter-spacing:-.5px}
+  .lgm{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;background:linear-gradient(150deg,#ff8a2a,#e85a00);color:#e85a00;flex:none;box-shadow:0 6px 14px -6px rgba(232,90,0,.7)}
+  .lgm svg{width:28px;height:28px}
+  .lgm.big{width:64px;height:64px;border-radius:20px}.lgm.big svg{width:42px;height:42px}
+  .qban{display:flex;align-items:center;gap:14px;width:100%;text-align:right;border:0;border-radius:22px;padding:16px 18px;margin:14px 0 4px;background:linear-gradient(135deg,#fff1e6,#ffe0c7);color:var(--ink);cursor:pointer}
+  .qban b{display:block;font-size:20px;line-height:1.25}.qban small{display:block;font-size:16px;color:#6b4a30;margin-top:3px}
+  .qban svg{flex:none}
+  .promo{text-align:center;padding-top:6px}.promo h2{font-size:26px;line-height:1.2;margin:14px 0 8px}.promo p{font-size:18px;line-height:1.45;margin:0 0 18px;color:var(--muted)}
   .top .title{flex:1;font-weight:700;font-size:22px}
   .back{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 16px 0 18px;border-radius:24px;border:2px solid var(--line);background:var(--card);font-weight:500;font-size:18px;cursor:pointer}
 
@@ -152,6 +161,14 @@
   .toast.err{background:var(--err)}
   :focus-visible{outline:3px solid var(--brand);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){.sheet,.toast{animation:none}}
+  /* live tracking */
+  .live{position:relative;border-radius:22px;overflow:hidden;border:2px solid var(--line);background:#e9ecf2;margin:0 0 14px}
+  #liveMap{height:300px}
+  .live .eta{position:absolute;top:10px;inset-inline:10px;z-index:500;display:flex;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.18);font-size:18px;font-weight:700}
+  .live .eta small{display:block;font-size:14px;font-weight:500;color:var(--muted)}
+  .live .eta .big{font-size:30px;line-height:1;color:var(--brand-ink)}
+  .pro-pin{display:block;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--brand);border:4px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .2s}
+  .home-pin{display:block;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#1d1f2b;border:4px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
@@ -159,7 +176,7 @@
   <!-- login -->
   <section id="login" hidden>
     <main style="padding-top:48px">
-      <div style="font-size:28px;font-weight:700;color:var(--brand)">ProMarket</div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:34px;font-weight:800;color:var(--brand)"><span class="lgm big"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#fff" d="M32 4C19.8 4 10 13.6 10 25.6 10 41.2 32 60 32 60s22-18.8 22-34.4C54 13.6 44.2 4 32 4z"/><path fill="currentColor" d="M35 12 22 30h9l-3 16 14-20h-9z"/></svg></span>זריז</div>
       <h1 style="margin-top:22px">כניסה</h1>
       <p class="muted" style="margin:-8px 0 8px">שם וטלפון. נשלח לכם קוד בהודעת SMS.</p>
       <form id="loginForm" novalidate>
@@ -177,7 +194,7 @@
   <div id="shell" hidden>
     <header class="top">
       <button class="back" id="backBtn" hidden></button>
-      <span class="brand" id="topBrand">ProMarket</span>
+      <span class="brand" id="topBrand"><span class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#fff" d="M32 4C19.8 4 10 13.6 10 25.6 10 41.2 32 60 32 60s22-18.8 22-34.4C54 13.6 44.2 4 32 4z"/><path fill="currentColor" d="M35 12 22 30h9l-3 16 14-20h-9z"/></svg></span>זריז</span>
       <span class="title" id="topTitle" hidden></span>
     </header>
 
@@ -185,6 +202,7 @@
     <main data-view="home">
       <div class="muted" id="hello" style="font-size:19px"></div>
       <div id="homeJobs"></div>
+      <button type="button" class="qban" id="queueBan"><svg viewBox="0 0 120 64" width="120" height="64" aria-hidden="true"><g fill="#d9dcE6"><circle cx="100" cy="18" r="9"/><path d="M86 56c0-12 6-20 14-20s14 8 14 20z"/><circle cx="70" cy="18" r="9"/><path d="M56 56c0-12 6-20 14-20s14 8 14 20z"/></g><g fill="#ff6a00"><circle cx="38" cy="14" r="11"/><path d="M20 58c0-15 8-25 18-25s18 10 18 25z"/></g><path d="M31 15l5 5 9-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>לא בא לכם לעמוד בתור?</b><small>מישהו יעמוד במקומכם. בנק, משרד ממשלתי, קופת חולים</small></span></button>
       <h1>במה אפשר לעזור?</h1>
       <div class="choices" id="groups"></div>
       <h2 style="font-size:19px;font-weight:500;color:var(--muted);margin:24px 0 10px">לא מצאתם? חפשו</h2>
@@ -225,6 +243,7 @@
   </div>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -279,6 +298,7 @@ function toast(text, kind = 'ok') {
   const box = $('#toasts'); while (box.children.length >= 2) box.firstChild.remove(); // at most two at a time
   box.appendChild(t); setTimeout(() => t.remove(), 4000);
 }
+const QUEUE_SVG = `<svg viewBox="0 0 120 64" width="120" height="64" aria-hidden="true"><g fill="#d9dcE6"><circle cx="100" cy="18" r="9"/><path d="M86 56c0-12 6-20 14-20s14 8 14 20z"/><circle cx="70" cy="18" r="9"/><path d="M56 56c0-12 6-20 14-20s14 8 14 20z"/></g><g fill="#ff6a00"><circle cx="38" cy="14" r="11"/><path d="M20 58c0-15 8-25 18-25s18 10 18 25z"/></g><path d="M31 15l5 5 9-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 function sheet(html, onClose) {
   const s = document.createElement('div'); s.className = 'scrim';
   s.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="handle"></div>${html}</div>`;
@@ -351,7 +371,7 @@ const TITLES = { mine: 'הקריאות שלי', job: 'הקריאה שלי', acco
 function showLogin() {
   $('#login').hidden = !!token; $('#shell').hidden = !token;
   document.body.classList.toggle('nonav', !token);
-  if (token) { $('#hello').textContent = `שלום ${store.get('clientName') || ''}`.trim(); go('home'); }
+  if (token) { $('#hello').textContent = `שלום ${store.get('clientName') || ''}`.trim(); go('home'); setTimeout(queuePromo, 1200); }
 }
 function go(v, back = null) {
   view = v; backTo = back;
@@ -472,6 +492,7 @@ function statusOf(j) {
     case 'assigned': return [j.offers.find((o) => o.status === 'accepted')?.instant ? `${p} אישר וקיבל את העבודה` : `בחרתם ב${p}. מחכים שיתחיל`, ''];
     case 'en_route': return [del ? `${p} בדרך לאיסוף` : `${p} בדרך אליכם`, ''];
     case 'picked_up': return [`${p} אסף ובדרך אליכם`, ''];
+    case 'arrived': return [del ? `${p} הגיע אליכם` : `${p} הגיע`, 'act'];
     case 'in_progress': return [`${p} עובד על זה`, ''];
     case 'completed': return [`${p} סיים. אשרו שהכל תקין`, 'act'];
     case 'closed_done': return ['הסתיים', 'ok'];
@@ -487,6 +508,15 @@ function reqCard(j) {
     <span class="desc">${esc(j.description)}</span>
     <span class="status ${cls}"><i></i>${esc(s)}</span>
     ${needsMe(j) ? `<span class="btn" style="margin-top:8px;min-height:54px;font-size:18px">${j.status === 'open' ? 'לראות את ההצעות' : j.status === 'completed' ? 'לאשר' : 'לדרג'}</span>` : ''}</button>`;
+}
+$('#queueBan').onclick = () => startFlow({ categoryId: 'errands.queue' });
+function queuePromo() {
+  if (store.get('queuePromo') || $('.scrim')) return;
+  store.set('queuePromo', '1');
+  const s = sheet(`<div class="promo">${QUEUE_SVG}<h2>מישהו יעמוד בתור במקומכם</h2>
+    <p>בנק, משרד הפנים, קופת חולים. אתם ממשיכים עם היום שלכם, ואדם אחר עומד בתור בשבילכם.</p>
+    <button type="button" class="btn" id="qpGo">פתיחת קריאה</button><button type="button" class="btn soft" data-close style="margin-top:10px">אחר כך</button></div>`);
+  $('#qpGo', s.el).onclick = () => { s.close(); startFlow({ categoryId: 'errands.queue' }); };
 }
 function renderHome() {
   const top = [...jobs.filter(needsMe), ...jobs.filter((j) => isOpen(j) && !needsMe(j))].slice(0, 2);
@@ -685,11 +715,56 @@ function renderMine() {
 
 // ---- one request: status, offers, actions
 function timeline(j) {
-  // Steps up to `last` are done; the next one is where things stand now.
-  const last = { open: 0, assigned: 1, en_route: 1, picked_up: 1, in_progress: 1, completed: 2, closed_done: 3 }[j.status] ?? 0;
-  const now = ['en_route', 'picked_up', 'in_progress'].includes(j.status); // work is happening right now
-  const labels = ['הקריאה נשלחה', 'נבחר מקצוען', j.mode === 'delivery' ? 'בדרך' : 'בטיפול', 'הסתיים'];
-  return `<ol class="timeline">${labels.map((l, i) => `<li class="${i <= last ? 'done' : i === last + 1 ? `cur${now ? ' now' : ''}` : ''}"><span class="dot">${i <= last ? ic('check', 16) : ''}</span>${l}</li>`).join('')}</ol>`;
+  // Each status is a step: steps before it are done, the matching one is where things stand now.
+  const del = j.mode === 'delivery', remote = j.mode === 'remote' || j.mode === 'phone';
+  const labels = del ? ['הקריאה נשלחה', 'נבחר שליח', 'בדרך לאיסוף', 'אסף, בדרך אליכם', 'הגיע', 'נמסר']
+    : remote ? ['הקריאה נשלחה', 'נבחר מקצוען', 'בטיפול', 'הסתיים']
+    : ['הקריאה נשלחה', 'נבחר מקצוען', 'בדרך אליכם', 'הגיע', 'בטיפול', 'הסתיים'];
+  const pos = del ? { open: 1, assigned: 2, en_route: 2, picked_up: 3, arrived: 4, completed: 5, closed_done: 6 }
+    : remote ? { open: 1, assigned: 2, in_progress: 2, completed: 3, closed_done: 4 }
+    : { open: 1, assigned: 2, en_route: 2, arrived: 3, in_progress: 4, completed: 5, closed_done: 6 };
+  const at = pos[j.status] ?? 0;
+  const now = ['en_route', 'picked_up', 'arrived', 'in_progress'].includes(j.status); // happening right now
+  return `<ol class="timeline">${labels.map((l, i) => `<li class="${i < at ? 'done' : i === at ? `cur${now ? ' now' : ''}` : ''}"><span class="dot">${i < at ? ic('check', 16) : ''}</span>${l}</li>`).join('')}</ol>`;
+}
+
+// ---- live map: the pro moves on it while he is on the way (kept alive between redraws)
+const trackNeeds = () => { const j = jobs.find((x) => x.id === openJobId); return !!j && trackOn(j) !== !!$('#liveSlot'); }; // map card appears/disappears
+let trackEl = null, trackMap = null, proMk = null, homeMk = null, trackLine = null, trackFor = null;
+const trackOn = (j) => !!j.tracking && ['en_route', 'picked_up', 'arrived'].includes(j.status);
+function liveHtml(j) { return trackOn(j) ? '<div class="live" id="liveSlot"></div>' : ''; }
+function mountLive(j) {
+  const slot = $('#liveSlot');
+  if (!slot) return;
+  if (!trackEl) { trackEl = document.createElement('div'); trackEl.innerHTML = '<div class="eta" id="liveEta"></div><div id="liveMap"></div>'; }
+  slot.appendChild(trackEl);
+  updateTrack(j);
+}
+function updateTrack(j) {
+  const t = j?.tracking;
+  if (!t || !trackEl || !trackEl.isConnected) return;
+  const del = j.mode === 'delivery', name = proName(j);
+  const km = t.km != null ? (t.km < 1 ? `${Math.round(t.km * 1000)} מטר` : `${t.km} ק״מ`) : '';
+  $('#liveEta').innerHTML = j.status === 'arrived' ? `${ic('check', 26)}<span>${esc(name)} הגיע<small>צאו לפגוש אותו</small></span>`
+    : t.etaMin != null ? `<span class="big">${t.etaMin}</span><span>דקות<small>${esc(name)} ${j.status === 'picked_up' ? 'בדרך אליכם עם המשלוח' : del ? 'בדרך לאיסוף' : 'בדרך אליכם'}${km ? ` · ${km}` : ''}</small></span>` : `<span>${esc(name)} בדרך</span>`;
+  if (!window.L) return;
+  const me = [t.lat, t.lng], dest = t.toward ? [t.toward.lat, t.toward.lng] : null;
+  if (!trackMap) {
+    trackMap = L.map('liveMap', { zoomControl: false, attributionControl: true });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(trackMap);
+    trackMap.attributionControl.setPrefix(false);
+  }
+  trackMap.invalidateSize();
+  if (!proMk) proMk = L.marker(me, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', html: `<span class="pro-pin">${ic('person', 24)}</span>`, iconSize: [0, 0] }) }).addTo(trackMap);
+  else proMk.setLatLng(me);
+  if (dest) {
+    if (!homeMk) homeMk = L.marker(dest, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', html: '<span class="home-pin"></span>', iconSize: [0, 0] }) }).addTo(trackMap);
+    else homeMk.setLatLng(dest);
+    if (!trackLine) trackLine = L.polyline([me, dest], { color: '#ff6a00', weight: 4, dashArray: '8 8', opacity: .8 }).addTo(trackMap);
+    else trackLine.setLatLngs([me, dest]);
+    if (trackFor !== j.id + j.status) { trackFor = j.id + j.status; trackMap.fitBounds([me, dest], { paddingTopLeft: [40, 90], paddingBottomRight: [40, 30], maxZoom: 17 }); }
+    else if (!trackMap.getBounds().contains(me)) trackMap.fitBounds([me, dest], { paddingTopLeft: [40, 90], paddingBottomRight: [40, 30], maxZoom: 17 });
+  } else if (trackFor !== j.id) { trackFor = j.id; trackMap.setView(me, 15); }
 }
 function offerHtml(j, o) {
   const p = o.pro;
@@ -717,6 +792,7 @@ function renderJob() {
   const others = j.status === 'open' ? j.offers : [];
   $('#job').innerHTML = `
     <div class="bigstatus status ${cls}" style="font-size:24px"><i style="width:14px;height:14px;border-radius:7px"></i>${esc(s)}</div>
+    ${liveHtml(j)}
     ${j.status === 'open' && !j.offers.length ? `<div class="card" style="text-align:center"><div class="done-ic">${ic('check', 44)}</div><b style="font-size:21px">הקריאה נשלחה</b><p class="muted" style="margin:6px 0 0">${j.clientPrice != null ? `קבעתם ${ils(j.clientPrice)}. המקצוען הראשון באזור שמאשר מקבל את העבודה, ותראו אותו כאן.` : 'מקצוענים באזור קיבלו אותה. כשתגיע הצעה, היא תופיע כאן.'}</p></div>` : ''}
     ${j.status === 'open' && j.offers.length && j.clientPrice != null ? `<div class="item" style="margin-bottom:12px">${ic('info')}<span>קבעתם ${ils(j.clientPrice)}. עד שמישהו מאשר, אפשר גם לבחור הצעה במחיר אחר.</span></div>` : ''}
     ${j.status === 'completed' ? `<button type="button" class="btn ok" data-confirm="${j.id}" style="margin-bottom:14px">${ic('check')}הכל תקין, סיימנו${j.escrow ? ' (התשלום ישוחרר)' : ''}</button>` : ''}
@@ -731,6 +807,7 @@ function renderJob() {
     <div class="card"><b style="font-size:20px">${esc(cats[j.categoryId]?.name ?? '')}</b><p style="margin:6px 0 0">${esc(j.description)}</p>${mediaHtml(j.media)}
       ${j.address ? `<div class="line">${ic('pin', 20)}<span>${j.dropoff ? `איסוף: ${esc(j.address)}<br>מסירה: ${esc(j.dropoff.address)}` : esc(j.address)}</span></div>` : ''}
       <div class="line">${ic('clock', 20)}<span>${j.urgency === 'urgent' ? 'דחוף' : 'לא דחוף'} · ${MODE[j.mode]}${j.paymentMode === 'in_app' ? ' · תשלום מאובטח' : ''}</span></div></div>`;
+  mountLive(j);
 }
 
 async function load() {
@@ -741,8 +818,9 @@ async function load() {
   } catch { return; } // 401 handled in api()
   const n = jobs.filter(needsMe).length;
   $('#mineBadge').hidden = !n; $('#mineBadge').textContent = n;
-  const json = JSON.stringify(jobs);
-  if (json === lastJobsJson) return; // nothing changed: don't redraw
+  const json = JSON.stringify(jobs.map(({ tracking, ...j }) => j)); // the moving dot must not redraw the page
+  if (view === 'job') updateTrack(jobs.find((x) => x.id === openJobId));
+  if (json === lastJobsJson && !(view === 'job' && trackNeeds())) return; // nothing changed: don't redraw
   lastJobsJson = json;
   renderHome();
   if ($('.scrim')) return; // don't redraw under an open sheet
@@ -822,6 +900,7 @@ api('/api/categories').then((t) => {
   showLogin(); load();
 }).catch(() => { showLogin(); toast('אין חיבור לשרת', 'err'); });
 setInterval(load, 5000);
+setInterval(() => { if (view === 'job' && jobs.some((j) => j.id === openJobId && trackOn(j))) load(); }, 3000); // live map: refresh every 3 seconds
 </script>
 </body>
 </html>

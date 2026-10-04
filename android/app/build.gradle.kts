@@ -13,8 +13,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 36 // Google Play: new apps and updates must target API 36 from 31 Aug 2026
-        versionCode = 6
-        versionName = "0.6.0"
+        versionCode = 7
+        versionName = "0.7.0"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
     }
     // Two apps from one codebase: customers, and pros/agents/couriers.
@@ -23,13 +23,13 @@ android {
         create("client") {
             dimension = "app"
             applicationId = "com.promarket.client"
-            resValue("string", "app_name", "ProMarket")
+            resValue("string", "app_name", "זריז")
             buildConfigField("String", "START_PATH", "\"/\"")
         }
         create("pro") {
             dimension = "app"
             applicationId = "com.promarket.pro"
-            resValue("string", "app_name", "ProMarket למקצוענים")
+            resValue("string", "app_name", "זריז מקצוענים")
             buildConfigField("String", "START_PATH", "\"/pro\"")
         }
     }

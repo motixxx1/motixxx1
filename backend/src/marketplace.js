@@ -6,6 +6,7 @@ export const MAX_OFFERS = 5;
 export const COMMISSION_RATE = 0.12;
 export const WELCOME_CREDIT = 30;   // free credit so anyone can send first offers without paying
 export const REFERRAL_BONUS = 25;   // to the referrer when the referred pro completes a first job
+export const TOPUP_PACKAGES = [50, 100, 200, 500]; // credit packages a pro can buy (ILS)
 export const MODES = ['onsite', 'remote', 'phone', 'delivery'];
 const PHYSICAL = ['onsite', 'delivery']; // modes where distance matters
 export const PAYMENT_MODES = ['in_app', 'direct'];
@@ -13,11 +14,12 @@ export const PAY_METHODS = ['cash', 'bit', 'transfer', 'card', 'other']; // how 
 
 // Job status flow per service mode (after the client accepts an offer).
 const FLOW = {
-  onsite: { assigned: 'en_route', en_route: 'in_progress', in_progress: 'completed' },
+  // arrived = "I'm here": the client sees it live, then work starts.
+  onsite: { assigned: 'en_route', en_route: 'arrived', arrived: 'in_progress', in_progress: 'completed' },
   remote: { assigned: 'in_progress', in_progress: 'completed' },
   phone: { assigned: 'in_progress', in_progress: 'completed' },
   // Courier: on the way to pickup -> picked up -> delivered (photo as proof).
-  delivery: { assigned: 'en_route', en_route: 'picked_up', picked_up: 'completed' },
+  delivery: { assigned: 'en_route', en_route: 'picked_up', picked_up: 'arrived', arrived: 'completed' },
 };
 
 export class MarketplaceError extends Error {
@@ -40,6 +42,7 @@ export class Marketplace {
     this.clients = new Map();
     this.jobs = new Map();
     this.ledger = [];
+    this.topups = [];     // credit purchases: { id, proId, amount, status: 'pending' | 'paid', createdAt, paidAt }
     this.notify = notify; // (userId, payload) => FCM high-priority push
   }
 
@@ -81,7 +84,7 @@ export class Marketplace {
   // Account deletion (required by app stores): personal details are erased, open requests
   // are cancelled, and the account can't be used any more. Blocked while a job is in progress.
   deleteAccount(role, id) {
-    const active = ['assigned', 'en_route', 'picked_up', 'in_progress', 'completed'];
+    const active = ['assigned', 'en_route', 'picked_up', 'arrived', 'in_progress', 'completed'];
     const mine = [...this.jobs.values()].filter((j) => (role === 'pro' ? j.assignedProId : j.clientId) === id);
     if (mine.some((j) => active.includes(j.status))) fail('active_jobs', 'Finish or cancel the work in progress first');
     if (role === 'pro') {
@@ -126,7 +129,7 @@ export class Marketplace {
     return doc;
   }
   setAvailability(proId, available) { this.#pro(proId).available = !!available; }
-  updateLocation(proId, location) { this.#pro(proId).location = location; }
+  updateLocation(proId, location) { const p = this.#pro(proId); p.location = location; p.locationAt = Date.now(); }
 
   canServe(pro, job) {
     const cat = getCategory(job.categoryId);
@@ -147,6 +150,23 @@ export class Marketplace {
     const pro = this.#pro(proId);
     pro.balance += amount;
     return this.#record(proId, 'topup', amount, { method });
+  }
+  // Self-service credit purchase. The pro starts one (pending); credit is added only when the
+  // payment provider confirms it (confirmTopup), exactly once.
+  startTopup(proId, amount) {
+    if (!TOPUP_PACKAGES.includes(amount)) fail('bad_amount', 'Choose one of the credit packages');
+    this.#pro(proId);
+    const t = { id: randomUUID(), proId, amount, status: 'pending', createdAt: Date.now(), paidAt: null };
+    this.topups.push(t);
+    return t;
+  }
+  confirmTopup(id) {
+    const t = this.topups.find((x) => x.id === id) ?? fail('not_found', 'Unknown payment');
+    if (t.status === 'paid') return t; // providers retry webhooks
+    t.status = 'paid'; t.paidAt = Date.now();
+    this.#pro(t.proId).balance += t.amount;
+    this.#record(t.proId, 'topup', t.amount, { method: 'card', ref: t.id });
+    return t;
   }
   history(proId) { return this.ledger.filter((e) => e.proId === proId); }
 
@@ -237,7 +257,7 @@ export class Marketplace {
     this.#client(clientId);
     return [...this.jobs.values()].filter((j) => j.clientId === clientId)
       .sort((a, b) => b.createdAt - a.createdAt)
-      .map(({ dispatchedTo, escrow, ...j }) => ({ ...j,
+      .map(({ dispatchedTo, escrow, ...j }) => ({ ...j, tracking: this.#tracking(j),
         escrow: escrow && { amount: escrow.amount, status: escrow.status },
         rated: !!j.assignedProId && this.pros.get(j.assignedProId).ratings.some((r) => r.jobId === j.id),
         offers: j.offers.map((o) => {
@@ -404,6 +424,7 @@ export class Marketplace {
     if (job.booking && job.booking.status !== 'confirmed') fail('booking_pending', 'Supplier booking not confirmed');
     if (status === 'completed' && job.mode === 'onsite' && !signature) fail('signature_required', 'Client signature required');
     job.status = status;
+    (job.stamps ??= {})[status] = Date.now();
     if (status === 'completed') job.completedAt = Date.now();
     if (signature) job.signature = signature;
     if (note || photos.length) job.workLog.push({ at: Date.now(), stage: status, text: note, photos });
@@ -464,13 +485,28 @@ export class Marketplace {
 
   // ---- Persistence (JSON snapshot; production: Postgres)
   snapshot() {
-    return { pros: [...this.pros.values()], clients: [...this.clients.values()], jobs: [...this.jobs.values()], ledger: this.ledger };
+    return { pros: [...this.pros.values()], clients: [...this.clients.values()], jobs: [...this.jobs.values()], ledger: this.ledger, topups: this.topups };
   }
-  restore({ pros = [], clients = [], jobs = [], ledger = [] } = {}) {
+  restore({ pros = [], clients = [], jobs = [], ledger = [], topups = [] } = {}) {
+    this.topups = topups;
     this.pros = new Map(pros.map((x) => [x.id, x]));
     this.clients = new Map(clients.map((x) => [x.id, x]));
     this.jobs = new Map(jobs.map((x) => [x.id, x]));
     this.ledger = ledger;
+  }
+
+  // Where the assigned pro is while he is on the way or on site, and a rough arrival time.
+  // Only the client who owns the job gets this, and only while it is happening.
+  #tracking(job) {
+    if (!['en_route', 'picked_up', 'arrived'].includes(job.status) || !job.assignedProId) return null;
+    const pro = this.pros.get(job.assignedProId);
+    if (!pro?.location) return null;
+    const target = job.status === 'picked_up' && job.dropoff?.location ? job.dropoff.location : job.location;
+    const km = target ? distanceKm(pro.location, target) : null;
+    // City driving ~25 km/h plus a minute of slack; "arrived" has no ETA.
+    const etaMin = job.status === 'arrived' || km == null ? null : Math.max(1, Math.round(km / 25 * 60 + 1));
+    return { lat: pro.location.lat, lng: pro.location.lng, at: pro.locationAt ?? null, km: km == null ? null : round1(km), etaMin,
+      toward: target ? { lat: target.lat, lng: target.lng } : null };
   }
 
   #record(proId, type, amount, meta) {

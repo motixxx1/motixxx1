@@ -75,9 +75,10 @@ if (env.AUTO_UPDATE === '1' || (existsSync(join(root, 'build.json')) && env.AUTO
 
 const port = env.PORT || 3000;
 const server = createServer(createApp({ market, auth, partners, catalog, geocode, media, onChange: store.save, dev, echoOtp: dev && !sms,
-  version: updater.info, site: { name: env.BUSINESS_NAME || 'ProMarket', email: env.SUPPORT_EMAIL || '' } }))
+  version: updater.info, site: { name: env.BUSINESS_NAME || 'זריז', email: env.SUPPORT_EMAIL || '' },
+  topup: { url: env.TOPUP_URL || '', secret: env.PAYMENT_WEBHOOK_SECRET || '' } }))
   .listen(port, () => {
-    console.log(`ProMarket is running on port ${port}${dev ? '  [demo mode]' : ''}`);
+    console.log(`Zariz is running on port ${port}${dev ? '  [demo mode]' : ''}`);
     console.log(`  customers: http://<this-computer-ip>:${port}/    pros: http://<this-computer-ip>:${port}/pro`);
     console.log(`  data: ${dataFile}`);
   });

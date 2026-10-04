@@ -91,6 +91,12 @@ class MainActivity : AppCompatActivity() {
             else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
+        /** Payment pages and other https links open in the phone's browser. */
+        @JavascriptInterface
+        fun openExternal(url: String) = runOnUiThread {
+            if (url.startsWith("https://")) runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        }
+
         @JavascriptInterface
         fun appVersion(): Int = BuildConfig.VERSION_CODE
     }
@@ -253,7 +259,9 @@ class MainActivity : AppCompatActivity() {
         for (provider in listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)) {
             if (!locationManager.isProviderEnabled(provider)) continue
             if (lastLocation == null) lastLocation = locationManager.getLastKnownLocation(provider)
-            locationManager.requestLocationUpdates(provider, 30_000L, 25f, locationListener, Looper.getMainLooper())
+            // Pros share their position every few seconds so the customer sees them move; customers need it once.
+            val pro = BuildConfig.FLAVOR == "pro"
+            locationManager.requestLocationUpdates(provider, if (pro) 4_000L else 30_000L, if (pro) 5f else 25f, locationListener, Looper.getMainLooper())
         }
     }
 

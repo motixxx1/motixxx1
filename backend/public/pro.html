@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#12151f">
-<title>ProMarket · מקצוענים – עבודות</title>
+<title>זריז מקצוענים · קריאות ועבודות</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f766e'/%3E%3Cpath fill='%23fff' d='M32 8c-10.5 0-19 8.3-19 18.6C13 40 32 56 32 56s19-16 19-29.4C51 16.300 42.500 8 32 8z'/%3E%3Cpath fill='%230f766e' d='M35 15 24 31h8l-3 14 12-17h-8z'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
@@ -157,6 +158,10 @@
   .activewrap{position:absolute;top:54px;inset-inline-start:10px;inset-inline-end:64px;z-index:1000}
   .activecard{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border-radius:18px;border:1px solid rgba(94,234,212,.45);background:rgba(24,28,40,.96);color:var(--fg);text-align:right;cursor:pointer;font:inherit}
   .activecard .grow{display:flex;flex-direction:column}
+  .trip .th{display:flex;align-items:center;gap:10px}.trip .th .grow{display:flex;flex-direction:column;min-width:0}
+  .trip .trow{display:flex;gap:8px;margin:10px 0 0}.trip .trow .waze{flex:1;justify-content:center;min-height:44px;font-size:14px}
+  .trip .item{margin-top:10px}.trip .big{min-height:60px;font-size:20px;margin-top:12px}
+  .tpin{display:block;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#fff;border:4px solid var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.5)}
   .panel{position:absolute;inset-inline:10px;bottom:10px;z-index:1000;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:14px 16px;box-shadow:0 -12px 32px -12px rgba(0,0,0,.7)}
   .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
   .kpis>*{background:var(--surface2);border:0;border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;text-align:right;color:inherit;font:inherit;cursor:pointer}
@@ -240,6 +245,10 @@
 
   /* login */
   .lgbrand{display:flex;align-items:center;gap:10px}
+  .logo svg{width:30px;height:30px}
+  .hlogo{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:var(--accent);color:var(--accent-ink);flex:none}.hlogo svg{width:25px;height:25px}
+  .promo{text-align:center;padding-top:6px}.promo h2{font-family:var(--display);font-size:26px;line-height:1.2;margin:14px 0 8px}.promo p{font-size:16px;line-height:1.5;margin:0 0 16px;color:var(--muted)}
+  .pk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}.pk button{min-height:76px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-family:var(--display);font-weight:800;font-size:24px;cursor:pointer}.pk button small{display:block;font-family:inherit;font-weight:500;font-size:12px;color:var(--muted)}.pk button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
   .logo{width:44px;height:44px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px -6px rgba(94,234,212,.8)}
   h1.big{font-family:var(--display);font-weight:800;font-size:30px;margin:22px 0 8px;line-height:1.15}
   .perks{display:flex;flex-direction:column;gap:8px;margin:18px 0 6px}
@@ -294,12 +303,12 @@
   <!-- login -->
   <section id="login" hidden>
     <main style="padding-top:48px">
-      <div class="lgbrand"><span class="logo" data-i="briefcase" data-s="24"></span><span class="disp" style="font-size:22px">ProMarket</span><span class="tag acc">מקצוענים</span></div>
+      <div class="lgbrand"><span class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#fff" d="M32 4C19.8 4 10 13.6 10 25.6 10 41.2 32 60 32 60s22-18.8 22-34.4C54 13.6 44.2 4 32 4z"/><path fill="currentColor" d="M35 12 22 30h9l-3 16 14-20h-9z"/></svg></span><span class="disp" style="font-size:24px">זריז</span><span class="tag acc">מקצוענים</span></div>
       <h1 class="big">כל מומחיות יכולה להרוויח</h1>
-      <p class="muted" style="font-size:15px;margin:0">נרשמים בדקה, מקבלים 30 ש״ח קרדיט מתנה ומתחילים להציע.</p>
+      <p class="muted" style="font-size:15px;margin:0"><span id="lgSub">נרשמים בדקה ומתחילים לקבל קריאות.</span></p>
       <div class="perks">
         <div><span data-i="pin"></span>קריאות לפי המיקום והתחומים שלכם</div>
-        <div><span data-i="wallet"></span>משלמים רק כששולחים הצעה</div>
+        <div><span data-i="wallet"></span><span id="lgPerk">ההצעות חינם בתקופת ההשקה</span></div>
       </div>
       <form id="loginForm" novalidate>
         <label class="lb" for="lName">שם מלא</label><input class="field" id="lName" name="name" autocomplete="name">
@@ -316,6 +325,7 @@
   <!-- signed in -->
   <div id="shell" hidden>
     <header class="top">
+      <span class="hlogo"><svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#fff" d="M32 4C19.8 4 10 13.6 10 25.6 10 41.2 32 60 32 60s22-18.8 22-34.4C54 13.6 44.2 4 32 4z"/><path fill="currentColor" d="M35 12 22 30h9l-3 16 14-20h-9z"/></svg></span>
       <div class="tt"><span class="title" id="topTitle">היום</span><span class="sub" id="topSub"></span></div>
       <button class="pill" id="creditPill" data-go="wallet" aria-label="הכנסות"><span data-i="wallet" data-s="18"></span><span id="creditVal">–</span></button>
     </header>
@@ -328,6 +338,7 @@
         <button type="button" class="recenter" id="recenter" aria-label="מרכוז המפה"><span data-i="nav" data-s="20"></span></button>
         <div class="activewrap" id="activeJob"></div>
         <div class="panel" id="panel">
+          <div class="trip" id="tripBox" hidden></div>
           <div id="availBox"></div>
           <div class="kpis" id="kpis"></div>
           <div id="todayNotes"></div>
@@ -377,7 +388,7 @@
       <div id="earnList"></div>
       <div id="creditBox" hidden>
         <h2 class="sec">קרדיט להצעות</h2>
-        <div class="card"><span class="muted">יתרה</span><div class="num" id="balVal" style="font-family:var(--display);font-weight:800;font-size:28px">–</div><p class="muted" style="margin:4px 0 0">כל הצעה עולה קרדיט לפי התחום.</p></div>
+        <div class="card"><span class="muted">יתרה</span><div class="num" id="balVal" style="font-family:var(--display);font-weight:800;font-size:28px">–</div><p class="muted" style="margin:4px 0 0">כל הצעה עולה קרדיט לפי התחום.</p><button type="button" class="btn" id="topupBtn" style="margin-top:12px" hidden><span data-i="plus"></span>טעינת קרדיט</button></div>
         <div id="history"></div>
       </div>
       <h2 class="sec">הזמנת חברים</h2>
@@ -520,11 +531,11 @@ const MODE = { onsite: 'אצל הלקוח', remote: 'מרחוק', phone: 'בטל
 const MODE_I = { onsite: 'home', remote: 'monitor', phone: 'phone', delivery: 'box' };
 const MODE_PICK = [['onsite', 'אצל הלקוח'], ['remote', 'מרחוק'], ['phone', 'בטלפון'], ['delivery', 'שליחויות']];
 const PHYSICAL = ['onsite', 'delivery'];
-const NEXT = { onsite: { assigned: ['en_route', 'יצאתי לדרך'], en_route: ['in_progress', 'התחלתי לעבוד'], in_progress: ['completed', 'סיימתי'] },
+const NEXT = { onsite: { assigned: ['en_route', 'יצאתי לדרך'], en_route: ['arrived', 'הגעתי'], arrived: ['in_progress', 'התחלתי לטפל'], in_progress: ['completed', 'סיימתי'] },
   remote: { assigned: ['in_progress', 'התחלתי'], in_progress: ['completed', 'סיימתי'] } };
 NEXT.phone = NEXT.remote;
-NEXT.delivery = { assigned: ['en_route', 'יצאתי לאיסוף'], en_route: ['picked_up', 'אספתי, בדרך ללקוח'], picked_up: ['completed', 'נמסר'] };
-const STATUS = { open: ['ממתין לבחירת הלקוח', 'warn'], assigned: ['הלקוח בחר בך', 'acc'], en_route: ['בדרך', 'acc'], picked_up: ['נאסף', 'acc'],
+NEXT.delivery = { assigned: ['en_route', 'יצאתי לאיסוף'], en_route: ['picked_up', 'אספתי, בדרך ללקוח'], picked_up: ['arrived', 'הגעתי ליעד'], arrived: ['completed', 'נמסר'] };
+const STATUS = { open: ['ממתין לבחירת הלקוח', 'warn'], assigned: ['הלקוח בחר בך', 'acc'], en_route: ['בדרך', 'acc'], arrived: ['הגעתי, מתחילים', 'acc'], picked_up: ['נאסף', 'acc'],
   in_progress: ['בעבודה', 'acc'], completed: ['ממתין לאישור הלקוח', 'warn'], closed_done: ['הושלם', 'ok'], booking_failed: ['הזמנה נכשלה', 'hot'] };
 const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד ג׳', criminal_record: 'אישור היעדר רישום פלילי',
   minors_clearance: 'אישור משטרה לעבודה עם קטינים', vehicle: 'רישיון רכב ונהיגה' };
@@ -541,7 +552,7 @@ const FEED_F = [['all', 'הכל'], ['fixed', 'מחיר קבוע'], ['urgent', '�
 const JOBS_F = [['all', 'הכל'], ['won', 'נבחרו בי'], ['road', 'בדרך'], ['work', 'בטיפול'], ['wait', 'ממתינות ללקוח'], ['done', 'נסגרו'], ['lost', 'נדחו']];
 const ORDER = ['won', 'road', 'work', 'wait', 'done', 'lost'];
 const bucket = (j) => j.myOffer?.status === 'rejected' ? 'lost' : j.status === 'assigned' ? 'won'
-  : ['en_route', 'picked_up'].includes(j.status) ? 'road' : j.status === 'in_progress' ? 'work'
+  : ['en_route', 'picked_up'].includes(j.status) ? 'road' : ['arrived', 'in_progress'].includes(j.status) ? 'work'
   : ['open', 'completed'].includes(j.status) ? 'wait' : 'done';
 const isActive = (j) => ['won', 'road', 'work'].includes(bucket(j));
 
@@ -559,14 +570,14 @@ let loc = null;
 // In the Android app the location comes from the app itself (works on plain http:// too);
 // in a browser it comes from geolocation (which browsers only allow on https/localhost).
 function appLoc() { try { const s = window.ProMarketApp?.location(); return s ? JSON.parse(s) : null; } catch { return null; } }
-function refreshLoc() {
+function refreshLoc(fresh) {
   const a = appLoc();
   if (a) { loc = a; return Promise.resolve(loc); }
   return new Promise((done) => {
     if (!navigator.geolocation) return done(loc);
     const t = setTimeout(() => done(loc), 5000);
     navigator.geolocation.getCurrentPosition((p) => { clearTimeout(t); loc = { lat: p.coords.latitude, lng: p.coords.longitude }; done(loc); },
-      () => { clearTimeout(t); done(loc); }, { maximumAge: 60000, timeout: 5000 });
+      () => { clearTimeout(t); done(loc); }, { maximumAge: fresh ? 1500 : 60000, timeout: 5000, enableHighAccuracy: !!fresh });
   });
 }
 
@@ -638,7 +649,7 @@ function renderHeader() {
 const missingDocs = () => [...new Set(me.categories.map((c) => cats[c]?.requirement).filter((r) => r && !me.approvedRequirements.includes(r)))];
 
 // The map: Leaflet with dark tiles when it loads; otherwise a drawn grid with the same pins.
-let map = null, meMk = null, radiusC = null, pinLayer = null, fitted = false;
+let map = null, meMk = null, radiusC = null, pinLayer = null, fitted = false, tripKey = '';
 const center = () => { const o = me?.location ?? loc; return o ? [o.lat, o.lng] : [32.0853, 34.7818]; };
 const pinHtml = (j) => j.clientPrice ? `<span class="pin fixed">${Math.round(j.clientPrice)} ש״ח</span>` : `<span class="pin ${j.urgency === 'urgent' ? 'hot' : ''}"></span>`;
 function sizeLive() { const h = $('header.top')?.offsetHeight || 64; document.documentElement.style.setProperty('--hdr', `${h}px`); }
@@ -648,7 +659,8 @@ function fitMap() {
   map.fitBounds(radiusC.getBounds(), { paddingTopLeft: [16, 64], paddingBottomRight: [16, panel + 24] });
 }
 function drawMap() {
-  const pins = feed.filter((j) => j.location && PHYSICAL.includes(j.mode));
+  const trip = tripJob(), tt = trip && PHYSICAL.includes(trip.mode) ? tripTarget(trip) : null;
+  const pins = tt ? [] : feed.filter((j) => j.location && PHYSICAL.includes(j.mode));
   if (!window.L) { // no map library: drawn fallback
     const m = $('#lmap'); m.classList.add('nomap');
     const R = 70, k = R / Math.max(1, me.radiusKm), o = me.location ?? loc;
@@ -680,9 +692,59 @@ function drawMap() {
     L.marker([j.location.lat, j.location.lng], { keyboard: true, title: cats[j.categoryId]?.name ?? '',
       icon: L.divIcon({ className: '', html: pinHtml(j), iconSize: null }) }).on('click', () => jobPopup(j, { timer: false })).addTo(pinLayer);
   }
+  if (tt?.l) {
+    const to = [tt.l.lat, tt.l.lng];
+    L.marker(to, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', html: '<span class="tpin"></span>', iconSize: [0, 0] }) }).addTo(pinLayer);
+    L.polyline([c, to], { color: '#5eead4', weight: 3, dashArray: '8 8', opacity: .8, interactive: false }).addTo(pinLayer);
+    const key = `${trip.id}|${tt.l.lat}`;
+    if (key !== tripKey) { tripKey = key; const panel = $('#panel')?.offsetHeight || 200; map.fitBounds([c, to], { paddingTopLeft: [40, 80], paddingBottomRight: [40, panel + 30], maxZoom: 16 }); }
+    return;
+  }
+  tripKey = '';
   if (!fitted) { fitMap(); fitted = true; }
 }
 document.addEventListener('click', (e) => { if (e.target.closest('#recenter')) { fitted = false; fitMap(); } });
+
+const TRIP_ST = ['assigned', 'en_route', 'picked_up', 'arrived', 'in_progress'];
+const tripJob = () => jobs.find((j) => j.myOffer?.status === 'accepted' && TRIP_ST.includes(j.status));
+// Where the pro is heading right now: the pickup/customer, or the drop-off after pickup.
+function tripTarget(j) {
+  const drop = j.dropoff?.location && ['picked_up', 'arrived'].includes(j.status);
+  return drop ? { l: j.dropoff.location, a: j.dropoff.address, text: 'למסירה' } : { l: j.location, a: j.address, text: j.dropoff ? 'לאיסוף' : 'ניווט ב-Waze' };
+}
+function renderTrip(j) {
+  const t = tripTarget(j), nx = NEXT[j.mode]?.[j.status], [label, cls] = STATUS[j.status] ?? [j.status, ''];
+  const physical = PHYSICAL.includes(j.mode);
+  $('#tripBox').innerHTML = `<div class="th">${catTile(j.categoryId, 40, 20)}<span class="grow"><b class="one">${esc(cats[j.categoryId]?.name ?? '')}</b><span class="muted one">${esc(j.description)}</span></span><span class="tag ${cls}">${label}</span></div>
+    ${physical && t.a ? `<div class="item">${ic('pin', 18)}<span class="grow">${esc(t.a)}</span></div>` : ''}
+    <div class="trow">${physical && t.l?.lat ? `<a class="waze" href="https://waze.com/ul?ll=${t.l.lat},${t.l.lng}&amp;navigate=yes">${ic('nav', 16)}${t.text}</a>` : ''}
+      ${j.phone ? `<a class="waze" href="tel:${esc(tel(j.phone))}">${ic('phone', 16)}התקשרות ללקוח</a>` : ''}
+      <button type="button" class="waze" data-go="jobs" data-jobs="all" style="border:0;cursor:pointer">פרטים</button></div>
+    ${nx ? `<button type="button" class="btn big" id="tripNext" data-trip="${j.id}">${ic('check')}${nx[1]}</button>` : ''}`;
+}
+async function advanceTrip(id) {
+  const j = jobs.find((x) => x.id === id), nx = j && NEXT[j.mode]?.[j.status];
+  if (!nx) return;
+  const send = async (signature) => {
+    try {
+      await api(`/api/jobs/${id}/status`, { status: nx[0], signature });
+      toast(nx[0] === 'completed' ? 'עודכן. ממתינים לאישור הלקוח' : nx[0] === 'en_route' ? 'יצאתם. הלקוח רואה אתכם על המפה' : 'עודכן, הלקוח רואה');
+      if (nx[0] === 'en_route') pushLoc();
+    } catch (err) { toast(err.message, 'err'); }
+    load(true);
+  };
+  if (j.mode === 'onsite' && nx[0] === 'completed') {
+    const s = sheet(`${sheetHead('סיום העבודה')}<label class="lb" for="sigIn">שם הלקוח לאישור</label><input class="field" id="sigIn" autocomplete="off">
+      <div class="err" id="sigErr"></div><button type="button" class="btn" id="sigGo" style="margin-top:14px">${ic('check')}סיימתי</button>`);
+    $('#sigGo', s.el).onclick = async () => { const v = $('#sigIn', s.el).value.trim(); if (!v) { $('#sigErr', s.el).textContent = 'נדרשת חתימת לקוח'; return; } s.close(); await send(v); };
+    return;
+  }
+  await send();
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-trip]'); if (b && !b.closest('.scrim')) { b.disabled = true; advanceTrip(b.dataset.trip).finally(() => { b.disabled = false; }); } });
+// While on the way (or on site) the position is sent every few seconds so the customer sees it move.
+async function pushLoc() { const l = await refreshLoc(true); if (l) { me.location = l; await api('/api/pro/location', l, 'PUT').catch(() => {}); } }
+setInterval(() => { const t = tripJob(); if (t && ['en_route', 'picked_up', 'arrived'].includes(t.status) && !document.hidden) pushLoc().then(() => drawMap()); }, 5000);
 
 function renderToday() {
   if (view !== 'today') return;
@@ -692,11 +754,12 @@ function renderToday() {
   $('#mapChips').innerHTML = `<span>${ic('pin', 13)}רדיוס ${me.radiusKm} ק״מ</span><span>${feed.length ? `${feed.length} קריאות פתוחות` : 'אין קריאות כרגע'}</span>${me.location ? '' : '<span class="warn">אין מיקום</span>'}`;
   drawMap();
 
-  // Active job: one tap back to it.
-  const active = jobs.filter(isActive);
-  const a = active[0];
-  $('#activeJob').innerHTML = a ? `<button type="button" class="activecard" data-go="jobs" data-jobs="all">${catTile(a.categoryId, 36, 18)}<span class="grow"><b class="one">${esc(cats[a.categoryId]?.name ?? '')}</b>
-      <span class="muted one">${STATUS[a.status]?.[0] ?? ''}${NEXT[a.mode]?.[a.status] ? ` · הצעד הבא: ${NEXT[a.mode][a.status][1]}` : ''}</span></span>${ic('chev', 18)}</button>` : '';
+  // On a job: the panel becomes the trip card with one big button for the next step.
+  const a = tripJob();
+  $('#activeJob').innerHTML = '';
+  $('#tripBox').hidden = !a;
+  for (const id of ['availBox', 'kpis', 'todayNotes']) $('#' + id).hidden = !!a;
+  if (a) renderTrip(a);
 
   if (availShown !== on) { // re-render only on change, so a drag in progress is never interrupted
     availShown = on;
@@ -880,7 +943,7 @@ function jobPopup(j, { timer = false } = {}) {
   el.addEventListener('click', async (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-x') || b.hasAttribute('data-skip')) return close();
-    if (b.id === 'tkJobs') { close(true); jobsF = 'all'; return go('jobs'); }
+    if (b.id === 'tkJobs') { close(true); return go('today'); }
     if (b.id === 'tkOffer' || b.id === 'tkCounter') { close(true); return offerSheet(j); }
     if (b.id === 'tkAccept') {
       b.disabled = true; stop();
@@ -1237,11 +1300,12 @@ async function renderAccountBits() {
     <div style="display:flex;gap:8px;margin-top:12px"><span class="reflink">${esc(link)}</span><button type="button" class="btn sm ghost" id="copyRef">${ic('copy', 18)}העתקה</button>
       ${navigator.share ? `<button type="button" class="btn sm ghost" id="shareRef" aria-label="שיתוף">${ic('share', 18)}</button>` : ''}</div>`;
   $('#copyRef').onclick = async () => { try { await navigator.clipboard.writeText(link); toast('הקישור הועתק'); } catch { toast(link); } };
-  if ($('#shareRef')) $('#shareRef').onclick = () => navigator.share({ title: 'ProMarket · מקצוענים', text: 'מקבלים עבודות באזור שלכם. ההרשמה בדקה', url: link }).catch(() => {});
+  if ($('#shareRef')) $('#shareRef').onclick = () => navigator.share({ title: 'זריז · מקצוענים', text: 'מקבלים עבודות באזור שלכם. ההרשמה בדקה', url: link }).catch(() => {});
   $('#acct').innerHTML = `<div class="hrow"><span class="hic">${ic('person')}</span><span class="grow"><span class="muted" style="display:block">שם</span>${esc(me.name)}</span></div>`;
   $('#creditBox').hidden = !cfg.leadFees;
   if (!cfg.leadFees) return;
   $('#balVal').textContent = ils(me.balance);
+  $('#topupBtn').hidden = !cfg.topup;
   let history = [];
   try { history = (await api('/api/pro/wallet')).history.filter((x) => x.type !== 'payout').slice().reverse(); } catch {}
   const when = (t) => new Date(t).toLocaleString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1261,6 +1325,47 @@ $('#deleteAcct').onclick = () => {
     catch (err) { toast(err.message, 'err'); }
   };
 };
+
+// ---- buying credit: pick a package, pay on the provider's page, credit arrives by itself
+const openOutside = (url) => { try { if (window.ProMarketApp?.openExternal) return window.ProMarketApp.openExternal(url); } catch {} window.open(url, '_blank'); };
+let topupPoll = null;
+$('#topupBtn').onclick = () => {
+  let amount = (cfg.topupPackages ?? [100])[1] ?? 100;
+  const s = sheet(`${sheetHead('טעינת קרדיט')}
+    <p class="muted" style="margin-top:0">כל הצעה שאתם שולחים עולה קרדיט לפי התחום. בוחרים סכום ומשלמים בכרטיס אשראי.</p>
+    <div class="pk">${(cfg.topupPackages ?? []).map((a) => `<button type="button" data-pk="${a}" class="${a === amount ? 'on' : ''}">${a} ₪<small>${a === amount ? 'נבחר' : 'לבחירה'}</small></button>`).join('')}</div>
+    <button type="button" class="btn" id="tpGo">${ic('wallet')}לתשלום</button><div class="err" id="tpErr" role="alert" style="margin-top:8px"></div>`);
+  s.el.onclick = (e) => { const b = e.target.closest('[data-pk]'); if (!b) return; amount = +b.dataset.pk; for (const x of $$('.pk button', s.el)) { x.classList.toggle('on', x === b); x.querySelector('small').textContent = x === b ? 'נבחר' : 'לבחירה'; } };
+  $('#tpGo', s.el).onclick = async () => {
+    const btn = $('#tpGo', s.el); btn.disabled = true;
+    try {
+      const r = await api('/api/pro/wallet/topup', { amount });
+      if (!r.payUrl) { s.close(); toast(`נוספו ${ils(amount)} לקרדיט`); await load(true); return; }
+      openOutside(r.payUrl);
+      s.el.querySelector('.sheet').innerHTML = `<div class="handle"></div>${sheetHead('ממתינים לתשלום')}<div class="empty" style="padding:24px">${ic('clock', 44)}<b>משלימים את התשלום בדף שנפתח</b>הקרדיט יתווסף כאן אוטומטית.</div>
+        <button type="button" class="btn ghost" data-close>סגירה</button>`;
+      clearInterval(topupPoll); const t0 = Date.now();
+      topupPoll = setInterval(async () => {
+        if (Date.now() - t0 > 600000 || !document.body.contains(s.el)) return clearInterval(topupPoll);
+        try { const x = await api(`/api/pro/wallet/topups/${r.id}`); if (x.status === 'paid') { clearInterval(topupPoll); s.close(); toast(`נוספו ${ils(x.amount)} לקרדיט`); await load(true); } } catch {}
+      }, 3000);
+    } catch (err) { btn.disabled = false; $('#tpErr', s.el).textContent = err.message; }
+  };
+};
+
+// ---- promo: earn by standing in line for someone else (shown once)
+function queuePromo() {
+  if (store.get('queuePromo') || popup || $('.scrim') || !me) return;
+  if (me.categories.some((c) => c === 'errands' || c === 'errands.queue')) return;
+  store.set('queuePromo', '1');
+  const s = sheet(`<div class="promo"><svg viewBox="0 0 120 64" width="120" height="64" aria-hidden="true"><g fill="#d9dcE6"><circle cx="100" cy="18" r="9"/><path d="M86 56c0-12 6-20 14-20s14 8 14 20z"/><circle cx="70" cy="18" r="9"/><path d="M56 56c0-12 6-20 14-20s14 8 14 20z"/></g><g fill="#5eead4"><circle cx="38" cy="14" r="11"/><path d="M20 58c0-15 8-25 18-25s18 10 18 25z"/></g><path d="M31 15l5 5 9-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><h2>מרוויחים מעמידה בתור</h2>
+    <p>אנשים משלמים למי שיעמוד בתור במקומם: בנק, משרדי ממשלה, קופת חולים. לא צריך רישיון ולא כלים. מוסיפים את התחום ומקבלים קריאות.</p>
+    <button type="button" class="btn" id="qpGo">${ic('plus')}הוספת התחום</button><button type="button" class="btn ghost" data-close style="margin-top:8px">אחר כך</button></div>`);
+  $('#qpGo', s.el).onclick = async () => {
+    try { me = await api('/api/pro/me', { categories: [...new Set([...me.categories, 'errands.queue'])] }, 'PUT'); s.close(); toast('התחום נוסף. קריאות יגיעו לפי המיקום שלכם'); renderHeader(); renderToday(); }
+    catch (err) { toast(err.message, 'err'); }
+  };
+}
 
 // ---- polling and automatic reload when the server was updated
 const jobsBusy = () => document.activeElement?.closest?.('#jobs') && document.activeElement.matches('input,textarea')
@@ -1295,10 +1400,12 @@ async function boot() {
     }
   }
   cfg = await api('/api/config').catch(() => cfg);
+  if (cfg.leadFees) { $('#lgSub').textContent = 'נרשמים בדקה, מקבלים 30 ש״ח קרדיט מתנה ומתחילים להציע.'; $('#lgPerk').textContent = 'משלמים רק כששולחים הצעה'; }
   if (!token) return;
   try {
     [me, providers] = await Promise.all([api('/api/pro/me'), api('/api/catalog/providers')]);
     renderHeader(); go(view); await load(true);
+    setTimeout(queuePromo, 1500);
     // keep the pro's position fresh each time the app opens (matters for couriers)
     refreshLoc().then((l) => l && api('/api/pro/location', l, 'PUT').then(() => { fitted = false; load(); }).catch(() => {}));
   } catch (err) { console.error(err); }

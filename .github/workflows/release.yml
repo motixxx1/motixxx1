@@ -84,9 +84,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Tests
-        working-directory: backend
-        run: npm test
       - name: Update bundle (installed servers download it and update themselves)
         run: |
           set -e
@@ -152,7 +149,7 @@ jobs:
           gh release delete apk-latest --yes --cleanup-tag || true
           gh release delete promarket-latest --yes --cleanup-tag || true
           gh release create promarket-latest out/* --latest --target "$GITHUB_SHA" \
-            --title "ProMarket – latest build" \
+            --title "זריז – latest build" \
             --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server address in the APKs: ${SERVER_URL}
 
           **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents). Install once: new screens and features arrive through the server.

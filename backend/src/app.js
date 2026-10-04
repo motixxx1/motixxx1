@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { Marketplace, MarketplaceError } from './marketplace.js';
+import { Marketplace, MarketplaceError, TOPUP_PACKAGES } from './marketplace.js';
 import { CATEGORIES, searchCategories } from './categories.js';
 import { Auth, normalizePhone } from './auth.js';
 import { Catalog } from './catalog.js';
@@ -24,7 +24,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
   onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }),
-  site = { name: 'ProMarket', email: '' } } = {}) {
+  site = { name: 'זריז', email: '' }, topup = {} } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
   const on = (method, path, role, fn) => routes.push({ method, role, fn,
@@ -61,7 +61,8 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('GET', '/api/categories', null, ({ query }) => visible(query.q ? searchCategories(query.q) : CATEGORIES));
   // What the pages should show: credit/lead fees, secure in-app payment, support contact.
   on('GET', '/api/config', null, () => ({ leadFees: market.leadFees, payments: market.payments, demo: dev,
-    supportEmail: site.email || null }));
+    supportEmail: site.email || null,
+    topupPackages: TOPUP_PACKAGES, topup: !!topup.url || dev }));
   on('DELETE', '/api/me', ['client', 'pro'], ({ me, role }) => market.deleteAccount(role, me));
   on('GET', '/api/jobs', null, ({ query }) => [...market.jobs.values()]
     .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))
@@ -76,8 +77,29 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('PUT', '/api/pro/location', 'pro', ({ me, body }) => (market.updateLocation(me, body), { ok: true }));
   on('GET', '/api/pro/wallet', 'pro', ({ me }) => ({ balance: market.getPro(me).balance, history: market.history(me) }));
   // Production: credit is added only by the payment provider's webhook after a successful charge.
-  on('POST', '/api/pro/wallet/topup', 'pro', ({ me, body }) => dev
-    ? market.topUp(me, body.amount, body.method) : fail('payments_disabled', 'Top-up requires a payment provider'));
+  // Demo: instant. Production: returns the payment link for the chosen package; the credit
+  // arrives when the provider calls POST /api/payments/webhook (see topup.url / topup.secret).
+  on('POST', '/api/pro/wallet/topup', 'pro', ({ me, body }) => {
+    if (!market.leadFees) fail('payments_disabled', 'Credit is not used right now');
+    const amount = +body.amount;
+    if (!topup.url) return dev ? market.topUp(me, amount, 'demo') : fail('payments_disabled', 'Credit purchase is not set up yet');
+    const t = market.startTopup(me, amount);
+    onChange();
+    return { id: t.id, payUrl: topup.url.replaceAll('{amount}', t.amount).replaceAll('{ref}', t.id).replaceAll('{phone}', encodeURIComponent(market.getPro(me).phone)) };
+  });
+  on('GET', '/api/pro/wallet/topups/:id', 'pro', ({ p, me }) => {
+    const t = market.topups.find((x) => x.id === p[0] && x.proId === me) ?? fail('not_found', 'Unknown payment');
+    return { id: t.id, status: t.status, amount: t.amount };
+  });
+  // Payment provider callback: { ref, status: 'paid' }, authenticated by the shared secret.
+  on('POST', '/api/payments/webhook', null, ({ body, query, req }) => {
+    const given = req.headers['x-webhook-secret'] ?? query.secret;
+    if (!topup.secret || given !== topup.secret) fail('unauthorized', 'Bad secret');
+    if (body.status && !['paid', 'success', 'approved'].includes(String(body.status).toLowerCase())) return { ok: true, ignored: true };
+    market.confirmTopup(body.ref ?? body.id);
+    onChange();
+    return { ok: true };
+  });
   on('GET', '/api/pro/feed', 'pro', ({ me, query }) => market.feed(me, {
     maxKm: query.maxKm && +query.maxKm, urgency: query.urgency, mode: query.mode }));
   on('GET', '/api/pro/jobs', 'pro', ({ me }) => market.proJobs(me, me));
@@ -170,7 +192,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     }
     if (req.method === 'GET' && LEGAL[url.pathname]) {
       const html = (await readFile(new URL(`../public/legal/${LEGAL[url.pathname]}`, import.meta.url), 'utf8'))
-        .replaceAll('{{NAME}}', esc(site.name || 'ProMarket'))
+        .replaceAll('{{NAME}}', esc(site.name || 'זריז'))
         .replaceAll('{{EMAIL}}', esc(site.email || '[כתובת אימייל לפניות – להגדיר SUPPORT_EMAIL]'));
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
       return res.end(html);
@@ -196,7 +218,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         let raw = '';
         for await (const c of req) raw += c;
         const body = raw ? JSON.parse(raw) : {};
-        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role });
+        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role, req });
         if (req.method !== 'GET') onChange();
         return send(200, out);
       } catch (e) {

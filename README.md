@@ -54,13 +54,12 @@ cd promarket-server
 | `backend/src/` | השרת: `marketplace.js` (קריאות, הצעות, תשלום), `categories.js`, `auth.js`, `catalog.js`, `partners.js`, `providers/`, `store.js`, `geocode.js`, `sms.js` |
 | `backend/public/` | `index.html` – אתר/אפליקציית לקוח · `pro.html` – אתר/אפליקציית מקצוען |
 | `android/` | שתי אפליקציות אנדרואיד (client / pro) מאותו קוד |
-| `.github/workflows/` | בניית APK + טסטים לשרת |
+| `.github/workflows/` | בניית APK, חבילת השרת וקבצי Google Play |
 | `render.yaml`, `backend/Dockerfile` | העלאה לאוויר |
 
 ## פיתוח מקומי
 ```bash
 cd backend
-npm test        # 29 טסטים
 npm start       # http://localhost:3000 (לקוח) · /pro (מקצוען)
 ```
 

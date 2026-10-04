@@ -1,7 +1,7 @@
 # One-click deploy: https://render.com/deploy?repo=https://github.com/motixxx1/motixxx1
 services:
   - type: web
-    name: promarket
+    name: zariz
     runtime: node
     rootDir: backend
     plan: starter            # needed for the persistent disk below (free plan loses data on restart)
@@ -13,8 +13,6 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      - key: DEMO_MODE        # login code on screen; delete this once SMS is set up
-        value: "1"
       - key: AUTO_UPDATE      # Render redeploys from GitHub on every push
         value: "0"
       - key: BUSINESS_NAME
@@ -23,6 +21,12 @@ services:
         sync: false
       - key: SMS_HTTP_URL
         sync: false
+      - key: LEAD_FEES
+        sync: false
+      - key: TOPUP_URL
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
       - key: AUTH_SECRET
         generateValue: true
       - key: DATA_FILE
@@ -30,7 +34,7 @@ services:
       - key: ADMIN_PHONES
         sync: false
       - key: GEOCODER_USER_AGENT
-        value: ProMarket/0.1 (motimoreli@gmail.com)
+        value: Zariz/0.1 (motimoreli@gmail.com)
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN

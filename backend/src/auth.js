@@ -32,7 +32,7 @@ export class Auth {
     const review = this.review.get(phone);
     const code = review ?? String(randomInt(100000, 1000000));
     this.codes.set(phone, { code, exp: Date.now() + this.codeTtlMs, sentAt: Date.now(), attempts: 0 });
-    if (!review) await this.sendSms(phone, `קוד הכניסה ל-ProMarket: ${code}`);
+    if (!review) await this.sendSms(phone, `קוד הכניסה לזריז: ${code}`);
     return { phone, code };
   }
 
