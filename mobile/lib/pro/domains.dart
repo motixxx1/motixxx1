@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -26,6 +28,20 @@ class _DomainsTabState extends State<DomainsTab> {
   Set<String> modes = {};
   double radius = 20;
   bool busy = false, dirty = false;
+  Timer? _auto;
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    super.dispose();
+  }
+
+  // Every change is saved by itself a moment later, so nothing is lost when leaving the screen.
+  void _changed() {
+    dirty = true;
+    _auto?.cancel();
+    _auto = Timer(const Duration(milliseconds: 800), () => _save(quiet: true));
+  }
 
   void _init(J me) {
     if (sel != null && dirty) return;
@@ -44,11 +60,13 @@ class _DomainsTabState extends State<DomainsTab> {
     radius = (asNum(me['radiusKm']) ?? 20).toDouble();
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool quiet = false}) async {
+    _auto?.cancel();
     if (modes.isEmpty) {
       toast(context, 'בחרו לפחות אופן עבודה אחד', err: true);
       return;
     }
+    if (!mounted) return;
     setState(() => busy = true);
     try {
       // a field with every specialty ticked is saved as the whole field (new specialties included)
@@ -62,7 +80,7 @@ class _DomainsTabState extends State<DomainsTab> {
           out.addAll(picked);
         }
       }
-      final loc = await currentLocation();
+      final loc = quiet ? null : await currentLocation();
       ProStore.i.me = asMap(await Api.put('/api/pro/me', {
         'categories': out,
         'serviceModes': modes.toList(),
@@ -70,7 +88,7 @@ class _DomainsTabState extends State<DomainsTab> {
         if (loc != null) 'location': loc,
       }));
       dirty = false;
-      if (mounted) toast(context, 'נשמר. קריאות יגיעו לפי הבחירה');
+      if (mounted) toast(context, quiet ? 'נשמר' : 'נשמר, כולל המיקום. קריאות יגיעו לפי הבחירה');
       await ProStore.i.load();
     } on ApiError catch (e) {
       if (mounted) toast(context, e.message, err: true);
@@ -119,10 +137,10 @@ class _DomainsTabState extends State<DomainsTab> {
                   avatar: Icon(modeIcon[m], size: 18),
                   label: Text(m == 'delivery' ? 'שליחויות' : modeLabel[m]!),
                   selected: modes.contains(m),
-                  onSelected: (v) => setState(() {
-                    dirty = true;
-                    v ? modes.add(m) : modes.remove(m);
-                  }),
+                  onSelected: (v) {
+                    setState(() => v ? modes.add(m) : modes.remove(m));
+                    _changed();
+                  },
                 ),
             ]),
             const SectionTitle('עד כמה רחוק'),
@@ -139,6 +157,7 @@ class _DomainsTabState extends State<DomainsTab> {
                     dirty = true;
                     radius = v;
                   }),
+                  onChangeEnd: (_) => _changed(),
                 ),
                 Text('עבודות מרחוק ובטלפון מגיעות מכל הארץ', style: TextStyle(color: Pal.muted, fontSize: 12)),
               ]),
@@ -170,9 +189,9 @@ class _DomainsTabState extends State<DomainsTab> {
             right: 12,
             bottom: 12,
             child: FilledButton.icon(
-              onPressed: busy ? null : _save,
+              onPressed: busy ? null : () => _save(),
               icon: busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 3)) : const Icon(Icons.check_rounded),
-              label: Text(dirty ? 'שמירת השינויים' : 'שמירה'),
+              label: Text(dirty ? 'שומר…' : 'שמירה ועדכון המיקום שלי'),
             ),
           ),
         ]);
@@ -204,12 +223,14 @@ class _DomainsTabState extends State<DomainsTab> {
               value: n == subs.length && subs.isNotEmpty,
               title: const Text('כל התחום', style: TextStyle(fontWeight: FontWeight.w700)),
               controlAffinity: ListTileControlAffinity.leading,
-              onChanged: (v) => setState(() {
-                dirty = true;
-                for (final s in subs) {
-                  v == true ? sel!.add(s['id'].toString()) : sel!.remove(s['id'].toString());
-                }
-              }),
+              onChanged: (v) {
+                setState(() {
+                  for (final s in subs) {
+                    v == true ? sel!.add(s['id'].toString()) : sel!.remove(s['id'].toString());
+                  }
+                });
+                _changed();
+              },
             ),
             for (final s in subs)
               CheckboxListTile(
@@ -217,10 +238,10 @@ class _DomainsTabState extends State<DomainsTab> {
                 value: sel!.contains(s['id']),
                 title: Text(s['name'].toString()),
                 controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (v) => setState(() {
-                  dirty = true;
-                  v == true ? sel!.add(s['id'].toString()) : sel!.remove(s['id'].toString());
-                }),
+                onChanged: (v) {
+                  setState(() => v == true ? sel!.add(s['id'].toString()) : sel!.remove(s['id'].toString()));
+                  _changed();
+                },
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
