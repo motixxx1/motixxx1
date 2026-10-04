@@ -1,6 +1,7 @@
 # Records every lines*.json with the Hebrew neural voices, in two spellings (plain and with
 # vowel marks), then transcribes each recording with Whisper to check how clearly it reads.
 import json, glob, subprocess, unicodedata, re, difflib, os
+import numpy as np
 from faster_whisper import WhisperModel
 
 VOICES = {'hila': 'he-IL-HilaNeural', 'avri': 'he-IL-AvriNeural'}
@@ -28,7 +29,10 @@ for path in sorted(glob.glob('marketing/voiceover/lines*.json')):
                 heard = ''
                 if model:
                     try:
-                        segs, _ = model.transcribe(f, language='he', beam_size=5)
+                        pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', f, '-ar', '16000', '-ac', '1', '-f', 's16le', '-'],
+                                             capture_output=True, check=True).stdout
+                        audio = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768
+                        segs, _ = model.transcribe(audio, language='he', beam_size=5)
                         heard = ' '.join(s.text for s in segs).strip()
                     except Exception as e:
                         print(f'::warning::whisper {os.path.basename(f)}: {e}')
