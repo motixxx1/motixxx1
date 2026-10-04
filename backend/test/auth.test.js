@@ -36,3 +36,12 @@ test('tokens: valid, tampered, expired', () => {
   const { auth: shortLived } = mk({ tokenTtlMs: -1 });
   assert.equal(shortLived.verifyToken(shortLived.issueToken({ sub: 'u' })), null);
 });
+
+test('store-review login: fixed code, no SMS sent', async () => {
+  const sent = [];
+  const { Auth } = await import('../src/auth.js');
+  const a = new Auth({ secret: 's'.repeat(32), sendSms: async (p) => sent.push(p), reviewLogins: { '0500000000': '246810' } });
+  await a.requestCode('0500000000');
+  assert.equal(sent.length, 0);
+  assert.equal(a.verifyCode('0500000000', '246810'), '972500000000');
+});

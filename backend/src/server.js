@@ -48,6 +48,8 @@ if (!sms && !dev) console.warn('!! No SMS provider configured: login codes are o
 const auth = new Auth({
   secret: env.AUTH_SECRET || loadOrCreateSecret(dirname(dataFile)),
   adminPhones: (env.ADMIN_PHONES ?? '').split(',').filter(Boolean),
+  // REVIEW_LOGIN=0501234567:246810 - a fixed code for app-store reviewers (no SMS is sent to it).
+  reviewLogins: Object.fromEntries((env.REVIEW_LOGIN ?? '').split(',').filter(Boolean).map((x) => x.split(':').map((v) => v.trim()))),
   sendSms: sms ?? (async (phone, text) => console.log(`[sms] ${phone}: ${text}`)),
 });
 // Launch switches, both off by default:

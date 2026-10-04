@@ -16,20 +16,23 @@ export function normalizePhone(raw = '') {
 // sendSms: (phone, text) => Promise — plug in an SMS provider (e.g. InforU, 019, Twilio).
 export class Auth {
   constructor({ secret, sendSms, codeTtlMs = 5 * 60_000, resendMs = 30_000, maxAttempts = 5,
-    tokenTtlMs = 30 * 24 * 3600_000, adminPhones = [] }) {
+    tokenTtlMs = 30 * 24 * 3600_000, adminPhones = [], reviewLogins = {} }) {
     if (!secret || secret.length < 16) throw new Error('Auth secret must be at least 16 chars');
     Object.assign(this, { secret, sendSms, codeTtlMs, resendMs, maxAttempts, tokenTtlMs });
     this.adminPhones = new Set(adminPhones.map(normalizePhone));
     this.codes = new Map(); // phone -> { code, exp, sentAt, attempts }
+    // App-store reviewers can't receive our SMS: a test number with a fixed code, no SMS sent.
+    this.review = new Map(Object.entries(reviewLogins).map(([p, c]) => [normalizePhone(p), String(c)]));
   }
 
   async requestCode(rawPhone) {
     const phone = normalizePhone(rawPhone);
     const prev = this.codes.get(phone);
     if (prev && Date.now() - prev.sentAt < this.resendMs) fail('too_soon', 'Wait before requesting another code');
-    const code = String(randomInt(100000, 1000000));
+    const review = this.review.get(phone);
+    const code = review ?? String(randomInt(100000, 1000000));
     this.codes.set(phone, { code, exp: Date.now() + this.codeTtlMs, sentAt: Date.now(), attempts: 0 });
-    await this.sendSms(phone, `קוד הכניסה שלך: ${code}`);
+    if (!review) await this.sendSms(phone, `קוד הכניסה ל-ProMarket: ${code}`);
     return { phone, code };
   }
 
