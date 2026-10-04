@@ -1,0 +1,42 @@
+name: Promo voiceover (Hebrew)
+
+# Reads marketing/voiceover/lines.json and records each line with Microsoft's Hebrew neural
+# voices (female: Hila, male: Avri). The files are published to the "voiceover" release.
+on:
+  push:
+    paths: ['marketing/voiceover/lines.json', '.github/workflows/voiceover.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record
+        run: |
+          pip install edge-tts
+          mkdir -p out
+          python - <<'PY'
+          import json, subprocess
+          lines = json.load(open('marketing/voiceover/lines.json'))
+          for voice, tag in (('he-IL-HilaNeural', 'hila'), ('he-IL-AvriNeural', 'avri')):
+              for l in lines:
+                  subprocess.run(['edge-tts', '--voice', voice, '--rate=+4%', '--text', l['text'],
+                                  '--write-media', f"out/{tag}-{l['id']}.mp3"], check=True)
+          print('done')
+          PY
+          ls -la out
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view voiceover >/dev/null 2>&1 || gh release create voiceover --prerelease --title "Promo voiceover" --notes "Hebrew voiceover lines for the promo video"
+          for a in $(gh release view voiceover --json assets -q '.assets[].name'); do gh release delete-asset voiceover "$a" --yes; done
+          gh release upload voiceover out/* --clobber
