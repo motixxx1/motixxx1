@@ -1,0 +1,85 @@
+name: iPhone apps (iOS)
+
+# Builds both apps for iPhone on a Mac. With the Apple keys set up (secrets below), every
+# build is signed and uploaded to App Store Connect, where it appears in TestFlight.
+#   APPLE_TEAM_ID     – Team ID (developer.apple.com → Membership)
+#   ASC_KEY_ID        – App Store Connect API key ID (Users and Access → Integrations → Keys, role Admin)
+#   ASC_ISSUER_ID     – Issuer ID shown above the keys list
+#   ASC_KEY_P8        – the downloaded AuthKey_XXXX.p8 file, pasted as text
+# Without them the apps are still built (not signed), to check that they compile.
+on:
+  push:
+    paths: ['mobile/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SERVER_URL: ${{ vars.SERVER_URL || 'http://87.68.15.249:3000' }}
+  FALLBACK_URL: ${{ vars.FALLBACK_URL || 'http://192.168.1.244:3000' }}
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [client, pro]
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: iOS project
+        working-directory: mobile
+        run: |
+          flutter pub get
+          bash tool/ios_setup.sh ${{ matrix.app }}
+      - name: Build
+        working-directory: mobile
+        run: |
+          CODE=$((1000 + GITHUB_RUN_NUMBER))
+          echo "CODE=$CODE" >> "$GITHUB_ENV"
+          flutter build ios --release --no-codesign \
+            --build-number=$CODE --build-name=1.0.$GITHUB_RUN_NUMBER \
+            --dart-define=APP=${{ matrix.app }} --dart-define=SERVER_URL="$SERVER_URL" \
+            --dart-define=FALLBACK_URL="$FALLBACK_URL" --dart-define=SIDELOAD=false --dart-define=BUILD=$CODE
+          mkdir -p Payload && cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr ../Zariz-${{ matrix.app }}-ios-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zariz-${{ matrix.app }}-ios-unsigned
+          path: Zariz-${{ matrix.app }}-ios-unsigned.ipa
+      - name: Sign and upload to TestFlight
+        if: env.ASC_KEY_P8 != '' && env.APPLE_TEAM_ID != '' && env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != ''
+        working-directory: mobile
+        run: |
+          set -e
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" archive "${AUTH[@]}" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic | tail -40
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store-connect</string>
+          <key>destination</key><string>upload</string>
+          <key>teamID</key><string>$APPLE_TEAM_ID</string>
+          <key>signingStyle</key><string>automatic</string>
+          <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Runner.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"
+          echo "::notice::Uploaded ${{ matrix.app }} build $CODE to App Store Connect (TestFlight)"

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,7 +25,10 @@ class Bg {
     _ready = true;
     try {
       await _n.initialize(
-        const InitializationSettings(android: AndroidInitializationSettings('@drawable/ic_stat')),
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@drawable/ic_stat'),
+          iOS: DarwinInitializationSettings(requestAlertPermission: true, requestSoundPermission: true, requestBadgePermission: false),
+        ),
         onDidReceiveNotificationResponse: (r) => onTap?.call(r.payload),
       );
       final android = _n.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -44,7 +48,18 @@ class Bg {
   static Future<bool> start({required bool onJob}) async {
     if (!await locationAllowed()) return false;
     await _sub?.cancel();
-    final settings = AndroidSettings(
+    // iPhone: location keeps flowing in the background (blue indicator), which also keeps
+    // the app checking for new requests while the pro is available.
+    final LocationSettings settings = Platform.isIOS
+        ? AppleSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5,
+            activityType: ActivityType.otherNavigation,
+            pauseLocationUpdatesAutomatically: false,
+            showBackgroundLocationIndicator: true,
+            allowBackgroundLocationUpdates: true,
+          )
+        : AndroidSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 5,
       intervalDuration: const Duration(seconds: 4),
@@ -92,6 +107,7 @@ class Bg {
             ticker: 'קריאה חדשה',
             icon: '@drawable/ic_stat',
           ),
+          iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true, presentBanner: true, interruptionLevel: InterruptionLevel.active),
         ),
         payload: job['id']?.toString(),
       );

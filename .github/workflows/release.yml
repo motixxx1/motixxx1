@@ -163,6 +163,7 @@ jobs:
           unzip -qj node-win.zip "node-$VER-win-x64/node.exe" -d $d/node
           (cd pkg-win && zip -qr ../out/promarket-server-windows-x64.zip promarket-server)
           cp server-package/README-SERVER.txt out/
+          cp server-package/https-setup.sh out/
           ls -la out
       - uses: actions/upload-artifact@v4
         with:

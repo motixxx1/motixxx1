@@ -51,6 +51,17 @@ SMS (חובה כדי שמשתמשים יוכלו להיכנס)
 * פותחים חשבון אצל ספק SMS ישראלי (או Twilio) וממלאים SMS_HTTP_URL או TWILIO_* ב-config.env.
 * מפעילים מחדש את השרת.
 
+כתובת HTTPS קבועה (חינם)
+------------------------
+1) נכנסים ל-duckdns.org (כניסה עם גוגל), יוצרים שם (למשל zariz-app) ומעתיקים את ה-token.
+2) ב-config.env ממלאים:  DUCKDNS_DOMAIN=zariz-app   ו-   DUCKDNS_TOKEN=...
+3) בראוטר מפנים את פורטים 80 ו-443 (TCP) למחשב הזה.
+4) בתיקיית השרת:  sudo ./https-setup.sh
+   (שרת שהותקן לפני שהקובץ קיים: מורידים אותו מ-
+    https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/https-setup.sh )
+אחרי זה הכתובת https://zariz-app.duckdns.org עובדת, התעודה מתחדשת לבד, והשרת מעדכן את
+DuckDNS כשכתובת ה-IP של הבית משתנה.
+
 לפני חנות האפליקציות
 --------------------
 * השרת צריך כתובת ציבורית עם HTTPS (למשל Render, ראו render.yaml בפרויקט).

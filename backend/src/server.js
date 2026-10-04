@@ -68,6 +68,19 @@ const geocode = nominatimGeocoder({ userAgent: env.GEOCODER_USER_AGENT ?? 'ProMa
 // (it ships build.json), off for Docker and development. AUTO_UPDATE=0 / 1 forces it.
 const updater = createUpdater({ root, beforeRestart: () => store.flush(),
   url: env.UPDATE_URL || 'https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/promarket-update.json' });
+// Free fixed address for a home server (https-setup.sh adds the HTTPS certificate):
+// DUCKDNS_DOMAIN=zariz-app (or zariz-app.duckdns.org) + DUCKDNS_TOKEN keep the name pointing
+// at the home's public IP, which can change.
+if (env.DUCKDNS_DOMAIN && env.DUCKDNS_TOKEN) {
+  const name = env.DUCKDNS_DOMAIN.replace(/\.duckdns\.org$/, '');
+  const refresh = () => fetch(`https://www.duckdns.org/update?domains=${encodeURIComponent(name)}&token=${encodeURIComponent(env.DUCKDNS_TOKEN)}&ip=`)
+    .then((r) => r.text()).then((t) => { if (t.trim() !== 'OK') console.warn(`[duckdns] update failed: ${t.trim()}`); })
+    .catch((e) => console.warn(`[duckdns] ${e.message}`));
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000).unref();
+  console.log(`[duckdns] keeping ${name}.duckdns.org pointed at this network`);
+}
+
 if (env.AUTO_UPDATE === '1' || (existsSync(join(root, 'build.json')) && env.AUTO_UPDATE !== '0')) {
   updater.start();
   console.log(`[update] automatic updates on (build ${updater.info().build})`);
