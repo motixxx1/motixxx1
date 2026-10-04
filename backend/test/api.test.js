@@ -7,12 +7,12 @@ import { Marketplace } from '../src/marketplace.js';
 import { Catalog } from '../src/catalog.js';
 import { mockProvider } from '../src/providers/mock.js';
 
-async function start() {
+async function start(marketOpts = {}) {
   const sms = new Map();
   const auth = new Auth({ secret: 's'.repeat(32), resendMs: 0, adminPhones: ['0509999999'],
     sendSms: async (p, t) => sms.set(p, t.match(/\d{6}/)[0]) });
   const catalog = new Catalog({ providers: [mockProvider({ id: 'mock-hotels', kind: 'hotel' })] });
-  const srv = createServer(createApp({ market: new Marketplace(), auth, catalog, dev: true })).listen(0);
+  const srv = createServer(createApp({ market: new Marketplace(marketOpts), auth, catalog, dev: true, site: { name: 'ProMarket', email: 'help@example.com' } })).listen(0);
   const base = `http://localhost:${srv.address().port}`;
   const call = (path, { body, token, method } = {}) => fetch(base + path, { method: method ?? (body ? 'POST' : 'GET'),
     headers: token ? { authorization: `Bearer ${token}` } : {}, body: body && JSON.stringify(body) })
@@ -22,6 +22,7 @@ async function start() {
     const code = sms.get(phone.replace(/^0/, '972'));
     return (await call('/api/auth/verify', { body: { phone, code, role, ...extra } })).b;
   };
+  call.base = base;
   return { srv, call, login };
 }
 
@@ -160,5 +161,55 @@ test('HTTP: delivery request geocodes typed addresses, falls back to phone GPS',
     const [card] = (await call('/api/pro/feed', { token: courier.token })).b;
     assert.equal(card.distanceKm, 0.1);
     assert.ok(saves >= 4);
+  } finally { srv.close(); }
+});
+
+test('HTTP: fixed price - first take wins, second gets 409; pages are not cached', async () => {
+  const { srv, call, login } = await start();
+  try {
+    const loc = { lat: 32.08, lng: 34.78 };
+    const pros = [];
+    for (const phone of ['0521111112', '0521111113']) {
+      const p = await login(phone, 'pro', { name: 'שליח', categories: ['delivery'] });
+      await call('/api/pro/me', { method: 'PUT', token: p.token, body: { location: loc, serviceModes: ['delivery'] } });
+      await call('/api/pro/availability', { method: 'PUT', token: p.token, body: { available: true } });
+      pros.push(p);
+    }
+    const client = await login('0502222223', 'client', { name: 'רחל' });
+    const job = (await call('/api/jobs', { token: client.token, body: { categoryId: 'delivery.pharmacy', mode: 'delivery',
+      description: 'תרופות', address: 'א', location: loc, dropoff: { address: 'ב', location: loc }, clientPrice: 60 } })).b;
+    assert.equal(job.clientPrice, 60);
+    const first = await call(`/api/jobs/${job.id}/take`, { token: pros[0].token, body: {} });
+    assert.equal(first.s, 200);
+    assert.equal(first.b.phone, '972502222223');
+    const second = await call(`/api/jobs/${job.id}/take`, { token: pros[1].token, body: {} });
+    assert.equal(second.s, 409);
+    assert.equal(second.b.error, 'taken');
+    const page = await fetch(call.base + '/pro');
+    assert.equal(page.headers.get('cache-control'), 'no-cache');
+    assert.equal((await call('/api/version')).b.build, 'dev');
+  } finally { srv.close(); }
+});
+
+test('HTTP: launch mode - free offers, no in-app payment or travel, account deletion, legal pages', async () => {
+  const { srv, call, login } = await start({ leadFees: false, payments: false, welcomeCredit: 30 });
+  try {
+    const cfg = (await call('/api/config')).b;
+    assert.deepEqual([cfg.leadFees, cfg.payments, cfg.supportEmail], [false, false, 'help@example.com']);
+    assert.ok(!(await call('/api/categories')).b.some((c) => c.id === 'travel'));
+    const pro = await login('0521111119', 'pro', { name: 'טכנאי', categories: ['computers'] });
+    assert.equal(pro.user.balance, 0); // no credit needed
+    await call('/api/pro/availability', { method: 'PUT', token: pro.token, body: { available: true } });
+    const client = await login('0502222229', 'client', { name: 'דנה' });
+    const secure = await call('/api/jobs', { token: client.token, body: { categoryId: 'computers.network', mode: 'phone', description: 'x', paymentMode: 'in_app' } });
+    assert.equal(secure.b.error, 'payments_disabled');
+    const job = (await call('/api/jobs', { token: client.token, body: { categoryId: 'computers.network', mode: 'phone', description: 'x' } })).b;
+    assert.equal(job.leadPrice, 0);
+    assert.equal((await call(`/api/jobs/${job.id}/offers`, { token: pro.token, body: { price: 100 } })).s, 200);
+    assert.equal((await call('/api/me', { method: 'DELETE', token: client.token })).b.deleted, true);
+    assert.equal((await call('/api/client/jobs', { token: client.token })).s, 401);
+    assert.equal((await call('/api/pro/feed', { token: pro.token })).b.length, 0);
+    const page = await fetch(call.base + '/delete-account').then((r) => r.text());
+    assert.match(page, /help@example\.com/);
   } finally { srv.close(); }
 });

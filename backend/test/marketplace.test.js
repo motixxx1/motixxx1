@@ -206,3 +206,42 @@ test('snapshot/restore keeps all state', () => {
   assert.equal(copy.clientJobs(client.id, client.id)[0].offers.length, 1);
   assert.equal(copy.getPro(pro.id).balance, m.getPro(pro.id).balance);
 });
+
+test('fixed price: first pro to accept takes the job, the next one missed it', () => {
+  const { m, mkPro, job, client, pushes } = setup();
+  const a = mkPro(['plumbing']), b = mkPro(['plumbing']), c = mkPro(['plumbing']);
+  const j = job({ clientPrice: 250 });
+  assert.equal(m.feed(a.id)[0].clientPrice, 250);
+  m.sendOffer(j.id, c.id, { price: 300 }); // a counter-offer is still possible
+  const taken = m.takeJob(j.id, a.id);
+  assert.equal(taken.status, 'assigned');
+  assert.equal(taken.myOffer.price, 250);
+  assert.equal(m.getPro(a.id).balance, 100 - j.leadPrice);
+  assert.throws(() => m.takeJob(j.id, b.id), (e) => e.code === 'taken');
+  assert.equal(m.getPro(b.id).balance, 100); // nothing charged for missing it
+  assert.equal(m.feed(b.id).length, 0);
+  assert.equal(m.clientJobs(client.id, client.id)[0].offers.find((o) => o.proId === c.id).status, 'rejected');
+  assert.ok(pushes.some((p) => p.id === b.id && p.msg.type === 'job_missed'));
+  assert.throws(() => m.takeJob(job().id, b.id), (e) => e.code === 'no_price');
+  assert.throws(() => job({ clientPrice: -5 }), /price/i);
+});
+
+test('fixed price with in-app payment holds the money; pro records direct payments', () => {
+  const { m, mkPro, job, client } = setup();
+  const a = mkPro(['plumbing']);
+  const secure = job({ clientPrice: 400, paymentMode: 'in_app' });
+  m.takeJob(secure.id, a.id);
+  assert.equal(m.jobs.get(secure.id).escrow.amount, 400);
+  assert.throws(() => m.recordPayment(secure.id, a.id, { method: 'cash', amount: 400 }), /finished/);
+  const direct = job({ clientPrice: 200 });
+  m.takeJob(direct.id, a.id);
+  m.advance(direct.id, a.id, 'en_route');
+  m.advance(direct.id, a.id, 'in_progress');
+  m.advance(direct.id, a.id, 'completed', { signature: 'דנה' });
+  assert.throws(() => m.recordPayment(direct.id, a.id, { method: 'gold', amount: 1 }), /method/);
+  const done = m.recordPayment(direct.id, a.id, { method: 'bit', amount: 200 });
+  assert.deepEqual([done.proPayment.method, done.proPayment.amount], ['bit', 200]);
+  assert.ok(done.completedAt);
+  m.confirmCompletion(direct.id, client.id);
+  assert.ok(m.proJobs(a.id, a.id).find((j) => j.id === direct.id).closedAt);
+});

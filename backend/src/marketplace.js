@@ -9,6 +9,7 @@ export const REFERRAL_BONUS = 25;   // to the referrer when the referred pro com
 export const MODES = ['onsite', 'remote', 'phone', 'delivery'];
 const PHYSICAL = ['onsite', 'delivery']; // modes where distance matters
 export const PAYMENT_MODES = ['in_app', 'direct'];
+export const PAY_METHODS = ['cash', 'bit', 'transfer', 'card', 'other']; // how a direct payment reached the pro
 
 // Job status flow per service mode (after the client accepts an offer).
 const FLOW = {
@@ -27,9 +28,14 @@ const round1 = (n) => Math.round(n * 10) / 10;
 
 // In-memory store behind a small service API. Swap for Postgres/PostGIS repos.
 export class Marketplace {
-  constructor({ notify = () => {}, welcomeCredit = WELCOME_CREDIT, referralBonus = REFERRAL_BONUS } = {}) {
-    this.welcomeCredit = welcomeCredit;
-    this.referralBonus = referralBonus;
+  // leadFees: pay-per-lead on (each offer costs credit) or off (launch period: offers are free).
+  // payments: in-app card payments available (needs a payment provider; off = direct payment only).
+  constructor({ notify = () => {}, welcomeCredit = WELCOME_CREDIT, referralBonus = REFERRAL_BONUS,
+    leadFees = true, payments = true } = {}) {
+    this.leadFees = leadFees;
+    this.payments = payments;
+    this.welcomeCredit = leadFees ? welcomeCredit : 0;
+    this.referralBonus = leadFees ? referralBonus : 0;
     this.pros = new Map();
     this.clients = new Map();
     this.jobs = new Map();
@@ -68,8 +74,31 @@ export class Marketplace {
     if (serviceModes) pro.serviceModes = serviceModes;
     return pro;
   }
-  proByPhone(phone) { return [...this.pros.values()].find((p) => p.phone === phone); }
-  clientByPhone(phone) { return [...this.clients.values()].find((c) => c.phone === phone); }
+  proByPhone(phone) { return [...this.pros.values()].find((p) => p.phone === phone && !p.deleted); }
+  clientByPhone(phone) { return [...this.clients.values()].find((c) => c.phone === phone && !c.deleted); }
+  isActive(role, id) { const u = (role === 'pro' ? this.pros : this.clients).get(id); return !!u && !u.deleted; }
+
+  // Account deletion (required by app stores): personal details are erased, open requests
+  // are cancelled, and the account can't be used any more. Blocked while a job is in progress.
+  deleteAccount(role, id) {
+    const active = ['assigned', 'en_route', 'picked_up', 'in_progress', 'completed'];
+    const mine = [...this.jobs.values()].filter((j) => (role === 'pro' ? j.assignedProId : j.clientId) === id);
+    if (mine.some((j) => active.includes(j.status))) fail('active_jobs', 'Finish or cancel the work in progress first');
+    if (role === 'pro') {
+      const pro = this.#pro(id);
+      Object.assign(pro, { deleted: true, name: 'מקצוען שמחק את החשבון', phone: null, available: false, categories: [],
+        location: null, documents: [], refCode: null });
+      for (const j of this.jobs.values()) if (j.status === 'open') j.offers = j.offers.filter((o) => o.proId !== id);
+    } else {
+      const c = this.#client(id);
+      Object.assign(c, { deleted: true, name: 'לקוח שמחק את החשבון', phone: null });
+      for (const j of mine) {
+        if (j.status === 'open') j.status = 'cancelled';
+        Object.assign(j, { phone: null, address: j.address && 'נמחק', description: 'נמחק לבקשת הלקוח', media: [] });
+      }
+    }
+    return { deleted: true };
+  }
   getPro(id) { return this.#pro(id); }
   publicPro(pro) {
     const { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, documents, radiusKm, location } = pro;
@@ -125,11 +154,13 @@ export class Marketplace {
   // For delivery: location/address = pickup point, dropoff = { address, location }.
   // itemsCost: money the pro lays out for the client (e.g. buying the food) and gets back in full.
   createJob({ clientId, categoryId, mode = 'onsite', description, location, address, phone, media = [],
-    urgency = 'normal', budget = null, allowCalls = false, paymentMode = 'direct', dropoff = null, itemsCost = null }) {
+    urgency = 'normal', budget = null, allowCalls = false, paymentMode = 'direct', dropoff = null, itemsCost = null,
+    clientPrice = null }) {
     const client = this.#client(clientId);
     const cat = getCategory(categoryId) ?? fail('bad_category', 'Unknown category');
     if (!cat.modes.includes(mode)) fail('bad_mode', `${cat.name} is not available as ${mode}`);
     if (cat.payment === 'in_app') paymentMode = 'in_app'; // e.g. travel: we pay the supplier
+    if (paymentMode === 'in_app' && !this.payments) fail('payments_disabled', 'In-app payment is not available yet');
     if (!PAYMENT_MODES.includes(paymentMode)) fail('bad_payment_mode', 'Unknown payment mode');
     if (!description) fail('bad_description', 'Description required');
     if (PHYSICAL.includes(mode) && !location) fail('bad_location', 'Location required');
@@ -137,11 +168,16 @@ export class Marketplace {
       fail('bad_dropoff', 'Delivery needs pickup and drop-off addresses');
     }
     if (itemsCost != null && !(itemsCost >= 0)) fail('bad_items_cost', 'Invalid items cost');
+    // A fixed price lets the first matching pro who accepts it take the job (no offers round).
+    // Not for travel: those prices come from supplier inventory.
+    if (clientPrice != null && !(Number(clientPrice) > 0)) fail('bad_price', 'Invalid price');
+    if (clientPrice != null && cat.parent === 'travel') fail('bad_price', 'Travel is priced by suppliers');
     const job = { id: randomUUID(), clientId, categoryId, mode, description, location: location ?? null,
       address: address ?? null, phone: phone ?? client.phone, media, urgency, budget,
-      allowCalls: !!allowCalls, paymentMode, leadPrice: cat.leadPrice, status: 'open',
+      allowCalls: !!allowCalls, paymentMode, leadPrice: this.leadFees ? cat.leadPrice : 0, status: 'open',
       dropoff: mode === 'delivery' ? { address: dropoff.address, location: dropoff.location } : null,
       itemsCost: itemsCost == null ? null : Number(itemsCost),
+      clientPrice: clientPrice == null ? null : Number(clientPrice),
       offers: [], assignedProId: null, escrow: null, workLog: [], signature: null, createdAt: Date.now() };
     this.jobs.set(job.id, job);
     job.dispatchedTo = this.dispatch(job);
@@ -167,7 +203,7 @@ export class Marketplace {
     const pub = { id: job.id, categoryId: job.categoryId, mode: job.mode, description: job.description,
       urgency: job.urgency, budget: job.budget, allowCalls: job.allowCalls,
       paymentMode: job.paymentMode, leadPrice: job.leadPrice, status: job.status, createdAt: job.createdAt,
-      itemsCost: job.itemsCost, offersLeft: MAX_OFFERS - job.offers.length };
+      itemsCost: job.itemsCost, clientPrice: job.clientPrice ?? null, offersLeft: Math.max(0, MAX_OFFERS - job.offers.length) };
     const approx = (l) => ({ lat: +l.lat.toFixed(2), lng: +l.lng.toFixed(2) });
     if (job.location) pub.location = approx(job.location);
     if (job.dropoff) {
@@ -187,7 +223,9 @@ export class Marketplace {
     if (assigned) {
       const e = job.escrow;
       Object.assign(pub, { workLog: job.workLog, booking: job.booking ?? null,
-        escrow: e && { amount: e.amount, status: e.status, payout: e.payout } });
+        escrow: e && { amount: e.amount, status: e.status, payout: e.payout, fee: e.fee },
+        takenAt: job.takenAt ?? null, completedAt: job.completedAt ?? null, closedAt: job.closedAt ?? null,
+        proPayment: job.proPayment ?? null });
     }
     return pub;
   }
@@ -243,9 +281,7 @@ export class Marketplace {
     if (!this.canServe(pro, job) || !this.inRange(pro, job)) fail('not_eligible', 'Not eligible for this job');
     if (price !== null && !(price >= 0)) fail('bad_price', 'Invalid price');
     if (items && job.paymentMode !== 'in_app') fail('in_app_required', 'Catalog items can only be sold with in-app payment');
-    if (pro.balance < job.leadPrice) fail('insufficient_credit', 'Insufficient credit');
-    pro.balance -= job.leadPrice;
-    this.#record(proId, 'offer_fee', -job.leadPrice, { jobId });
+    this.#charge(pro, job);
     if (items) price = Math.round(items.reduce((s, i) => s + i.price, 0) * 100) / 100;
     job.offers.push({ id: randomUUID(), proId, price, eta, message, items, status: 'pending', at: Date.now() });
     this.notify(job.clientId, { type: 'new_offer', jobId, offers: job.offers.length });
@@ -267,14 +303,7 @@ export class Marketplace {
     if (offer.items && !(traveler?.firstName && traveler?.lastName && traveler?.email)) {
       fail('traveler_required', 'Traveler name and email required');
     }
-    for (const o of job.offers) o.status = o === offer ? 'accepted' : 'rejected';
-    job.assignedProId = offer.proId;
-    job.status = 'assigned';
-    // In-app: the client's card is charged now and the money is held until completion.
-    if (job.paymentMode === 'in_app') {
-      const reimburse = job.itemsCost ?? 0; // paid back to the pro in full, no commission
-      job.escrow = { amount: offer.price + reimburse, reimburse, status: 'held' };
-    }
+    this.#assign(job, offer);
     if (offer.items) {
       const sum = (k) => Math.round(offer.items.reduce((s, i) => s + i[k], 0) * 100) / 100;
       job.escrow.breakdown = { supplier: sum('netILS'), platformFee: sum('platformFee'), agentFee: sum('agentFee') };
@@ -283,6 +312,60 @@ export class Marketplace {
     }
     this.notify(offer.proId, { type: 'offer_accepted', jobId });
     return job;
+  }
+
+  #charge(pro, job) {
+    if (!(job.leadPrice > 0)) return; // free while lead fees are off
+    if (pro.balance < job.leadPrice) fail('insufficient_credit', 'Insufficient credit');
+    pro.balance -= job.leadPrice;
+    this.#record(pro.id, 'offer_fee', -job.leadPrice, { jobId: job.id });
+  }
+
+  #assign(job, offer) {
+    for (const o of job.offers) o.status = o === offer ? 'accepted' : 'rejected';
+    job.assignedProId = offer.proId;
+    job.status = 'assigned';
+    job.takenAt = Date.now();
+    // In-app: the client's card is charged now and the money is held until completion.
+    if (job.paymentMode === 'in_app') {
+      const reimburse = job.itemsCost ?? 0; // paid back to the pro in full, no commission
+      job.escrow = { amount: offer.price + reimburse, reimburse, status: 'held' };
+    }
+  }
+
+  // The client set a fixed price: the first matching pro who accepts it gets the job
+  // right away; everyone it was offered to after that has missed it.
+  // Synchronous => atomic in single-threaded Node (production: a conditional UPDATE).
+  takeJob(jobId, proId) {
+    const job = this.#job(jobId);
+    const pro = this.#pro(proId);
+    if (job.clientPrice == null) fail('no_price', 'This request has no fixed price - send an offer');
+    if (job.status !== 'open') fail('taken', 'Another pro accepted first');
+    if (!this.canServe(pro, job) || !this.inRange(pro, job)) fail('not_eligible', 'Not eligible for this job');
+    let offer = job.offers.find((o) => o.proId === proId);
+    if (!offer) {
+      this.#charge(pro, job);
+      offer = { id: randomUUID(), proId, eta: null, message: '', items: null, at: Date.now() };
+      job.offers.push(offer);
+    }
+    Object.assign(offer, { price: job.clientPrice, instant: true });
+    this.#assign(job, offer);
+    this.notify(job.clientId, { type: 'job_taken', jobId, proId });
+    for (const id of job.dispatchedTo ?? []) if (id !== proId) this.notify(id, { type: 'job_missed', jobId });
+    return this.teaser(job, pro);
+  }
+
+  // Direct payments happen outside the app: the pro notes how and how much he was paid,
+  // so his earnings history is complete.
+  recordPayment(jobId, proId, { method, amount }) {
+    const job = this.#job(jobId);
+    if (job.assignedProId !== proId) fail('forbidden', 'Not assigned to you');
+    if (!['completed', 'closed_done'].includes(job.status)) fail('bad_transition', 'Job not finished');
+    if (job.paymentMode !== 'direct') fail('in_app_paid', 'Paid through the app');
+    if (!PAY_METHODS.includes(method)) fail('bad_method', 'Unknown payment method');
+    if (!(Number(amount) >= 0)) fail('bad_amount', 'Invalid amount');
+    job.proPayment = { method, amount: Number(amount), at: Date.now() };
+    return this.teaser(job, this.#pro(proId));
   }
 
   // Supplier booking outcome (called by the API after Travel.book).
@@ -321,6 +404,7 @@ export class Marketplace {
     if (job.booking && job.booking.status !== 'confirmed') fail('booking_pending', 'Supplier booking not confirmed');
     if (status === 'completed' && job.mode === 'onsite' && !signature) fail('signature_required', 'Client signature required');
     job.status = status;
+    if (status === 'completed') job.completedAt = Date.now();
     if (signature) job.signature = signature;
     if (note || photos.length) job.workLog.push({ at: Date.now(), stage: status, text: note, photos });
     this.notify(job.clientId, { type: 'job_status', jobId, status });
@@ -345,6 +429,7 @@ export class Marketplace {
       this.#record(job.assignedProId, 'payout', payout, { jobId, fee });
     }
     job.status = 'closed_done';
+    job.closedAt = Date.now();
     this.#onProCompleted(this.#pro(job.assignedProId));
     return job;
   }

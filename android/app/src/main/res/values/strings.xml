@@ -4,4 +4,10 @@
     <string name="server_unreachable">לא הצלחנו להתחבר לשרת. בדקו את החיבור לאינטרנט או את כתובת השרת.</string>
     <string name="connect">התחברות</string>
     <string name="retry">נסו שוב</string>
+    <string name="offline_title">אין חיבור</string>
+    <string name="offline_message">לא הצלחנו להתחבר. בדקו שיש אינטרנט ונסו שוב.</string>
+    <string name="update_title">גרסה חדשה של האפליקציה</string>
+    <string name="update_message">יש גרסה חדשה של האפליקציה עצמה. צריך להוריד ולהתקין אותה פעם אחת. מסכים ותכונות חדשות מגיעים בדרך כלל לבד, בלי התקנה.</string>
+    <string name="update_download">להורדה</string>
+    <string name="update_later">אחר כך</string>
 </resources>

@@ -5,12 +5,19 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
@@ -21,11 +28,18 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * App shell around the web app (client "/" or pro "/pro", chosen by build flavor).
@@ -53,13 +67,32 @@ class MainActivity : AppCompatActivity() {
         override fun onProviderDisabled(provider: String) {}
     }
 
-    /** Called from JavaScript: returns {"lat":..,"lng":..} or "" when unknown. */
+    /** Called from JavaScript as window.ProMarketApp.*. */
     inner class Bridge {
+        /** {"lat":..,"lng":..} or "" when unknown. */
         @JavascriptInterface
         fun location(): String {
             val l = lastLocation ?: return ""
             return "{\"lat\":${l.latitude},\"lng\":${l.longitude}}"
         }
+
+        /** A new request popped up: buzz like a courier app. */
+        @JavascriptInterface
+        fun vibrate(ms: Int) {
+            val v = if (Build.VERSION.SDK_INT >= 31) (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+            else @Suppress("DEPRECATION") (getSystemService(VIBRATOR_SERVICE) as Vibrator)
+            v.vibrate(VibrationEffect.createOneShot(ms.coerceIn(1, 2000).toLong(), VibrationEffect.DEFAULT_AMPLITUDE))
+        }
+
+        /** Keep the screen on while a pro is available for requests. */
+        @JavascriptInterface
+        fun keepScreenOn(on: Boolean) = runOnUiThread {
+            if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
+        @JavascriptInterface
+        fun appVersion(): Int = BuildConfig.VERSION_CODE
     }
 
     private val prefs by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
@@ -80,10 +113,24 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        web = WebView(this)
+        // Edge to edge (enforced from API 35): the page color shows behind the status and
+        // navigation bars, and the page is padded so nothing hides under them or the keyboard.
+        val dark = BuildConfig.FLAVOR == "pro"
+        val bars = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+        val bg = ContextCompat.getColor(this, R.color.bg)
+        web = WebView(this).apply { setBackgroundColor(bg) }
         refresh = SwipeRefreshLayout(this).apply {
-            addView(web)
+            // MATCH_PARENT: with the default WRAP_CONTENT the page's viewport height (vh) is wrong,
+            // which squeezed bottom sheets (e.g. the offer screen) to a thin strip.
+            addView(web, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            setBackgroundColor(bg)
             setOnRefreshListener { web.reload() }
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(refresh) { v, insets ->
+            val i = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
+            v.setPadding(i.left, i.top, i.right, i.bottom)
+            WindowInsetsCompat.CONSUMED
         }
         setContentView(refresh)
 
@@ -91,6 +138,7 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true // the login token lives in localStorage
             setGeolocationEnabled(true)
+            mediaPlaybackRequiresUserGesture = false // the new-request sound
         }
         web.addJavascriptInterface(Bridge(), "ProMarketApp")
         web.webViewClient = object : WebViewClient() {
@@ -108,7 +156,7 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) {
                     refresh.isRefreshing = false
-                    askServer(getString(R.string.server_unreachable))
+                    if (BuildConfig.SIDELOAD) askServer(getString(R.string.server_unreachable)) else showOffline()
                 }
             }
         }
@@ -148,6 +196,50 @@ class MainActivity : AppCompatActivity() {
             serverUrl.isBlank() -> askServer(getString(R.string.server_first_time))
             else -> load()
         }
+        checkForUpdate()
+    }
+
+    /** Store build: the server is fixed, so just offer to retry. */
+    private fun showOffline() {
+        if (isFinishing) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.offline_title)
+            .setMessage(R.string.offline_message)
+            .setCancelable(false)
+            .setPositiveButton(R.string.retry) { _, _ -> load() }
+            .show()
+    }
+
+    /**
+     * Sideloaded APK only (the store build updates through Google Play): screens and features come
+     * from the server, so a new APK is offered only when the native shell itself changed.
+     */
+    private fun checkForUpdate() {
+        if (!BuildConfig.SIDELOAD || serverUrl.isBlank()) return
+        val base = serverUrl
+        Thread {
+            try {
+                val c = URL("$base/api/version").openConnection() as HttpURLConnection
+                c.connectTimeout = 5000
+                c.readTimeout = 5000
+                val latest = JSONObject(c.inputStream.bufferedReader().use { it.readText() }).optInt("apk", 0)
+                c.disconnect()
+                if (latest > BuildConfig.VERSION_CODE && prefs.getInt("update_dismissed", 0) < latest) runOnUiThread { offerUpdate(latest) }
+            } catch (e: Exception) {
+                // Offline or an old server: try again next launch.
+            }
+        }.start()
+    }
+
+    private fun offerUpdate(latest: Int) {
+        if (isFinishing) return
+        val apk = "https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/ProMarket-${BuildConfig.FLAVOR}.apk"
+        AlertDialog.Builder(this)
+            .setTitle(R.string.update_title)
+            .setMessage(R.string.update_message)
+            .setPositiveButton(R.string.update_download) { _, _ -> openExternal(Uri.parse(apk)) }
+            .setNegativeButton(R.string.update_later) { _, _ -> prefs.edit().putInt("update_dismissed", latest).apply() }
+            .show()
     }
 
     private fun load() = web.loadUrl(serverUrl + BuildConfig.START_PATH)

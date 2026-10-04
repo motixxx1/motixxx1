@@ -9,8 +9,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const STATUS = { not_found: 404, forbidden: 403, unauthorized: 401, too_soon: 429, too_many_attempts: 429,
-  supplier_error: 502, booking_failed: 502, payments_disabled: 501 };
+  supplier_error: 502, booking_failed: 502, payments_disabled: 501, taken: 409 };
 const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html' };
+// Privacy policy, terms and account deletion: public pages the app stores link to.
+const LEGAL = { '/privacy': 'privacy.html', '/terms': 'terms.html', '/delete-account': 'delete-account.html' };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// Libraries the pages load from this server (no CDN needed on the local network).
+const VENDOR_TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png', svg: 'image/svg+xml' };
 
 // dev: allows wallet top-up without a payment provider. echoOtp: returns the SMS code in the
 // response (only while no SMS provider is configured). Never enable either with real users.
@@ -18,7 +23,8 @@ const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.htm
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
   catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
-  onChange = () => {}, dev = false, echoOtp = dev } = {}) {
+  onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }),
+  site = { name: 'ProMarket', email: '' } } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
   const on = (method, path, role, fn) => routes.push({ method, role, fn,
@@ -50,7 +56,13 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
       user: role === 'pro' ? market.publicPro(user) : { id: user.id, name: user.name } };
   });
 
-  on('GET', '/api/categories', null, ({ query }) => query.q ? searchCategories(query.q) : CATEGORIES);
+  // Travel is sold with in-app payment only, so it is hidden until payments are connected.
+  const visible = (list) => (market.payments ? list : list.filter((c) => c.id !== 'travel' && c.parent !== 'travel'));
+  on('GET', '/api/categories', null, ({ query }) => visible(query.q ? searchCategories(query.q) : CATEGORIES));
+  // What the pages should show: credit/lead fees, secure in-app payment, support contact.
+  on('GET', '/api/config', null, () => ({ leadFees: market.leadFees, payments: market.payments, demo: dev,
+    supportEmail: site.email || null }));
+  on('DELETE', '/api/me', ['client', 'pro'], ({ me, role }) => market.deleteAccount(role, me));
   on('GET', '/api/jobs', null, ({ query }) => [...market.jobs.values()]
     .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))
       && (!query.mode || j.mode === query.mode))
@@ -75,6 +87,9 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     const items = body.items?.length ? await catalog.priceItems(body.items) : null;
     return market.sendOffer(p[0], me, { price: items ? null : price ?? null, eta, message, items });
   });
+  // Fixed-price request: first pro to accept takes it; later ones get 409 "taken" (missed).
+  on('POST', '/api/jobs/:id/take', 'pro', ({ p, me }) => market.takeJob(p[0], me));
+  on('POST', '/api/jobs/:id/paid', 'pro', ({ p, me, body }) => market.recordPayment(p[0], me, body));
   on('POST', '/api/jobs/:id/log', 'pro', ({ p, me, body }) => market.addLog(p[0], me, body));
   on('POST', '/api/jobs/:id/status', 'pro', ({ p, me, body }) => pub(market.advance(p[0], me, body.status, body)));
 
@@ -127,6 +142,17 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     const url = new URL(req.url, 'http://x');
     if (url.pathname === '/healthz') return send(200, { ok: true });
+    // The pages poll this and reload when the server was updated; the apps use `apk` to
+    // offer a new APK only when the native shell itself changed.
+    if (url.pathname === '/api/version') return send(200, version());
+    const v = url.pathname.match(/^\/vendor\/([\w-]+)\/([\w.-]+)\.(js|css|png|svg)$/);
+    if (req.method === 'GET' && v) {
+      try {
+        const file = await readFile(new URL(`../public/vendor/${v[1]}/${v[2]}.${v[3]}`, import.meta.url));
+        res.writeHead(200, { 'content-type': VENDOR_TYPES[v[3]], 'cache-control': 'public, max-age=604800' });
+        return res.end(file);
+      } catch { return send(404, { error: 'not_found' }); }
+    }
     const m = url.pathname.match(/^\/media\/([0-9a-f-]{36})$/);
     if (req.method === 'GET' && m) return media.serve(req, res, m[1]);
     if (req.method === 'POST' && url.pathname === '/api/uploads') {
@@ -142,26 +168,35 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         return send(500, { error: 'internal' });
       }
     }
+    if (req.method === 'GET' && LEGAL[url.pathname]) {
+      const html = (await readFile(new URL(`../public/legal/${LEGAL[url.pathname]}`, import.meta.url), 'utf8'))
+        .replaceAll('{{NAME}}', esc(site.name || 'ProMarket'))
+        .replaceAll('{{EMAIL}}', esc(site.email || '[כתובת אימייל לפניות – להגדיר SUPPORT_EMAIL]'));
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
+      return res.end(html);
+    }
     if (req.method === 'GET' && PAGES[url.pathname]) {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      // no-cache: phones always get the newest pages, so updates need no new APK.
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
       return res.end(await readFile(new URL(`../public/${PAGES[url.pathname]}`, import.meta.url)));
     }
     for (const r of routes) {
       const m = r.method === req.method && url.pathname.match(r.re);
       if (!m) continue;
       try {
-        let me = null;
+        let me = null, role = null;
         if (r.role === 'partner') me = partners.authenticate(req.headers['x-api-key']).id;
         else if (r.role) {
           const token = auth.verifyToken((req.headers.authorization ?? '').replace(/^Bearer /, ''));
           if (!token) fail('unauthorized', 'Login required');
           if (![r.role].flat().includes(token.role)) fail('forbidden', `Requires ${r.role} account`);
-          me = token.sub;
+          if (token.role !== 'admin' && !market.isActive(token.role, token.sub)) fail('unauthorized', 'Account not found');
+          me = token.sub; role = token.role;
         }
         let raw = '';
         for await (const c of req) raw += c;
         const body = raw ? JSON.parse(raw) : {};
-        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me });
+        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role });
         if (req.method !== 'GET') onChange();
         return send(200, out);
       } catch (e) {

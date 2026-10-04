@@ -9,12 +9,12 @@ val serverUrl = (findProperty("serverUrl") as String?).orEmpty()
 
 android {
     namespace = "com.promarket.app"
-    compileSdk = 34
+    compileSdk = 36
     defaultConfig {
         minSdk = 26
-        targetSdk = 34
-        versionCode = 5
-        versionName = "0.5.0"
+        targetSdk = 36 // Google Play: new apps and updates must target API 36 from 31 Aug 2026
+        versionCode = 6
+        versionName = "0.6.0"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
     }
     // Two apps from one codebase: customers, and pros/agents/couriers.
@@ -34,12 +34,36 @@ android {
         }
     }
     signingConfigs {
-        // Shared debug key so new builds install over old ones. Use a private key for the Play Store.
+        // Shared debug key so new sideloaded builds install over old ones.
         getByName("debug") {
             storeFile = file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        // Google Play upload key, passed by CI from repository secrets (never committed).
+        create("upload") {
+            (findProperty("uploadStoreFile") as String?)?.let {
+                storeFile = file(it)
+                storePassword = findProperty("uploadStorePassword") as String
+                keyAlias = findProperty("uploadKeyAlias") as String
+                keyPassword = findProperty("uploadKeyPassword") as String
+            }
+        }
+    }
+    buildTypes {
+        // Debug = the APKs on GitHub: plain http on the home network allowed, may ask for the server
+        // address, and offers a new APK when the native shell changes.
+        getByName("debug") {
+            buildConfigField("boolean", "SIDELOAD", "true")
+            manifestPlaceholders["cleartext"] = "true"
+        }
+        // Release = Google Play: https only, fixed server, updates only through the store.
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName(if (findProperty("uploadStoreFile") != null) "upload" else "debug")
+            buildConfigField("boolean", "SIDELOAD", "false")
+            manifestPlaceholders["cleartext"] = "false"
         }
     }
     buildFeatures { buildConfig = true }

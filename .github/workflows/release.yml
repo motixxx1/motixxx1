@@ -36,6 +36,47 @@ jobs:
           name: apks
           path: out/
 
+  # Google Play: signed .aab bundles. Needs repository secrets PLAY_KEYSTORE_BASE64, PLAY_KEYSTORE_PASSWORD,
+  # PLAY_KEY_ALIAS, PLAY_KEY_PASSWORD and the variable STORE_SERVER_URL (https://your-domain).
+  play:
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.PLAY_KEYSTORE_BASE64 }}
+      STORE_SERVER_URL: ${{ vars.STORE_SERVER_URL }}
+    steps:
+      - id: ready
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_SERVER_URL" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
+          else echo "::notice::Play Store build skipped: add PLAY_KEYSTORE_* secrets and the STORE_SERVER_URL variable"; fi
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.ok
+      - uses: actions/setup-java@v4
+        if: steps.ready.outputs.ok
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.ready.outputs.ok
+      - name: Build signed bundles
+        if: steps.ready.outputs.ok
+        working-directory: android
+        env:
+          STORE_PASSWORD: ${{ secrets.PLAY_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.PLAY_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.PLAY_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          ./gradlew --no-daemon bundleRelease -PserverUrl="$STORE_SERVER_URL" -PuploadStoreFile="$RUNNER_TEMP/upload.jks" \
+            -PuploadStorePassword="$STORE_PASSWORD" -PuploadKeyAlias="$KEY_ALIAS" -PuploadKeyPassword="$KEY_PASSWORD"
+          mkdir -p ../out
+          cp app/build/outputs/bundle/clientRelease/*.aab ../out/ProMarket-client-play.aab
+          cp app/build/outputs/bundle/proRelease/*.aab ../out/ProMarket-pro-play.aab
+      - uses: actions/upload-artifact@v4
+        if: steps.ready.outputs.ok
+        with:
+          name: play
+          path: out/
+
   server:
     runs-on: ubuntu-latest
     steps:
@@ -46,6 +87,23 @@ jobs:
       - name: Tests
         working-directory: backend
         run: npm test
+      - name: Update bundle (installed servers download it and update themselves)
+        run: |
+          set -e
+          mkdir -p out
+          export BUILD="${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          export APK=$(grep -oP 'versionCode = \K[0-9]+' android/app/build.gradle.kts)
+          echo "{\"build\":\"$BUILD\",\"apk\":$APK}" > backend/build.json
+          node -e '
+            const fs = require("fs"), path = require("path"), files = {};
+            const walk = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+              const p = path.join(d, f.name);
+              if (f.isDirectory()) walk(p); else files[path.relative("backend", p).split(path.sep).join("/")] = fs.readFileSync(p).toString("base64");
+            } };
+            walk("backend/src"); walk("backend/public");
+            files["package.json"] = fs.readFileSync("backend/package.json").toString("base64");
+            fs.writeFileSync("out/promarket-update.json", JSON.stringify({ build: process.env.BUILD, apk: +process.env.APK, files }));'
+          ls -la out
       - name: Package (plain + with bundled Node.js for Linux x64/arm64/armv7l and Windows)
         run: |
           set -e
@@ -53,7 +111,7 @@ jobs:
           echo "Bundling Node $VER"
           base=pkg/promarket-server
           mkdir -p $base out
-          cp -r backend/src backend/public backend/package.json backend/Dockerfile $base/
+          cp -r backend/src backend/public backend/package.json backend/build.json backend/Dockerfile $base/
           cp backend/config.env.example $base/config.env
           cp server-package/* $base/
           chmod +x $base/start.sh
@@ -78,7 +136,7 @@ jobs:
           path: out/
 
   publish:
-    needs: [android, server]
+    needs: [android, server, play]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -97,6 +155,8 @@ jobs:
             --title "ProMarket – latest build" \
             --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Server address in the APKs: ${SERVER_URL}
 
-          **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents).
+          **Phone apps:** ProMarket-client.apk (customers), ProMarket-pro.apk (pros, couriers, agents). Install once: new screens and features arrive through the server.
+          **Automatic updates:** installed servers download promarket-update.json and update themselves.
+          **Google Play:** ProMarket-client-play.aab / ProMarket-pro-play.aab (when the signing key is set up).
           **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).
           Extract, run start.sh (Linux) or start.bat (Windows). See README-SERVER.txt."

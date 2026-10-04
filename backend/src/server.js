@@ -11,8 +11,9 @@ import { Partners } from './partners.js';
 import { providersFromEnv } from './providers/index.js';
 import { createFileStore } from './store.js';
 import { nominatimGeocoder } from './geocode.js';
-import { twilioSms } from './sms.js';
+import { twilioSms, httpSms } from './sms.js';
 import { Media } from './media.js';
+import { createUpdater } from './updater.js';
 
 // Settings come from environment variables, or from config.env next to package.json
 // (the downloadable server package ships one; real env vars win).
@@ -36,24 +37,43 @@ function loadOrCreateSecret(dir) {
   writeFileSync(file, secret, { mode: 0o600 });
   return secret;
 }
-const sms = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM
-  ? twilioSms({ accountSid: env.TWILIO_ACCOUNT_SID, authToken: env.TWILIO_AUTH_TOKEN, from: env.TWILIO_FROM })
-  : null;
+const sms = env.SMS_HTTP_URL
+  ? httpSms({ url: env.SMS_HTTP_URL, method: (env.SMS_HTTP_METHOD || 'GET').toUpperCase(), body: env.SMS_HTTP_BODY || '',
+    headers: env.SMS_HTTP_HEADERS ? JSON.parse(env.SMS_HTTP_HEADERS) : {} })
+  : env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM
+    ? twilioSms({ accountSid: env.TWILIO_ACCOUNT_SID, authToken: env.TWILIO_AUTH_TOKEN, from: env.TWILIO_FROM })
+    : null;
+if (!sms && !dev) console.warn('!! No SMS provider configured: login codes are only printed here, users cannot sign in.');
 
 const auth = new Auth({
   secret: env.AUTH_SECRET || loadOrCreateSecret(dirname(dataFile)),
   adminPhones: (env.ADMIN_PHONES ?? '').split(',').filter(Boolean),
   sendSms: sms ?? (async (phone, text) => console.log(`[sms] ${phone}: ${text}`)),
 });
-const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', userId, msg) });
+// Launch switches, both off by default:
+// LEAD_FEES=1 - each offer costs the pro credit (turn on once pros can buy credit).
+// PAYMENTS=1  - secure in-app card payment and travel (turn on once a payment provider is connected).
+const leadFees = env.LEAD_FEES === '1';
+const payments = env.PAYMENTS === '1';
+const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', userId, msg), leadFees, payments });
 const partners = new Partners();
 const catalog = new Catalog({ providers: [partners.provider(), ...providersFromEnv(env, { dev })] });
 const media = new Media(join(dirname(dataFile), 'uploads'));
 const store = createFileStore(dataFile, { market, partners, media });
 const geocode = nominatimGeocoder({ userAgent: env.GEOCODER_USER_AGENT ?? 'ProMarket/0.1' });
 
+// Automatic updates from the GitHub release: on by default for the downloadable package
+// (it ships build.json), off for Docker and development. AUTO_UPDATE=0 / 1 forces it.
+const updater = createUpdater({ root, beforeRestart: () => store.flush(),
+  url: env.UPDATE_URL || 'https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/promarket-update.json' });
+if (env.AUTO_UPDATE === '1' || (existsSync(join(root, 'build.json')) && env.AUTO_UPDATE !== '0')) {
+  updater.start();
+  console.log(`[update] automatic updates on (build ${updater.info().build})`);
+}
+
 const port = env.PORT || 3000;
-const server = createServer(createApp({ market, auth, partners, catalog, geocode, media, onChange: store.save, dev, echoOtp: dev && !sms }))
+const server = createServer(createApp({ market, auth, partners, catalog, geocode, media, onChange: store.save, dev, echoOtp: dev && !sms,
+  version: updater.info, site: { name: env.BUSINESS_NAME || 'ProMarket', email: env.SUPPORT_EMAIL || '' } }))
   .listen(port, () => {
     console.log(`ProMarket is running on port ${port}${dev ? '  [demo mode]' : ''}`);
     console.log(`  customers: http://<this-computer-ip>:${port}/    pros: http://<this-computer-ip>:${port}/pro`);
