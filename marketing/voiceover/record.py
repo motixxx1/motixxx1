@@ -7,7 +7,8 @@ from faster_whisper import WhisperModel
 VOICES = {'hila': 'he-IL-HilaNeural', 'avri': 'he-IL-AvriNeural'}
 os.makedirs('out', exist_ok=True)
 norm = lambda w: w.translate(str.maketrans('קטךםןףץ', 'כתכמנפצ'))
-plain0 = lambda s: re.sub(r'[^א-ת ]', '', ''.join(c for c in unicodedata.normalize('NFD', s) if not unicodedata.combining(c))).split()
+plain0 = lambda s: re.sub(r'[^א-ת ]', '', ''.join(c for c in unicodedata.normalize('NFD', s) if not unicodedata.combining(c)))
+plain = lambda s: [norm(w) for w in plain0(s).split()]
 try:
     model = WhisperModel('small', device='cpu', compute_type='int8')
 except Exception as e:
