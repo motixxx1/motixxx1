@@ -13,8 +13,16 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      - key: DEMO_MODE        # remove once SMS (Twilio) and payments are connected
+      - key: DEMO_MODE        # login code on screen; delete this once SMS is set up
         value: "1"
+      - key: AUTO_UPDATE      # Render redeploys from GitHub on every push
+        value: "0"
+      - key: BUSINESS_NAME
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: SMS_HTTP_URL
+        sync: false
       - key: AUTH_SECRET
         generateValue: true
       - key: DATA_FILE
