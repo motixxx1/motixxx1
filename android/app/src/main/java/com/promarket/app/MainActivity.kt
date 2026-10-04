@@ -102,8 +102,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val prefs by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
+    // The address saved in the app is kept, unless a newer build brings a different built-in
+    // address (then the new one wins, so an old home-network address can't linger after an update).
+    private var useFallback = false
     private val serverUrl: String
-        get() = (prefs.getString("server_url", null) ?: BuildConfig.SERVER_URL).trimEnd('/')
+        get() = when {
+            useFallback -> BuildConfig.FALLBACK_URL
+            else -> prefs.getString("server_url", null) ?: BuildConfig.SERVER_URL
+        }.trimEnd('/')
+    private fun adoptBuiltInAddress() {
+        if (BuildConfig.SERVER_URL.isNotBlank() && prefs.getString("built_for", null) != BuildConfig.SERVER_URL)
+            prefs.edit().remove("server_url").putString("built_for", BuildConfig.SERVER_URL).apply()
+    }
 
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         pendingGeo?.let { (origin, cb) -> cb.invoke(origin, granted, false) }
@@ -119,6 +129,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        adoptBuiltInAddress()
         // Edge to edge (enforced from API 35): the page color shows behind the status and
         // navigation bars, and the page is padded so nothing hides under them or the keyboard.
         val dark = BuildConfig.FLAVOR == "pro"
@@ -162,6 +173,8 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) {
                     refresh.isRefreshing = false
+                    // External address unreachable (typical at home: the router won't loop back): use the home address.
+                    if (!useFallback && BuildConfig.FALLBACK_URL.isNotBlank() && BuildConfig.FALLBACK_URL != serverUrl) { useFallback = true; load(); return }
                     if (BuildConfig.SIDELOAD) askServer(getString(R.string.server_unreachable)) else showOffline()
                 }
             }

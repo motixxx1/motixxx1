@@ -6,6 +6,8 @@ plugins {
 // Server address baked into the APK: ./gradlew assembleDebug -PserverUrl=https://your-server
 // If empty, the app asks for it on first launch (and it can be changed later).
 val serverUrl = (findProperty("serverUrl") as String?).orEmpty()
+// Optional second address tried when the first can't be reached (e.g. the home network address while on home Wi-Fi).
+val fallbackUrl = (findProperty("fallbackUrl") as String?).orEmpty()
 
 android {
     namespace = "com.promarket.app"
@@ -13,9 +15,10 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 36 // Google Play: new apps and updates must target API 36 from 31 Aug 2026
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.7.1"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+        buildConfigField("String", "FALLBACK_URL", "\"$fallbackUrl\"")
     }
     // Two apps from one codebase: customers, and pros/agents/couriers.
     flavorDimensions += "app"
