@@ -61,7 +61,21 @@ const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', 
 const partners = new Partners();
 const catalog = new Catalog({ providers: [partners.provider(), ...providersFromEnv(env, { dev })] });
 const media = new Media(join(dirname(dataFile), 'uploads'));
-const store = createFileStore(dataFile, { market, partners, media });
+// Database: SQLite file (data/zariz.db). The older JSON file is imported on first start.
+// DB=json keeps the old JSON file store.
+let store;
+if (env.DB !== 'json') {
+  // SQLite is built into Node 22 but still flagged "experimental": hide that one notice.
+  const warn = process.emitWarning;
+  process.emitWarning = (w, ...rest) => (String(w?.message ?? w).includes('SQLite') ? undefined : warn.call(process, w, ...rest));
+  try {
+    const { createDbStore } = await import('./db.js');
+    store = createDbStore(env.DB_FILE ? resolve(env.DB_FILE) : join(dirname(dataFile), 'zariz.db'), { market, partners, media }, { legacyJson: dataFile });
+  } catch (e) {
+    console.warn(`[db] SQLite not available (${e.message}); using the JSON file`);
+  }
+}
+store ??= createFileStore(dataFile, { market, partners, media });
 const geocode = nominatimGeocoder({ userAgent: env.GEOCODER_USER_AGENT ?? 'ProMarket/0.1' });
 
 // Automatic updates from the GitHub release: on by default for the downloadable package
@@ -93,9 +107,14 @@ const server = createServer(createApp({ market, auth, partners, catalog, geocode
   .listen(port, () => {
     console.log(`Zariz is running on port ${port}${dev ? '  [demo mode]' : ''}`);
     console.log(`  customers: http://<this-computer-ip>:${port}/    pros: http://<this-computer-ip>:${port}/pro`);
-    console.log(`  data: ${dataFile}`);
+    console.log(`  data: ${store.db ? store.db.location?.() ?? 'zariz.db (SQLite)' : dataFile}`);
   });
 
 for (const sig of ['SIGTERM', 'SIGINT']) {
-  process.on(sig, async () => { await store.flush(); server.close(() => process.exit(0)); });
+  process.on(sig, async () => {
+    await store.flush();
+    store.close?.();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 2000).unref();
+  });
 }

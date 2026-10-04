@@ -75,6 +75,6 @@ npm start       # http://localhost:3000 (לקוח) · /pro (מקצוען)
 | `AUTH_SECRET` | חובה בפרודקשן – חתימת טוקנים |
 | `DEMO_MODE=1` | מצב הדגמה (ראו למעלה) |
 | `ADMIN_PHONES` | טלפונים של אדמינים, מופרדים בפסיק |
-| `DATA_FILE` | איפה לשמור את הנתונים (ברירת מחדל `./data/state.json`) |
+| `DB_FILE` | מסד הנתונים SQLite (ברירת מחדל `./data/zariz.db`, גיבוי יומי ב-`data/backups`) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | SMS אמיתי |
 | `RATEHAWK_KEY_ID`, `RATEHAWK_API_KEY`, `DUFFEL_TOKEN` | ספקי נסיעות (לבדוק קודם ב-sandbox) |
