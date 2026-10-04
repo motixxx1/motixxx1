@@ -167,6 +167,7 @@
   .kpis>*{background:var(--surface2);border:0;border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;text-align:right;color:inherit;font:inherit;cursor:pointer}
   .kpis b{font-family:var(--display);font-size:16px;display:flex;gap:4px;align-items:center}
   .pnote{display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px 10px;border-radius:14px;background:var(--warn-soft);color:var(--warn);font-size:14px;font-weight:600}
+  .darktiles{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}
   .leaflet-container{background:#151926;font-family:var(--body)}
   .leaflet-control-attribution{background:rgba(18,21,31,.75)!important;color:#8a92a8!important;font-size:10px}
   .leaflet-control-attribution a{color:#8a92a8!important}
@@ -674,8 +675,8 @@ function drawMap() {
   }
   if (!map) {
     map = L.map('lmap', { zoomControl: false, attributionControl: true, preferCanvas: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19,
-      attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, className: 'darktiles',
+      attribution: '&copy; OpenStreetMap' }).addTo(map);
     map.attributionControl.setPrefix(false);
     pinLayer = L.layerGroup().addTo(map);
     map.setView(center(), 12);

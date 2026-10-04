@@ -178,7 +178,7 @@ class _FeedTabState extends State<FeedTab> {
             ChipsRow(items: filters, value: f, onPick: (v) => setState(() => f = v)),
             const SizedBox(height: 8),
             if (list.isEmpty)
-              asList(s.me['categories']).isEmpty
+              strList(s.me['categories']).isEmpty
                   ? Empty(icon: Icons.layers_rounded, title: 'בחרו תחומים כדי לראות עבודות',
                       action: FilledButton(onPressed: () => widget.goTab(3), child: const Text('בחירת תחומים')))
                   : Empty(icon: Icons.inbox_rounded, title: s.feed.isEmpty ? 'אין כרגע קריאות שמתאימות לך' : 'אין קריאות בסינון הזה',

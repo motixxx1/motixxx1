@@ -751,7 +751,7 @@ function updateTrack(j) {
   const me = [t.lat, t.lng], dest = t.toward ? [t.toward.lat, t.toward.lng] : null;
   if (!trackMap) {
     trackMap = L.map('liveMap', { zoomControl: false, attributionControl: true });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(trackMap);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(trackMap);
     trackMap.attributionControl.setPrefix(false);
   }
   trackMap.invalidateSize();

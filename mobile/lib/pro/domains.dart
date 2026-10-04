@@ -30,7 +30,7 @@ class _DomainsTabState extends State<DomainsTab> {
   void _init(J me) {
     if (sel != null && dirty) return;
     // a whole field selected = every specialty in it
-    final cats = asList(me['categories']).map((e) => e.toString()).toList();
+    final cats = strList(me['categories']);
     sel = {};
     for (final c in cats) {
       final p = Cats.tree.where((t) => t['id'] == c).firstOrNull;
@@ -40,7 +40,7 @@ class _DomainsTabState extends State<DomainsTab> {
         sel!.add(c);
       }
     }
-    modes = asList(me['serviceModes']).map((e) => e.toString()).toSet();
+    modes = strList(me['serviceModes']).toSet();
     radius = (asNum(me['radiusKm']) ?? 20).toDouble();
   }
 
@@ -102,7 +102,7 @@ class _DomainsTabState extends State<DomainsTab> {
         final me = ProStore.i.me;
         if (me.isEmpty) return const Center(child: CircularProgressIndicator());
         _init(me);
-        final approved = asList(me['approvedRequirements']).map((e) => e.toString()).toSet();
+        final approved = strList(me['approvedRequirements']).toSet();
         final docs = asList(me['documents']);
         final needed = <String>{
           for (final id in sel!)
@@ -186,9 +186,12 @@ class _DomainsTabState extends State<DomainsTab> {
     final req = p['requirement']?.toString();
     final locked = req != null && !approved.contains(req);
     final lead = asNum(p['leadPrice']) ?? 0;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(color: Pal.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: n > 0 ? Pal.brand.withValues(alpha: .5) : Pal.line)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+      color: Pal.card,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: n > 0 ? Pal.brand.withValues(alpha: .5) : Pal.line)),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
@@ -232,6 +235,7 @@ class _DomainsTabState extends State<DomainsTab> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -164,5 +164,6 @@ class Api {
 // ---- small helpers for the JSON maps the server returns
 typedef J = Map<String, dynamic>;
 J asMap(dynamic v) => v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
-List<J> asList(dynamic v) => v is List ? v.map(asMap).toList() : <J>[];
+List<J> asList(dynamic v) => v is List ? v.whereType<Map>().map(asMap).toList() : <J>[];
+List<String> strList(dynamic v) => v is List ? v.map((e) => e.toString()).toList() : <String>[];
 num? asNum(dynamic v) => v is num ? v : (v is String ? num.tryParse(v) : null);

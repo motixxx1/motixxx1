@@ -11,14 +11,12 @@ LatLng? toLatLng(dynamic l) {
   return lat == null || lng == null ? null : LatLng(lat.toDouble(), lng.toDouble());
 }
 
-/// Map tiles: dark for pros, light for customers (OpenStreetMap data, CARTO tiles).
+/// Map tiles: OpenStreetMap; the pro app shows them dark.
 TileLayer tiles() => TileLayer(
-      urlTemplate: isPro
-          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      subdomains: const ['a', 'b', 'c', 'd'],
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       userAgentPackageName: 'com.promarket.app',
       maxZoom: 19,
+      tileBuilder: isPro ? darkModeTileBuilder : null,
     );
 
 Widget attribution() => Positioned(
@@ -28,7 +26,7 @@ Widget attribution() => Positioned(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(color: Pal.card.withValues(alpha: .8), borderRadius: BorderRadius.circular(6)),
-          child: Text('© OpenStreetMap © CARTO', style: TextStyle(fontSize: 10, color: Pal.muted)),
+          child: Text('© OpenStreetMap', style: TextStyle(fontSize: 10, color: Pal.muted)),
         ),
       ),
     );

@@ -33,10 +33,18 @@ Future<void> tapOn(WidgetTester t, Finder f0) async {
   await t.pump(const Duration(milliseconds: 400));
 }
 
+Finder loginField(int i) => find.byType(TextField).at(i);
+
 Future<void> typeInto(WidgetTester t, Finder f, String text) async {
   await waitFor(t, f);
+  try {
+    await t.ensureVisible(f);
+  } catch (_) {}
+  await t.pump(const Duration(milliseconds: 200));
   await t.enterText(f, text);
   await t.pump(const Duration(milliseconds: 300));
+  FocusManager.instance.primaryFocus?.unfocus();
+  await t.pump(const Duration(milliseconds: 500));
 }
 
 Future<void> settle(WidgetTester t, [int ms = 1500]) async {

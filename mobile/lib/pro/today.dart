@@ -179,7 +179,7 @@ class _TodayTabState extends State<TodayTab> {
     final on = s.available;
     final rows = s.earnRows('today');
     final notes = <(String, int, String)>[
-      if (asList(s.me['categories']).isEmpty) ('עוד לא בחרתם תחומים', 3, 'בחירה'),
+      if (strList(s.me['categories']).isEmpty) ('עוד לא בחרתם תחומים', 3, 'בחירה'),
       if (s.location == null) ('אין מיקום. אפשרו גישה למיקום', 3, 'עדכון'),
       if (s.cfg['leadFees'] == true && (asNum(s.me['balance']) ?? 0) < 10) ('הקרדיט נמוך: ${ils(s.me['balance'])}', 4, 'טעינה'),
     ];

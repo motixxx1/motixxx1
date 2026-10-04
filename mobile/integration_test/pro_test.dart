@@ -14,10 +14,10 @@ void main() {
     await b.convertFlutterSurfaceToImage();
     await waitFor(t, find.text('שלחו לי קוד'));
     await shot(b, t, 'p1-login');
-    await typeInto(t, field(0), 'דני לוי');
-    await typeInto(t, field(1), '0503333333');
+    await typeInto(t, loginField(0), 'דני לוי');
+    await typeInto(t, loginField(1), '0503333333');
     await tapOn(t, find.text('שלחו לי קוד'));
-    await waitFor(t, field(2));
+    await waitFor(t, loginField(2));
     await settle(t, 800);
     await tapOn(t, find.widgetWithText(FilledButton, 'כניסה'));
 
