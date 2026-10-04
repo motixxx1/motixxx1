@@ -21,7 +21,8 @@ jobs:
       - name: Record and check
         run: |
           pip install edge-tts faster-whisper
-          python marketing/voiceover/record.py
+          mkdir -p out
+          python marketing/voiceover/record.py 2>&1 | tee out/log.txt
           ls out | head -80
       - name: Publish
         env:
