@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  SERVER_URL: ${{ vars.SERVER_URL || 'http://87.68.15.249:3000' }}
-  FALLBACK_URL: ${{ vars.FALLBACK_URL || 'http://192.168.1.244:3000' }}
+  SERVER_URL: ${{ vars.SERVER_URL || 'https://zarizapp.duckdns.org' }}
+  FALLBACK_URL: ${{ vars.FALLBACK_URL || 'http://87.68.15.249:3000,http://192.168.1.244:3000' }}
 
 jobs:
   ios:

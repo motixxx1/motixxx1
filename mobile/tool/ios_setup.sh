@@ -29,11 +29,12 @@ else
   plutil -replace NSLocationWhenInUseUsageDescription -string "כדי למלא את הכתובת שלכם בקריאה" "$PL"
   plutil -replace NSLocationAlwaysAndWhenInUseUsageDescription -string "כדי למלא את הכתובת שלכם בקריאה" "$PL"
 fi
-# Plain http to the home server until it has an HTTPS address.
-case "${SERVER_URL:-}" in
-  https://*) plutil -remove NSAppTransportSecurity "$PL" 2>/dev/null || true ;;
-  *) plutil -replace NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads":true}' "$PL" ;;
-esac
+# Plain http is allowed only while an http:// address is still in the list.
+if [[ "${SERVER_URL:-}${FALLBACK_URL:-}" == *"http://"* ]]; then
+  plutil -replace NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads":true}' "$PL"
+else
+  plutil -remove NSAppTransportSecurity "$PL" 2>/dev/null || true
+fi
 
 PBX=ios/Runner.xcodeproj/project.pbxproj
 sed -i '' -E "s/PRODUCT_BUNDLE_IDENTIFIER = com\.promarket\.zariz;/PRODUCT_BUNDLE_IDENTIFIER = $BID;/g" "$PBX"

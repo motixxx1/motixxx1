@@ -16,9 +16,11 @@ const appBuild = int.fromEnvironment('BUILD', defaultValue: 0);
 /// Downloaded from GitHub (not from Google Play): may offer new APKs itself.
 const sideload = bool.fromEnvironment('SIDELOAD', defaultValue: true);
 
-const _primary = String.fromEnvironment('SERVER_URL', defaultValue: 'http://87.68.15.249:3000');
+const _primary = String.fromEnvironment('SERVER_URL', defaultValue: 'https://zarizapp.duckdns.org');
 // Tried when the first address can't be reached (at home the router often won't loop back).
-const _fallback = String.fromEnvironment('FALLBACK_URL', defaultValue: 'http://192.168.1.244:3000');
+const _fallback = String.fromEnvironment('FALLBACK_URL', defaultValue: 'http://87.68.15.249:3000,http://192.168.1.244:3000');
+// Every address the app may use, in order of preference.
+final _hosts = [_primary, ..._fallback.split(',').map((h) => h.trim()).where((h) => h.isNotEmpty)];
 
 class ApiError implements Exception {
   ApiError(this.code, this.message);
@@ -102,15 +104,17 @@ class Api {
     } on ApiError {
       rethrow;
     } catch (_) {
-      // Unreachable: try the other address once and stay on it if it answers.
-      final other = base == _fallback ? _primary : _fallback;
-      if (other.isEmpty || other == base) throw ApiError('offline', errText['offline']!);
-      try {
-        r = await _send(other, method, path, body);
-        base = other;
-      } catch (_) {
-        throw ApiError('offline', errText['offline']!);
+      // Unreachable: try the other addresses and stay on the first one that answers.
+      http.Response? found;
+      for (final other in _hosts.where((h) => h != base)) {
+        try {
+          found = await _send(other, method, path, body);
+          base = other;
+          break;
+        } catch (_) {}
       }
+      if (found == null) throw ApiError('offline', errText['offline']!);
+      r = found;
     }
     dynamic data;
     try {
