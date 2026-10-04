@@ -96,7 +96,7 @@
   .mthumb img,.mthumb video{width:100%;height:100%;object-fit:cover;display:block}
   .mplay{position:absolute;inset:0;display:grid;place-items:center;color:#fff;background:#0004}
   .lightbox{position:fixed;inset:0;z-index:99;background:#000e;display:grid;place-items:center;padding:16px}
-  .lightbox img,.lightbox video{max-width:100%;max-height:85vh;border-radius:12px}
+  .lightbox img,.lightbox video{max-width:100%;max-height:calc(100% - 96px);border-radius:12px}
   .lbclose{position:absolute;top:14px;left:14px;width:52px;height:52px;border-radius:26px;background:#fff3;color:#fff;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 
   /* requests */
@@ -139,7 +139,7 @@
 
   /* sheet + toast */
   .scrim{position:fixed;inset:0;z-index:60;background:rgba(10,12,20,.55);display:flex;align-items:flex-end;justify-content:center}
-  .sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:12px 18px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+  .sheet{width:100%;max-width:560px;max-height:calc(100% - 24px);overflow:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:12px 18px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
   .sheet .handle{width:44px;height:5px;border-radius:3px;background:#c9cdd8;margin:0 auto 12px}
   .shead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
   .shead h2{flex:1;margin:0}
@@ -206,6 +206,8 @@
       <p class="muted">הטלפון שלכם נחשף למקצוען רק אם אישרתם שמותר להתקשר, או אחרי שבחרתם בו.</p>
       <button class="btn soft" id="toBoard" style="margin-top:12px"><span data-i="list"></span>איך נראות קריאות של אחרים</button>
       <button class="btn soft" id="logout" style="margin-top:12px"><span data-i="logout"></span>יציאה מהחשבון</button>
+      <button class="btn soft" id="deleteAcct" style="margin-top:12px;color:var(--err)"><span data-i="alert"></span>מחיקת החשבון</button>
+      <p class="muted" style="text-align:center;margin-top:18px"><a href="/privacy">מדיניות פרטיות</a> · <a href="/terms">תנאי שימוש</a></p>
       <p style="text-align:center;margin-top:30px"><a href="/pro" style="color:#0f766e;font-weight:500">יש לכם מקצוע? הצטרפו כמקצוענים</a></p>
     </main>
 
@@ -274,7 +276,8 @@ $('#backBtn').innerHTML = `${ic('back', 22)}חזרה`;
 
 function toast(text, kind = 'ok') {
   const t = document.createElement('div'); t.className = `toast ${kind}`; t.innerHTML = `${ic(kind === 'err' ? 'alert' : 'check')}<span>${esc(text)}</span>`;
-  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 4000);
+  const box = $('#toasts'); while (box.children.length >= 2) box.firstChild.remove(); // at most two at a time
+  box.appendChild(t); setTimeout(() => t.remove(), 4000);
 }
 function sheet(html, onClose) {
   const s = document.createElement('div'); s.className = 'scrim';
@@ -316,11 +319,13 @@ const MODE = { onsite: 'אצלי', remote: 'מרחוק', phone: 'בטלפון', 
 const ERR = { bad_phone: 'מספר הטלפון לא נכון', bad_code: 'הקוד לא נכון', code_expired: 'הקוד כבר לא בתוקף. בקשו קוד חדש', too_soon: 'חכו רגע לפני שמבקשים קוד נוסף',
   too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש', bad_name: 'צריך שם', bad_description: 'צריך לכתוב מה צריך', bad_location: 'לא הצלחנו למצוא את הכתובת',
   bad_dropoff: 'צריך כתובת איסוף וכתובת מסירה', closed: 'הקריאה כבר נסגרה', price_required: 'בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר',
-  traveler_required: 'נא למלא שם ואימייל של הנוסע', already_rated: 'כבר דירגתם', supplier_error: 'הספק לא זמין כרגע. נסו שוב' };
+  traveler_required: 'נא למלא שם ואימייל של הנוסע', already_rated: 'כבר דירגתם', supplier_error: 'הספק לא זמין כרגע. נסו שוב',
+  active_jobs: 'יש עבודה בביצוע. סיימו אותה ואז אפשר למחוק', payments_disabled: 'תשלום באפליקציה עוד לא זמין', bad_price: 'מחיר לא תקין' };
 
 let token = store.get('clientToken');
 let view = 'home', backTo = null, openJobId = null;
 let cats = {}, tree = [], jobs = [], lastJobsJson = '';
+let cfg = { payments: false }; // from /api/config
 let loc = { lat: 32.0853, lng: 34.7818 }; // fallback: Tel Aviv
 // In the Android app the location comes from the app itself (works on plain http:// too);
 // in a browser it comes from geolocation (which browsers only allow on https/localhost).
@@ -391,6 +396,17 @@ $('#loginForm').onsubmit = async (e) => {
 };
 for (const id of ['lName', 'lPhone', 'lCode']) $('#' + id).addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#loginErr').textContent = ''; });
 $('#logout').onclick = () => { token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
+$('#deleteAcct').onclick = () => {
+  const s = sheet(`<div class="shead"><h2>למחוק את החשבון?</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
+    <p>השם, הטלפון והקריאות הפתוחות שלכם יימחקו. אי אפשר לבטל את זה.</p>
+    <p class="muted">אם יש עבודה בביצוע, צריך לסיים אותה קודם.</p>
+    <button type="button" class="btn" id="doDelete" style="background:var(--err)">כן, למחוק</button>
+    <button type="button" class="btn soft" data-close style="margin-top:10px">ביטול</button>`);
+  $('#doDelete', s.el).onclick = async () => {
+    try { await api('/api/me', null, 'DELETE'); s.close(); toast('החשבון נמחק'); $('#logout').click(); }
+    catch (err) { toast(err.message, 'err'); }
+  };
+};
 function renderAccount() {
   $('#acct').innerHTML = `<div class="sum">${ic('person')}<div><span>שם</span>${esc(store.get('clientName') || '')}</div></div>
     <div class="sum">${ic('phone')}<div><span>טלפון</span><bdi class="ltr">${esc(store.get('clientPhone') || '')}</bdi></div></div>`;
@@ -451,8 +467,9 @@ function proName(j) { return j.offers.find((o) => o.status === 'accepted')?.pro?
 function statusOf(j) {
   const n = j.offers.length, p = proName(j), del = j.mode === 'delivery';
   switch (j.status) {
-    case 'open': return n ? [n === 1 ? 'קיבלתם הצעה אחת' : `קיבלתם ${n} הצעות`, 'act'] : ['מחכים להצעות ממקצוענים', 'wait'];
-    case 'assigned': return [`בחרתם ב${p}. מחכים שיתחיל`, ''];
+    case 'open': return n ? [n === 1 ? 'קיבלתם הצעה אחת' : `קיבלתם ${n} הצעות`, 'act']
+      : [j.clientPrice != null ? 'מחכים שמקצוען יאשר את המחיר' : 'מחכים להצעות ממקצוענים', 'wait'];
+    case 'assigned': return [j.offers.find((o) => o.status === 'accepted')?.instant ? `${p} אישר וקיבל את העבודה` : `בחרתם ב${p}. מחכים שיתחיל`, ''];
     case 'en_route': return [del ? `${p} בדרך לאיסוף` : `${p} בדרך אליכם`, ''];
     case 'picked_up': return [`${p} אסף ובדרך אליכם`, ''];
     case 'in_progress': return [`${p} עובד על זה`, ''];
@@ -490,13 +507,15 @@ function stepsFor(d) {
     if ((cat?.modes ?? []).length > 1) s.push('mode');
     const mode = d.mode ?? (cat?.modes ?? ['onsite'])[0];
     if (mode === 'onsite' || mode === 'delivery') s.push('place');
-    s.push('when', 'summary');
+    s.push('when');
+    if (cat?.parent !== 'travel') s.push('price');
+    s.push('summary');
   }
   return s;
 }
 function startFlow(init) {
   draft = { group: null, categoryId: null, mode: null, description: '', photos: [], address: '', dropoff: '', itemsCost: '', urgency: null,
-    allowCalls: false, paymentMode: 'direct', budget: '', ...init };
+    allowCalls: false, paymentMode: 'direct', budget: '', priceMode: null, clientPrice: '', ...init };
   if (draft.search != null) { stepIx = -1; } else stepIx = 0;
   if (draft.categoryId) draft.mode = (cats[draft.categoryId]?.modes ?? ['onsite']).length === 1 ? cats[draft.categoryId].modes[0] : null;
   go('flow', 'home'); renderStep();
@@ -571,6 +590,29 @@ function renderStep() {
       <button type="button" class="choice ${draft.urgency === 'urgent' ? 'on' : ''}" data-u="urgent"><span class="ico red">${ic('flame', 26)}</span><span class="txt"><b>דחוף</b><small>כמה שיותר מהר</small></span><span class="go">${ic('chev')}</span></button>
       <button type="button" class="choice ${draft.urgency === 'normal' ? 'on' : ''}" data-u="normal"><span class="ico">${ic('calendar', 26)}</span><span class="txt"><b>לא דחוף</b><small>בימים הקרובים</small></span><span class="go">${ic('chev')}</span></button></div>`;
     el.onclick = (e) => { const b = e.target.closest('[data-u]'); if (b) { draft.urgency = b.dataset.u; next(); } };
+  } else if (step === 'price') {
+    const fixed = draft.priceMode === 'fixed';
+    el.innerHTML = head('כמה תרצו לשלם?') + `<div class="choices">
+      <button type="button" class="choice ${fixed ? 'on' : ''}" data-pm="fixed"><span class="ico">${ic('check', 26)}</span><span class="txt"><b>אני קובע/ת מחיר</b><small>המקצוען הראשון שמאשר מקבל את העבודה. הכי מהיר</small></span></button>
+      <button type="button" class="choice ${draft.priceMode === 'quotes' ? 'on' : ''}" data-pm="quotes"><span class="ico">${ic('list', 26)}</span><span class="txt"><b>שהמקצוענים יציעו מחיר</b><small>מקבלים כמה הצעות ובוחרים</small></span><span class="go">${ic('chev')}</span></button></div>
+      <div id="priceBox" ${fixed ? '' : 'hidden'}>
+        <label class="lb" for="cprice">המחיר שאתם משלמים</label>
+        <input class="field" id="cprice" type="number" min="1" inputmode="numeric" placeholder="ש״ח" value="${esc(draft.clientPrice)}" style="font-size:24px;font-weight:700">
+        <div class="err" id="cpriceErr"></div>
+        <p class="muted" style="margin:8px 2px 0">מקצוען שמאשר מתחייב למחיר הזה. אפשר שיגיעו גם הצעות במחיר אחר, ואתם תחליטו.</p>
+      </div>
+      ${fixed ? cta('המשך') : ''}`;
+    el.onclick = (e) => {
+      const b = e.target.closest('[data-pm]'); if (!b) return;
+      draft.priceMode = b.dataset.pm;
+      if (draft.priceMode === 'quotes') { draft.clientPrice = ''; return next(); }
+      renderStep(); setTimeout(() => $('#cprice')?.focus(), 50);
+    };
+    $('#cprice')?.addEventListener('input', (e) => { draft.clientPrice = e.target.value; e.target.classList.remove('bad'); $('#cpriceErr').textContent = ''; });
+    if ($('#nextBtn')) $('#nextBtn').onclick = () => {
+      if (!(+draft.clientPrice > 0)) { $('#cprice').classList.add('bad'); $('#cpriceErr').textContent = 'כתבו כמה תשלמו'; return $('#cprice').focus(); }
+      next();
+    };
   } else if (step === 'summary') renderSummary(el);
 }
 function renderSearch(el) {
@@ -597,26 +639,25 @@ function renderSummary(el) {
       <div class="sum">${ic('text')}<div><span>פרטים</span>${esc(draft.description)}${draft.photos.length ? `<br><span>${draft.photos.length === 1 ? 'תמונה אחת' : `${draft.photos.length} תמונות`}</span>` : ''}</div></div>
       <div class="sum">${ic('pin')}<div><span>איפה</span>${where}</div></div>
       <div class="sum">${ic('clock')}<div><span>מתי</span>${draft.urgency === 'urgent' ? 'דחוף' : 'לא דחוף'}</div></div>
+      ${cat?.parent !== 'travel' ? `<div class="sum">${ic('lock')}<div><span>מחיר</span>${draft.priceMode === 'fixed' ? `${ils(draft.clientPrice)} · המקצוען הראשון שמאשר מקבל` : 'המקצוענים יציעו מחיר'}</div></div>` : ''}
     </div>
     <h2>אפשר להתקשר אליכם?</h2>
     <div class="choices" id="calls">
       <button type="button" class="choice plain ${draft.allowCalls ? 'on' : ''}" data-calls="1"><span class="radio">${draft.allowCalls ? ic('check', 18) : ''}</span><span class="txt"><b>כן, אפשר להתקשר</b><small>מקצוענים שהציעו יראו את הטלפון שלכם</small></span></button>
       <button type="button" class="choice plain ${draft.allowCalls ? '' : 'on'}" data-calls="0"><span class="radio">${draft.allowCalls ? '' : ic('check', 18)}</span><span class="txt"><b>לא, רק הצעות כאן</b><small>הטלפון נשאר אצלכם עד שתבחרו</small></span></button>
     </div>
-    ${locked ? `<div class="item" style="margin-top:16px">${ic('lock')}<span>בנסיעות משלמים תמיד בתשלום מאובטח באפליקציה.</span></div>` : `
-    <details class="more"><summary>${ic('chev', 20)}עוד אפשרויות</summary>
+    ${locked ? `<div class="item" style="margin-top:16px">${ic('lock')}<span>בנסיעות משלמים תמיד בתשלום מאובטח באפליקציה.</span></div>`
+      : cfg.payments ? `<details class="more"><summary>${ic('chev', 20)}עוד אפשרויות</summary>
       <label class="check"><input type="checkbox" id="secure" ${draft.paymentMode === 'in_app' ? 'checked' : ''}><span><b>תשלום מאובטח באפליקציה</b><br><span class="muted">הכסף משתחרר למקצוען רק אחרי שתאשרו שהעבודה הסתיימה</span></span></label>
-      <label class="lb" for="budget">תקציב <span class="opt">לא חובה</span></label><input class="field" id="budget" type="number" min="0" inputmode="numeric" placeholder="ש״ח" value="${esc(draft.budget)}">
-    </details>`}
+    </details>` : `<p class="muted" style="margin:14px 2px 0">משלמים למקצוען ישירות, בסיום העבודה.</p>`}
     <div class="muted" id="upStatus" style="margin-top:12px" hidden></div>
-    ${cta(`${ic('check')}שלחו לי הצעות`, 'sendBtn')}`;
-  el.onclick = (e) => { const b = e.target.closest('[data-calls]'); if (b) { draft.allowCalls = b.dataset.calls === '1'; draft.budget = $('#budget')?.value ?? draft.budget; draft.paymentMode = locked || $('#secure')?.checked ? 'in_app' : 'direct'; renderSummary(el); } };
+    ${cta(`${ic('check')}${draft.priceMode === 'fixed' ? 'שליחת הקריאה' : 'שלחו לי הצעות'}`, 'sendBtn')}`;
+  el.onclick = (e) => { const b = e.target.closest('[data-calls]'); if (b) { draft.allowCalls = b.dataset.calls === '1'; draft.paymentMode = locked || $('#secure')?.checked ? 'in_app' : 'direct'; renderSummary(el); } };
   $('#sendBtn').onclick = publish;
 }
 async function publish() {
   const btn = $('#sendBtn'); btn.disabled = true;
   if (!cats[draft.categoryId]?.payment) draft.paymentMode = $('#secure')?.checked ? 'in_app' : 'direct';
-  draft.budget = $('#budget')?.value ?? draft.budget;
   const physical = draft.mode === 'onsite' || draft.mode === 'delivery';
   refreshLoc();
   try {
@@ -625,7 +666,8 @@ async function publish() {
       address: physical ? draft.address : null, myLocation: physical ? loc : null,
       dropoff: draft.mode === 'delivery' ? { address: draft.dropoff || 'המיקום שלי' } : null,
       itemsCost: draft.mode === 'delivery' && draft.itemsCost ? +draft.itemsCost : null,
-      urgency: draft.urgency ?? 'normal', budget: draft.budget ? +draft.budget : null, paymentMode: draft.paymentMode, allowCalls: !!draft.allowCalls });
+      urgency: draft.urgency ?? 'normal', paymentMode: draft.paymentMode, allowCalls: !!draft.allowCalls,
+      clientPrice: draft.priceMode === 'fixed' ? +draft.clientPrice : null });
     draft = null; lastJobsJson = '';
     await load();
     openJobId = job.id; go('job', 'home'); // the screen itself says it was sent
@@ -646,7 +688,7 @@ function timeline(j) {
   // Steps up to `last` are done; the next one is where things stand now.
   const last = { open: 0, assigned: 1, en_route: 1, picked_up: 1, in_progress: 1, completed: 2, closed_done: 3 }[j.status] ?? 0;
   const now = ['en_route', 'picked_up', 'in_progress'].includes(j.status); // work is happening right now
-  const labels = ['הקריאה נשלחה', 'בחרתם מקצוען', j.mode === 'delivery' ? 'בדרך' : 'בטיפול', 'הסתיים'];
+  const labels = ['הקריאה נשלחה', 'נבחר מקצוען', j.mode === 'delivery' ? 'בדרך' : 'בטיפול', 'הסתיים'];
   return `<ol class="timeline">${labels.map((l, i) => `<li class="${i <= last ? 'done' : i === last + 1 ? `cur${now ? ' now' : ''}` : ''}"><span class="dot">${i <= last ? ic('check', 16) : ''}</span>${l}</li>`).join('')}</ol>`;
 }
 function offerHtml(j, o) {
@@ -661,7 +703,7 @@ function offerHtml(j, o) {
       ${o.price != null ? `<span class="price">${ils(o.price)}</span>` : '<span class="muted" style="text-align:left">מחיר<br>אחרי בדיקה</span>'}</div>
     ${o.eta ? `<div class="line">${ic('clock', 20)}<span>מתי: ${esc(o.eta)}</span></div>` : ''}
     ${o.message ? `<div class="line" style="align-items:flex-start">${ic('text', 20)}<span>${esc(o.message)}</span></div>` : ''}${items}
-    ${o.status === 'accepted' ? `<div class="line" style="color:var(--ok);font-weight:700">${ic('check', 22)}בחרתם בו</div>${p.phone ? `<a class="btn soft" style="margin-top:12px" href="tel:${esc(tel(p.phone))}">${ic('phone')}להתקשר ל${esc(p.name)}</a>` : ''}`
+    ${o.status === 'accepted' ? `<div class="line" style="color:var(--ok);font-weight:700">${ic('check', 22)}${o.instant ? 'אישר את המחיר שלכם' : 'בחרתם בו'}</div>${p.phone ? `<a class="btn soft" style="margin-top:12px" href="tel:${esc(tel(p.phone))}">${ic('phone')}להתקשר ל${esc(p.name)}</a>` : ''}`
       : open ? (noPrice ? '<p class="muted" style="margin:10px 0 0">בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר.</p>'
         : `<button type="button" class="btn" style="margin-top:14px" data-accept="${j.id}|${o.id}">${o.items ? 'להזמין ולשלם' : `לבחור ב${esc(p.name)}`}</button>
            ${p.phone ? `<a class="btn soft" style="margin-top:10px" href="tel:${esc(tel(p.phone))}">${ic('phone')}להתקשר קודם</a>` : ''}`) : ''}
@@ -675,13 +717,14 @@ function renderJob() {
   const others = j.status === 'open' ? j.offers : [];
   $('#job').innerHTML = `
     <div class="bigstatus status ${cls}" style="font-size:24px"><i style="width:14px;height:14px;border-radius:7px"></i>${esc(s)}</div>
-    ${j.status === 'open' && !j.offers.length ? `<div class="card" style="text-align:center"><div class="done-ic">${ic('check', 44)}</div><b style="font-size:21px">הקריאה נשלחה</b><p class="muted" style="margin:6px 0 0">מקצוענים באזור קיבלו אותה. כשתגיע הצעה, היא תופיע כאן.</p></div>` : ''}
+    ${j.status === 'open' && !j.offers.length ? `<div class="card" style="text-align:center"><div class="done-ic">${ic('check', 44)}</div><b style="font-size:21px">הקריאה נשלחה</b><p class="muted" style="margin:6px 0 0">${j.clientPrice != null ? `קבעתם ${ils(j.clientPrice)}. המקצוען הראשון באזור שמאשר מקבל את העבודה, ותראו אותו כאן.` : 'מקצוענים באזור קיבלו אותה. כשתגיע הצעה, היא תופיע כאן.'}</p></div>` : ''}
+    ${j.status === 'open' && j.offers.length && j.clientPrice != null ? `<div class="item" style="margin-bottom:12px">${ic('info')}<span>קבעתם ${ils(j.clientPrice)}. עד שמישהו מאשר, אפשר גם לבחור הצעה במחיר אחר.</span></div>` : ''}
     ${j.status === 'completed' ? `<button type="button" class="btn ok" data-confirm="${j.id}" style="margin-bottom:14px">${ic('check')}הכל תקין, סיימנו${j.escrow ? ' (התשלום ישוחרר)' : ''}</button>` : ''}
     ${j.status === 'closed_done' && !j.rated ? `<div class="card" style="text-align:center"><b style="font-size:21px">איך היה?</b><div class="stars" role="group" aria-label="דירוג">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-rate="${j.id}|${n}" aria-label="${n} כוכבים">${ic('star', 38)}</button>`).join('')}</div></div>` : ''}
     ${j.status === 'booking_failed' ? `<div class="item" style="background:var(--err-soft);color:var(--err)">${ic('alert')}<span>הספק לא אישר את ההזמנה. הכסף הוחזר.</span></div>` : ''}
     ${j.booking?.status === 'confirmed' ? `<div class="item" style="background:var(--ok-soft);color:var(--ok)">${ic('check')}<span>ההזמנה אושרה: ${j.booking.items.map((b) => `${esc(b.title)} (אסמכתא ${esc(b.supplierRef)})`).join(', ')}</span></div>` : ''}
     ${others.length ? `<h2>ההצעות שקיבלתם</h2>${others.map((o) => offerHtml(j, o)).join('')}` : ''}
-    ${accepted ? `<h2>המקצוען שבחרתם</h2>${offerHtml(j, accepted)}` : ''}
+    ${accepted ? `<h2>${accepted.instant ? 'המקצוען שלכם' : 'המקצוען שבחרתם'}</h2>${offerHtml(j, accepted)}` : ''}
     ${j.status !== 'booking_failed' ? `<h2>איפה זה עומד</h2><div class="card">${timeline(j)}</div>` : ''}
     ${j.workLog.length ? `<h2>מה נעשה</h2><div class="card">${j.workLog.map((l) => `<div class="sum">${ic('check')}<div>${esc(l.text)}${l.photos?.length ? ` <span>צורפו ${l.photos.length} תמונות</span>` : ''}</div></div>`).join('')}</div>` : ''}
     <h2>מה ביקשתם</h2>
@@ -761,6 +804,18 @@ function confirmOffer(jobId, offerId) {
   };
 }
 
+api('/api/config').then((c) => { cfg = c; }).catch(() => {});
+let build = null;
+async function checkBuild() {
+  try {
+    const v = await fetch('/api/version', { cache: 'no-store' }).then((r) => r.json());
+    const busy = view === 'flow' || $('.scrim') || $('.lightbox') || document.activeElement?.matches?.('input,textarea');
+    if (build && v.build !== build && !busy) location.reload();
+    build = build ?? v.build;
+  } catch {}
+}
+checkBuild(); setInterval(checkBuild, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); checkBuild(); } });
 api('/api/categories').then((t) => {
   tree = t;
   for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, modes: s.modes ?? p.modes, payment: p.payment, parentName: p.name };

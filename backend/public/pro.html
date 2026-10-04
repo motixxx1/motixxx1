@@ -5,6 +5,7 @@
 <meta name="theme-color" content="#12151f">
 <title>ProMarket · מקצוענים – עבודות</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
   :root{color-scheme:dark;--bg:#12151f;--surface:#181c28;--surface2:#212637;--line:#2e3550;--fg:#eef1f8;--muted:#9aa2b8;
     --accent:#5eead4;--accent-ink:#062521;--accent-soft:rgba(94,234,212,.13);--warn:#fbbf24;--warn-soft:rgba(251,191,36,.13);
@@ -101,7 +102,7 @@
   .mthumb img,.mthumb video{width:100%;height:100%;object-fit:cover;display:block}
   .mplay{position:absolute;inset:0;display:grid;place-items:center;color:#fff;background:#0005}
   .lightbox{position:fixed;inset:0;z-index:99;background:#000e;display:grid;place-items:center;padding:16px}
-  .lightbox img,.lightbox video{max-width:100%;max-height:85vh;border-radius:12px}
+  .lightbox img,.lightbox video{max-width:100%;max-height:calc(100% - 96px);border-radius:12px}
   .lbclose{position:absolute;top:12px;left:12px;width:44px;height:44px;border-radius:22px;background:#fff3;color:#fff;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 
   /* today */
@@ -135,6 +136,60 @@
   .note{display:flex;gap:10px;align-items:center}
   .note.warn{border-color:rgba(251,191,36,.35)} .note.warn>svg{color:var(--warn)}
   .rowcard{display:flex;gap:12px;align-items:center;width:100%;text-align:right;cursor:pointer;color:inherit;font:inherit}
+
+  /* today: full-screen map */
+  main.todayv{padding:0}
+  .live{position:fixed;inset-inline:0;top:var(--hdr,64px);bottom:calc(74px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;z-index:1;overflow:hidden}
+  #lmap{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,rgba(94,234,212,.08),transparent 60%),repeating-linear-gradient(0deg,transparent 0 31px,rgba(255,255,255,.035) 31px 32px),repeating-linear-gradient(90deg,transparent 0 31px,rgba(255,255,255,.035) 31px 32px),#151926}
+  #lmap.nomap .ring{position:absolute;left:50%;top:40%;width:140px;height:140px;margin:-70px 0 0 -70px;border-radius:50%;border:1.5px dashed rgba(94,234,212,.45);background:rgba(94,234,212,.05)}
+  #lmap.nomap .mepin{position:absolute;left:50%;top:40%;margin:-12px 0 0 -12px}
+  .pinb{position:absolute;border:0;background:none;padding:0;cursor:pointer;width:0;height:0}
+  .mepin{display:block;width:24px;height:24px;border-radius:50%;background:#6b7590;border:4px solid #12151f;box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+  .mepin.on{background:var(--accent);animation:mepulse 2s infinite}
+  @keyframes mepulse{0%{box-shadow:0 0 0 0 rgba(94,234,212,.55)}70%{box-shadow:0 0 0 18px rgba(94,234,212,0)}100%{box-shadow:0 0 0 0 rgba(94,234,212,0)}}
+  .pin{display:block;width:22px;height:22px;border-radius:50%;background:var(--warn);border:3px solid #12151f;box-shadow:0 0 12px -2px var(--warn);transform:translate(-50%,-50%)}
+  .pin.hot{background:var(--hot);box-shadow:0 0 12px -2px var(--hot)}
+  .pin.fixed{width:auto;height:auto;border-radius:14px;padding:4px 10px;background:var(--accent);color:var(--accent-ink);font:800 13px var(--display);white-space:nowrap;box-shadow:0 4px 14px -4px rgba(94,234,212,.8)}
+  .mapchips{position:absolute;top:10px;inset-inline:10px;z-index:1000;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+  .mapchips span{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;background:rgba(18,21,31,.9);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+  .mapchips .warn{color:var(--warn)}
+  .recenter{position:absolute;top:54px;inset-inline-end:10px;z-index:1000;width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:rgba(24,28,40,.95);color:var(--fg);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .activewrap{position:absolute;top:54px;inset-inline-start:10px;inset-inline-end:64px;z-index:1000}
+  .activecard{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border-radius:18px;border:1px solid rgba(94,234,212,.45);background:rgba(24,28,40,.96);color:var(--fg);text-align:right;cursor:pointer;font:inherit}
+  .activecard .grow{display:flex;flex-direction:column}
+  .panel{position:absolute;inset-inline:10px;bottom:10px;z-index:1000;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:14px 16px;box-shadow:0 -12px 32px -12px rgba(0,0,0,.7)}
+  .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+  .kpis>*{background:var(--surface2);border:0;border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;text-align:right;color:inherit;font:inherit;cursor:pointer}
+  .kpis b{font-family:var(--display);font-size:16px;display:flex;gap:4px;align-items:center}
+  .pnote{display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px 10px;border-radius:14px;background:var(--warn-soft);color:var(--warn);font-size:14px;font-weight:600}
+  .leaflet-container{background:#151926;font-family:var(--body)}
+  .leaflet-control-attribution{background:rgba(18,21,31,.75)!important;color:#8a92a8!important;font-size:10px}
+  .leaflet-control-attribution a{color:#8a92a8!important}
+
+  /* a request, full screen */
+  .take{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;animation:up .2s ease-out}
+  .tk-top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .tk-top .grow{display:flex;flex-direction:column}
+  .tk-title{display:block;font-family:var(--display);font-weight:800;font-size:20px}
+  .tk-body{flex:1;overflow:auto;padding:14px 16px}
+  .tk-foot{padding:12px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface)}
+  .tk-price{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px;border-radius:22px;background:var(--accent-soft);border:1px solid rgba(94,234,212,.4);margin-bottom:12px;text-align:center}
+  .tk-price b{font-family:var(--display);font-weight:800;font-size:40px;color:var(--accent);line-height:1.1}
+  .tk-price.quote{background:var(--surface);border-color:var(--line)}
+  .tk-center{display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 8px}
+  .tk-big{width:88px;height:88px;border-radius:44px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+  .tk-big.win{background:var(--accent-soft);color:var(--accent)} .tk-big.miss{background:var(--hot-soft);color:var(--hot)}
+  .tk-h{font-family:var(--display);font-weight:800;font-size:28px}
+  .tk-fee{text-align:center;margin:8px 0 0}
+  .btn.big{min-height:60px;font-size:18px}
+  .btn.danger{background:var(--hot);color:#2b0710}
+  .waze.big{min-height:48px;width:100%;justify-content:center;margin-top:10px;font-size:15px}
+  .pricetag{display:flex;flex-direction:column;font-family:var(--display);font-weight:800;font-size:20px;color:var(--accent)}
+  .pricetag small{font-family:var(--body);font-size:12px;font-weight:600;color:var(--muted)}
+  .paybox{margin-top:12px;padding:12px;border-radius:16px;background:var(--surface2)}
+  .split{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;font-size:13px;margin-top:6px}
+  .split .bar{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden}
+  .split .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
 
   /* domains */
   .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 12px}
@@ -201,7 +256,7 @@
 
   /* sheet + toast */
   .scrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center}
-  .sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+  .sheet{width:100%;max-width:560px;max-height:calc(100% - 24px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));animation:up .22s ease-out}
   .sheet .handle{width:40px;height:4px;border-radius:2px;background:#3a4260;margin:0 auto 12px}
   .sheet .card{background:var(--bg)}
   .shead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -262,23 +317,22 @@
   <div id="shell" hidden>
     <header class="top">
       <div class="tt"><span class="title" id="topTitle">היום</span><span class="sub" id="topSub"></span></div>
-      <button class="pill" id="creditPill" data-go="wallet" aria-label="ארנק וקרדיט"><span data-i="wallet" data-s="18"></span><span id="creditVal">–</span></button>
+      <button class="pill" id="creditPill" data-go="wallet" aria-label="הכנסות"><span data-i="wallet" data-s="18"></span><span id="creditVal">–</span></button>
     </header>
 
-    <!-- today: live mode -->
-    <main data-view="today">
-      <div class="map" id="map" aria-hidden="true">
-        <span class="road" style="left:-10%;right:-10%;top:38%;height:10px;transform:rotate(-8deg)"></span>
-        <span class="road" style="top:-10%;bottom:-10%;left:30%;width:9px;transform:rotate(12deg)"></span>
-        <span class="road" style="top:-10%;bottom:-10%;left:74%;width:7px;transform:rotate(-20deg)"></span>
-        <span class="ring"></span><span class="me"></span>
-        <div id="mapDots"></div>
-        <div class="ml" id="mapLabel"></div>
+    <!-- today: full-screen map with the go-online panel (Wolt Partner style) -->
+    <main data-view="today" class="todayv">
+      <div class="live">
+        <div id="lmap" aria-label="מפה של הקריאות סביבך"></div>
+        <div class="mapchips" id="mapChips"></div>
+        <button type="button" class="recenter" id="recenter" aria-label="מרכוז המפה"><span data-i="nav" data-s="20"></span></button>
+        <div class="activewrap" id="activeJob"></div>
+        <div class="panel" id="panel">
+          <div id="availBox"></div>
+          <div class="kpis" id="kpis"></div>
+          <div id="todayNotes"></div>
+        </div>
       </div>
-      <div id="availBox"></div>
-      <div class="stats" id="stats"></div>
-      <div id="todayNotes"></div>
-      <div id="todayJobs"></div>
     </main>
 
     <!-- open requests -->
@@ -310,20 +364,29 @@
       <div class="savebar"><button class="btn" id="saveProfile"><span data-i="check"></span>שמירה · כולל המיקום הנוכחי שלי</button></div>
     </main>
 
-    <!-- wallet -->
+    <!-- earnings: jobs done, how much and how they were paid -->
     <main data-view="wallet" hidden>
       <div class="card bal">
-        <span class="muted">יתרת קרדיט</span>
-        <div class="num" id="balVal">–</div>
-        <p class="muted" style="margin:6px 0 0">כל הצעה שאתם שולחים עולה קרדיט לפי התחום. על קריאות שלא הצעתם עליהן לא משלמים.</p>
+        <div class="chips" id="periods" style="padding-bottom:6px"></div>
+        <span class="muted">הכנסות</span>
+        <div class="num" id="earnTotal">–</div>
+        <span class="muted" id="earnSub"></span>
+        <div id="earnSplit" style="margin-top:10px"></div>
       </div>
-      <button class="btn line" id="topup"><span data-i="plus"></span>טעינת 100 ש״ח קרדיט · בדיקה בלבד</button>
+      <h2 class="sec">עבודות שבוצעו</h2>
+      <div id="earnList"></div>
+      <div id="creditBox" hidden>
+        <h2 class="sec">קרדיט להצעות</h2>
+        <div class="card"><span class="muted">יתרה</span><div class="num" id="balVal" style="font-family:var(--display);font-weight:800;font-size:28px">–</div><p class="muted" style="margin:4px 0 0">כל הצעה עולה קרדיט לפי התחום.</p></div>
+        <div id="history"></div>
+      </div>
       <h2 class="sec">הזמנת חברים</h2>
       <div class="card" id="refBox"></div>
-      <h2 class="sec">תנועות</h2>
-      <div id="history"></div>
-      <div class="list" style="margin-top:20px" id="acct"></div>
+      <h2 class="sec">החשבון</h2>
+      <div class="list" id="acct"></div>
       <button class="btn ghost" id="logout" style="margin-top:12px"><span data-i="logout"></span>יציאה</button>
+      <button class="btn ghost" id="deleteAcct" style="margin-top:8px;color:var(--hot)"><span data-i="alert"></span>מחיקת החשבון</button>
+      <p class="muted" style="text-align:center;margin-top:18px"><a href="/privacy">מדיניות פרטיות</a> · <a href="/terms">תנאי שימוש</a></p>
     </main>
 
     <nav class="bottom" aria-label="ניווט ראשי">
@@ -331,11 +394,12 @@
       <button data-go="feed"><span class="nb"><span data-i="inbox" data-s="22"></span><i class="badge" id="feedBadge" hidden></i></span>קריאות</button>
       <button data-go="jobs"><span class="nb"><span data-i="briefcase" data-s="22"></span><i class="badge" id="jobsBadge" hidden></i></span>עבודות</button>
       <button data-go="domains"><span class="nb"><span data-i="layers" data-s="22"></span></span>תחומים</button>
-      <button data-go="wallet"><span class="nb"><span data-i="wallet" data-s="22"></span></span>ארנק</button>
+      <button data-go="wallet"><span class="nb"><span data-i="wallet" data-s="22"></span></span>הכנסות</button>
     </nav>
   </div>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -422,7 +486,8 @@ fillIcons();
 
 function toast(text, kind = 'ok') {
   const t = document.createElement('div'); t.className = `toast ${kind}`; t.innerHTML = `${ic(kind === 'err' ? 'alert' : 'check')}<span>${esc(text)}</span>`;
-  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 3500);
+  const box = $('#toasts'); while (box.children.length >= 2) box.firstChild.remove(); // at most two at a time
+  box.appendChild(t); setTimeout(() => t.remove(), 3500);
 }
 function sheet(html, onClose) {
   const s = document.createElement('div'); s.className = 'scrim';
@@ -472,7 +537,7 @@ const ERR = { insufficient_credit: 'אין מספיק קרדיט', full: 'כל �
   booking_pending: 'ההזמנה אצל הספק עוד לא אושרה', bad_transition: 'אי אפשר לעבור לשלב הזה עכשיו',
   bad_phone: 'מספר טלפון לא תקין', bad_code: 'הקוד שגוי', code_expired: 'פג תוקף הקוד. בקשו קוד חדש', too_soon: 'חכו רגע לפני בקשת קוד נוסף',
   too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש' };
-const FEED_F = [['all', 'הכל'], ['urgent', 'דחוף'], ['onsite', 'אצל הלקוח'], ['delivery', 'משלוחים'], ['remote', 'מרחוק'], ['phone', 'בטלפון']];
+const FEED_F = [['all', 'הכל'], ['fixed', 'מחיר קבוע'], ['urgent', 'דחוף'], ['onsite', 'אצל הלקוח'], ['delivery', 'משלוחים'], ['remote', 'מרחוק'], ['phone', 'בטלפון']];
 const JOBS_F = [['all', 'הכל'], ['won', 'נבחרו בי'], ['road', 'בדרך'], ['work', 'בטיפול'], ['wait', 'ממתינות ללקוח'], ['done', 'נסגרו'], ['lost', 'נדחו']];
 const ORDER = ['won', 'road', 'work', 'wait', 'done', 'lost'];
 const bucket = (j) => j.myOffer?.status === 'rejected' ? 'lost' : j.status === 'assigned' ? 'won'
@@ -484,6 +549,7 @@ let token = store.get('proToken');
 let view = 'today';
 let cats = {}, tree = [], me = null, providers = [], feed = [], jobs = [];
 let feedF = 'all', maxKm = 0, jobsF = 'all', availShown = null;
+let cfg = { leadFees: false, payments: false }; // from /api/config
 const seen = new Set((() => { try { return JSON.parse(store.get('proSeen') || '[]'); } catch { return []; } })());
 const markSeen = (id) => { seen.add(id); store.set('proSeen', JSON.stringify([...seen].slice(-300))); };
 const ref = new URLSearchParams(location.search).get('ref');
@@ -514,7 +580,7 @@ async function api(path, body, method) {
 }
 
 // ---- session & navigation
-const TITLES = { today: 'היום', feed: 'קריאות', jobs: 'עבודות', domains: 'תחומים', wallet: 'ארנק' };
+const TITLES = { today: 'היום', feed: 'קריאות', jobs: 'עבודות', domains: 'תחומים', wallet: 'הכנסות' };
 function showShell() {
   $('#login').hidden = !!token; $('#shell').hidden = !token;
   document.body.classList.toggle('nonav', !token);
@@ -524,7 +590,7 @@ function go(v) {
   for (const m of $$('main[data-view]')) m.hidden = m.dataset.view !== v;
   for (const b of $$('nav.bottom button')) { const on = b.dataset.go === v; b.classList.toggle('on', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); }
   $('#topTitle').textContent = TITLES[v];
-  if (me) { if (v === 'domains') renderDomains(); if (v === 'wallet') renderWallet(); if (v === 'feed') renderFeed(); if (v === 'jobs') renderJobs(); }
+  if (me) { if (v === 'domains') renderDomains(); if (v === 'wallet') { renderEarnings(); renderAccountBits(); } if (v === 'feed') renderFeed(); if (v === 'jobs') renderJobs(); if (v === 'today') renderToday(); }
   window.scrollTo(0, 0);
 }
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g && !g.closest('.scrim')) { if (g.dataset.jobs) jobsF = g.dataset.jobs; go(g.dataset.go); } });
@@ -557,72 +623,114 @@ $('#logout').onclick = () => {
   $('#codeRow').hidden = true; $('#loginBtn').textContent = 'שלחו לי קוד'; availShown = null; showShell();
 };
 
-// ---- header + today (live mode)
+// ---- header + today: full-screen map with a bottom panel (Wolt Partner style)
 function renderHeader() {
-  $('#creditVal').textContent = ils(me.balance);
-  $('#creditPill').classList.toggle('low', me.balance < 10);
+  const today = earnings('today');
+  $('#creditVal').textContent = cfg.leadFees ? ils(me.balance) : `היום ${ils(today.total)}`;
+  $('#creditPill').classList.toggle('low', cfg.leadFees && me.balance < 10);
+  $('#creditPill').setAttribute('aria-label', cfg.leadFees ? 'קרדיט והכנסות' : 'הכנסות');
   $('#topSub').innerHTML = `<span class="dot ${me.available ? 'on' : ''}"></span>${me.available ? 'זמינים לקריאות' : 'לא זמינים'} · ${esc(me.name)}`;
   const nf = feed.length, nj = jobs.filter((j) => bucket(j) === 'won').length;
   $('#feedBadge').hidden = !nf; $('#feedBadge').textContent = nf;
   $('#jobsBadge').hidden = !nj; $('#jobsBadge').textContent = nj;
+  try { window.ProMarketApp?.keepScreenOn?.(!!me.available); } catch {}
 }
 const missingDocs = () => [...new Set(me.categories.map((c) => cats[c]?.requirement).filter((r) => r && !me.approvedRequirements.includes(r)))];
+
+// The map: Leaflet with dark tiles when it loads; otherwise a drawn grid with the same pins.
+let map = null, meMk = null, radiusC = null, pinLayer = null, fitted = false;
+const center = () => { const o = me?.location ?? loc; return o ? [o.lat, o.lng] : [32.0853, 34.7818]; };
+const pinHtml = (j) => j.clientPrice ? `<span class="pin fixed">${Math.round(j.clientPrice)} ש״ח</span>` : `<span class="pin ${j.urgency === 'urgent' ? 'hot' : ''}"></span>`;
+function sizeLive() { const h = $('header.top')?.offsetHeight || 64; document.documentElement.style.setProperty('--hdr', `${h}px`); }
+function fitMap() {
+  if (!map || !radiusC) return;
+  const panel = $('#panel')?.offsetHeight || 200;
+  map.fitBounds(radiusC.getBounds(), { paddingTopLeft: [16, 64], paddingBottomRight: [16, panel + 24] });
+}
+function drawMap() {
+  const pins = feed.filter((j) => j.location && PHYSICAL.includes(j.mode));
+  if (!window.L) { // no map library: drawn fallback
+    const m = $('#lmap'); m.classList.add('nomap');
+    const R = 70, k = R / Math.max(1, me.radiusKm), o = me.location ?? loc;
+    const wx = Math.max(60, m.clientWidth / 2 - 30), hy = Math.max(60, m.clientHeight / 2 - 30);
+    m.innerHTML = `<span class="ring"></span><span class="mepin"></span>` + (o ? pins.slice(0, 30).map((j) => {
+      const x = Math.max(-wx, Math.min(wx, (j.location.lng - o.lng) * 111.32 * Math.cos(o.lat * Math.PI / 180) * k));
+      const y = Math.max(-hy, Math.min(hy, -(j.location.lat - o.lat) * 110.57 * k));
+      return `<button type="button" class="pinb" style="left:calc(50% + ${x.toFixed(1)}px);top:calc(40% + ${y.toFixed(1)}px)" data-open="${j.id}" aria-label="${esc(cats[j.categoryId]?.name)}">${pinHtml(j)}</button>`;
+    }).join('') : '');
+    return;
+  }
+  if (!map) {
+    map = L.map('lmap', { zoomControl: false, attributionControl: true, preferCanvas: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19,
+      attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+    map.attributionControl.setPrefix(false);
+    pinLayer = L.layerGroup().addTo(map);
+    map.setView(center(), 12);
+  }
+  map.invalidateSize();
+  const c = center();
+  if (!meMk) meMk = L.marker(c, { interactive: false, icon: L.divIcon({ className: '', html: '<span class="mepin"></span>', iconSize: [24, 24], iconAnchor: [12, 12] }) }).addTo(map);
+  else meMk.setLatLng(c);
+  if (!radiusC) radiusC = L.circle(c, { radius: me.radiusKm * 1000, color: '#5eead4', weight: 1.5, dashArray: '6 6', fillColor: '#5eead4', fillOpacity: 0.06, interactive: false }).addTo(map);
+  else { radiusC.setLatLng(c); radiusC.setRadius(me.radiusKm * 1000); }
+  meMk.getElement()?.querySelector('.mepin')?.classList.toggle('on', !!me.available);
+  pinLayer.clearLayers();
+  for (const j of pins) {
+    L.marker([j.location.lat, j.location.lng], { keyboard: true, title: cats[j.categoryId]?.name ?? '',
+      icon: L.divIcon({ className: '', html: pinHtml(j), iconSize: null }) }).on('click', () => jobPopup(j, { timer: false })).addTo(pinLayer);
+  }
+  if (!fitted) { fitMap(); fitted = true; }
+}
+document.addEventListener('click', (e) => { if (e.target.closest('#recenter')) { fitted = false; fitMap(); } });
+
 function renderToday() {
+  if (view !== 'today') return;
+  sizeLive();
   const on = !!me.available;
-  $('#map').classList.toggle('on', on);
   const physical = me.serviceModes.some((m) => PHYSICAL.includes(m));
-  $('#mapLabel').innerHTML = `<span>${ic('pin', 13)}רדיוס ${me.radiusKm} ק״מ</span>${me.location ? '' : '<span style="color:var(--warn)">אין מיקום</span>'}<span>${feed.length} קריאות פתוחות</span>`;
-  // Open requests around the pro, placed by their (approximate) position. The ring is the pro's radius.
-  const m = $('#map'), R = 64, k = R / Math.max(1, me.radiusKm), o = me.location;
-  const wx = Math.max(60, m.clientWidth / 2 - 14);
-  $('#mapDots').innerHTML = o ? feed.filter((j) => j.location && PHYSICAL.includes(j.mode)).slice(0, 24).map((j) => {
-    const x = Math.max(-wx, Math.min(wx, (j.location.lng - o.lng) * 111.32 * Math.cos(o.lat * Math.PI / 180) * k));
-    const y = Math.max(-86, Math.min(68, -(j.location.lat - o.lat) * 110.57 * k));
-    return `<button type="button" class="mdot ${j.urgency === 'urgent' ? 'hot' : ''}" style="left:calc(50% + ${x.toFixed(1)}px);top:calc(55% + ${y.toFixed(1)}px)" data-offer="${j.id}" aria-label="${esc(cats[j.categoryId]?.name)} · ${j.distanceKm ?? ''} ק״מ"></button>`;
-  }).join('') : '';
+  $('#mapChips').innerHTML = `<span>${ic('pin', 13)}רדיוס ${me.radiusKm} ק״מ</span><span>${feed.length ? `${feed.length} קריאות פתוחות` : 'אין קריאות כרגע'}</span>${me.location ? '' : '<span class="warn">אין מיקום</span>'}`;
+  drawMap();
+
+  // Active job: one tap back to it.
+  const active = jobs.filter(isActive);
+  const a = active[0];
+  $('#activeJob').innerHTML = a ? `<button type="button" class="activecard" data-go="jobs" data-jobs="all">${catTile(a.categoryId, 36, 18)}<span class="grow"><b class="one">${esc(cats[a.categoryId]?.name ?? '')}</b>
+      <span class="muted one">${STATUS[a.status]?.[0] ?? ''}${NEXT[a.mode]?.[a.status] ? ` · הצעד הבא: ${NEXT[a.mode][a.status][1]}` : ''}</span></span>${ic('chev', 18)}</button>` : '';
 
   if (availShown !== on) { // re-render only on change, so a drag in progress is never interrupted
     availShown = on;
     $('#availBox').innerHTML = on
-      ? `<div class="card"><div class="lv"><span class="pulse"></span><span class="grow"><b class="disp" style="font-size:18px;display:block">זמינים לקריאות</b><span class="muted" id="liveSub"></span></span></div>
-          <div class="row" style="margin-top:14px"><button type="button" class="btn" data-go="feed" id="liveBtn"></button><button type="button" class="btn ghost" id="goOff" style="flex:0 0 auto;width:auto">הפסקה</button></div></div>`
-      : `<div class="card"><b class="disp" style="font-size:18px">אתם לא זמינים</b>
-          <p class="muted" style="margin:4px 0 0">החליקו כדי לקבל קריאות לפי המיקום והתחומים שלכם. קריאה חדשה תקפוץ על המסך.</p>
+      ? `<div class="lv"><span class="pulse"></span><span class="grow"><b style="font-size:18px;display:block">זמינים · מחפשים קריאות</b><span class="muted" id="liveSub"></span></span>
+          <button type="button" class="btn sm ghost" id="goOff">הפסקה</button></div>`
+      : `<b style="font-size:18px">אתם לא זמינים</b>
+          <p class="muted" style="margin:2px 0 0">החליקו כדי לקבל קריאות באזור שלכם. קריאה חדשה תקפוץ על המסך.</p>
           <div class="slide" id="slide"><span class="fill"></span><span class="slide-txt">החליקו לזמינות ${ic('arrows', 18)}</span>
-          <button type="button" class="knob" id="knob" aria-label="מעבר לזמינות">${ic('power', 26)}</button></div></div>`;
+          <button type="button" class="knob" id="knob" aria-label="מעבר לזמינות">${ic('power', 26)}</button></div>`;
     if (!on) bindSlider();
   }
-  if (on) {
-    $('#liveSub').textContent = feed.length ? `${feed.length} קריאות מתאימות לך עכשיו` : 'מחפשים קריאות סביבכם. קריאה חדשה תקפוץ כאן.';
-    $('#liveBtn').innerHTML = `${ic('inbox')}${feed.length ? `לקריאות (${feed.length})` : 'לקריאות'}`;
-  }
-  const active = jobs.filter(isActive);
-  $('#stats').innerHTML = `<button type="button" data-go="wallet"><span class="muted">קרדיט</span><b>${ils(me.balance)}</b></button>
-    <button type="button" data-go="jobs"><span class="muted">דירוג</span><b>${me.ratingCount ? `${ic('star', 16)}${me.ratingAvg}` : 'חדש'}</b></button>
-    <button type="button" data-go="jobs" data-jobs="won"><span class="muted">עבודות פעילות</span><b>${active.length}</b></button>`;
+  if (on) $('#liveSub').textContent = feed.length ? `${feed.length} קריאות מתאימות לך. לחצו על נקודה במפה.` : 'קריאה חדשה תקפוץ כאן עם צליל.';
+  const t = earnings('today');
+  $('#kpis').innerHTML = `<button type="button" data-go="wallet"><span class="muted">הכנסות היום</span><b>${ils(t.total)}</b></button>
+    <button type="button" data-go="wallet"><span class="muted">עבודות היום</span><b>${t.rows.length}</b></button>
+    <button type="button" data-go="jobs"><span class="muted">דירוג</span><b>${me.ratingCount ? `${ic('star', 15)}${me.ratingAvg}` : 'חדש'}</b></button>`;
 
   const notes = [];
-  if (!me.categories.length) notes.push(['עוד לא בחרתם תחומים', 'בלי תחומים לא יגיעו קריאות.', 'domains', 'בחירת תחומים']);
+  if (!me.categories.length) notes.push(['עוד לא בחרתם תחומים', 'domains', 'בחירה']);
   const docs = missingDocs();
-  if (docs.length) notes.push([`חסר: ${docs.map((r) => REQ[r] ?? r).join(', ')}`, 'כדי לקבל קריאות בחלק מהתחומים שבחרתם.', 'domains', 'העלאה']);
-  if (physical && !me.location) notes.push(['אין מיקום', 'אפשרו גישה למיקום ושמרו בלשונית תחומים, כדי לקבל קריאות באזור שלכם.', 'domains', 'עדכון']);
-  if (me.balance < 10) notes.push(['הקרדיט נמוך', `נשארו ${ils(me.balance)}. כל הצעה עולה קרדיט לפי התחום.`, 'wallet', 'לארנק']);
-  $('#todayNotes').innerHTML = notes.map(([t, s, to, cta]) => `<div class="card note warn">${ic('alert', 22)}<span class="grow"><b style="display:block">${esc(t)}</b><span class="muted">${s}</span></span><button type="button" class="btn sm ghost" data-go="${to}">${cta}</button></div>`).join('');
-
-  const waiting = jobs.filter((j) => j.status === 'open' && j.myOffer?.status === 'pending').length;
-  $('#todayJobs').innerHTML = (active.length ? `<h2 class="sec">עבודות פעילות</h2>` + active.slice(0, 3).map((j) => {
-    const nx = NEXT[j.mode]?.[j.status];
-    return `<button type="button" class="card rowcard" data-go="jobs" data-jobs="all">${catTile(j.categoryId)}<span class="grow"><b class="one">${esc(j.description)}</b>
-      <span class="muted">${STATUS[j.status]?.[0] ?? ''}${nx ? ` · הצעד הבא: ${nx[1]}` : ''}</span></span><span style="color:var(--muted)">${ic('chev', 18)}</span></button>`;
-  }).join('') : '') + (waiting ? `<button type="button" class="card rowcard" data-go="jobs" data-jobs="wait"><span class="icon-tile" style="background:var(--warn-soft);color:var(--warn)">${ic('clock')}</span><span class="grow"><b>${waiting} הצעות ממתינות לבחירת לקוח</b><span class="muted">נעדכן כשהלקוח יבחר</span></span><span style="color:var(--muted)">${ic('chev', 18)}</span></button>` : '');
+  if (docs.length) notes.push([`חסר: ${docs.map((r) => REQ[r] ?? r).join(', ')}`, 'domains', 'העלאה']);
+  if (physical && !me.location) notes.push(['אין מיקום. אפשרו גישה למיקום', 'domains', 'עדכון']);
+  if (cfg.leadFees && me.balance < 10) notes.push([`הקרדיט נמוך: ${ils(me.balance)}`, 'wallet', 'לפרטים']);
+  $('#todayNotes').innerHTML = notes.slice(0, 1).map(([t2, to, cta]) => `<div class="pnote">${ic('alert', 18)}<span class="grow">${esc(t2)}</span><button type="button" class="btn sm ghost" data-go="${to}">${cta}</button></div>`).join('');
 }
+window.addEventListener('resize', () => { sizeLive(); map?.invalidateSize(); });
 
 // Slide to go available (drag the knob to the other side; keyboard: Enter/Space on the knob).
 function bindSlider() {
   const sl = $('#slide'), knob = $('#knob');
   let drag = null;
   const set = (p) => { sl.style.setProperty('--p', p); };
-  knob.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, w: sl.clientWidth - knob.offsetWidth - 6, dx: 0 }; knob.classList.add('drag'); knob.setPointerCapture(e.pointerId); });
+  knob.addEventListener('pointerdown', (e) => { unlockSound(); drag = { x: e.clientX, w: sl.clientWidth - knob.offsetWidth - 6, dx: 0 }; knob.classList.add('drag'); knob.setPointerCapture(e.pointerId); });
   knob.addEventListener('pointermove', (e) => {
     if (!drag) return;
     drag.dx = Math.max(0, Math.min(drag.w, drag.x - e.clientX)); // RTL: the knob starts on the right and slides left
@@ -636,7 +744,7 @@ function bindSlider() {
     else { knob.style.transform = ''; set(0); }
   };
   knob.addEventListener('pointerup', end); knob.addEventListener('pointercancel', end);
-  knob.addEventListener('click', (e) => { if (e.detail === 0) setAvail(true); }); // keyboard activation only
+  knob.addEventListener('click', (e) => { if (e.detail === 0) { unlockSound(); setAvail(true); } }); // keyboard activation only
 }
 async function setAvail(on) {
   try {
@@ -647,9 +755,26 @@ async function setAvail(on) {
     toast(on ? 'אתם זמינים. קריאות חדשות יקפצו כאן' : 'הזמינות הופסקה');
     if (on && !me.categories.length) toast('בחרו תחומים כדי לקבל קריאות', 'err');
   } catch (err) { toast(err.message, 'err'); }
-  availShown = null; renderHeader(); renderToday(); load(true);
+  availShown = null; fitted = false; renderHeader(); renderToday(); load(true);
 }
 document.addEventListener('click', (e) => { if (e.target.closest('#goOff')) setAvail(false); });
+
+// Sound and buzz for a new request. Browsers allow sound only after a tap, so the slide unlocks it.
+let actx = null;
+function unlockSound() { try { actx ??= new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch {} }
+function alertNew() {
+  try { window.ProMarketApp?.vibrate ? window.ProMarketApp.vibrate(450) : navigator.vibrate?.([200, 100, 200]); } catch {}
+  try {
+    unlockSound();
+    const t = actx.currentTime;
+    for (const [f, d] of [[880, 0], [1175, 0.16], [1568, 0.32]]) {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.35, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.28);
+      o.connect(g).connect(actx.destination); o.start(t + d); o.stop(t + d + 0.3);
+    }
+  } catch {}
+}
 
 // ---- one request: summary used in the popup, the feed and the offer sheet
 function slots(j) {
@@ -674,34 +799,103 @@ function summary(j, full = true) {
     ${j.itemsCost ? `<div class="item warn">${ic('cart', 18)}<span>קנייה עבור הלקוח: כ-${ils(j.itemsCost)}. מוחזר לך במלואו.</span></div>` : ''}`;
 }
 
-// ---- incoming request popup (live mode): new matching requests pop up one at a time
+// ---- a request, full screen (Wolt Partner style). New requests pop up with a countdown;
+// a request with the client's price is taken by the first pro to accept it, the rest "missed" it.
 const POP_SECONDS = 45;
+let popup = null; // { id, state: 'open' | 'won' | 'missed', ... }
 function maybePop() {
-  if (!me?.available || $('.scrim') || $('.lightbox') || document.hidden) return;
+  if (!me?.available || popup || $('.scrim') || $('.lightbox') || document.hidden) return;
   const j = feed.find((x) => !seen.has(x.id));
-  if (j) incoming(j);
+  if (j) { markSeen(j.id); alertNew(); jobPopup(j, { timer: true }); }
 }
-function incoming(j) {
-  markSeen(j.id);
-  try { navigator.vibrate?.([180, 90, 180]); } catch {}
+function popupWatch() {
+  // Someone else took it (or the quote slots filled) while it was on screen.
+  if (popup?.state === 'open' && !feed.some((x) => x.id === popup.id)) popup.missed();
+}
+function jobPopup(j, { timer = false } = {}) {
+  popup?.close(true);
+  const fixed = j.clientPrice != null;
   const C = 2 * Math.PI * 23;
-  let left = POP_SECONDS, timer;
-  const s = sheet(`<div class="shead"><span class="live-dot"></span><h2>קריאה חדשה</h2>
-      <span class="ring" role="timer" aria-label="זמן לתגובה"><svg width="54" height="54" viewBox="0 0 54 54"><circle class="trk" cx="27" cy="27" r="23"/><circle class="arc" cx="27" cy="27" r="23" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg><span id="cd">${left}</span></span></div>
-    <div class="card">${summary(j)}</div>
-    <div class="frow" style="margin-top:0">${slots(j)}<span class="tag">הצעה: ${ils(j.leadPrice)} קרדיט</span></div>
-    <p class="muted" style="margin:10px 0 14px">הקריאה נשלחה לכל המקצוענים בתחום ובאזור. יש עד 5 מקומות להצעות, וכשהם נגמרים הקריאה נסגרת.</p>
-    <div class="row"><button type="button" class="btn ghost" data-close style="flex:0 0 34%">דילוג</button><button type="button" class="btn" id="incOffer">${ic('send')}הצעת מחיר</button></div>`,
-    () => { clearInterval(timer); setTimeout(maybePop, 700); });
-  const arc = $('.arc', s.el);
-  timer = setInterval(() => {
-    left -= 1; $('#cd', s.el).textContent = left;
-    arc.style.strokeDashoffset = C * (1 - left / POP_SECONDS);
-    if (left <= 10) $('.ring', s.el).classList.add('late');
-    if (left <= 0) { s.close(); toast('הקריאה נשארת בלשונית קריאות'); }
-  }, 1000);
-  $('#incOffer', s.el).onclick = () => { clearInterval(timer); s.el.remove(); offerSheet(j); };
+  let left = POP_SECONDS, tick = null;
+  const el = document.createElement('div');
+  el.className = 'take'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  const where = j.distanceKm != null ? `${j.distanceKm} ק״מ ${j.mode === 'delivery' ? 'לאיסוף' : 'ממך'}` : MODE[j.mode];
+  const head = (title, sub, ring = timer) => `<div class="tk-top">
+      ${ring ? `<span class="ring" role="timer" aria-label="זמן לתגובה"><svg width="54" height="54" viewBox="0 0 54 54"><circle class="trk" cx="27" cy="27" r="23"/><circle class="arc" cx="27" cy="27" r="23" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg><span id="cd">${left}</span></span>` : catTile(j.categoryId, 48, 24)}
+      <span class="grow"><b class="tk-title">${title}</b><span class="muted">${sub}</span></span>
+      <button type="button" class="xbtn" data-x aria-label="סגירה">${ic('x')}</button></div>`;
+  const fee = j.leadPrice > 0 ? `<p class="muted tk-fee">עלות: ${ils(j.leadPrice)} קרדיט · יתרה ${ils(me.balance)}</p>` : '';
+  const openView = () => `${head(timer ? 'קריאה חדשה' : esc(cats[j.categoryId]?.name ?? ''), esc(where))}
+    <div class="tk-body">
+      ${fixed ? `<div class="tk-price"><span class="muted">הלקוח משלם</span><b>${ils(j.clientPrice)}</b><span class="muted">${j.paymentMode === 'in_app' ? 'תשלום מאובטח באפליקציה' : 'תשלום ישירות ממנו, בסיום'}</span></div>`
+        : `<div class="tk-price quote"><span class="muted">הלקוח מחכה להצעות מחיר</span>${slots(j)}</div>`}
+      <div class="card">${summary(j)}</div>
+      <p class="muted" style="margin:4px 2px 0">${fixed ? 'הקריאה נשלחה לכל המקצוענים באזור. מי שמאשר ראשון מקבל אותה.' : 'הלקוח יבחר מבין ההצעות. אפשר עד 5 הצעות.'}</p>
+    </div>
+    <div class="tk-foot">
+      <div class="err" id="tkErr"></div>
+      ${fixed ? `<button type="button" class="btn big" id="tkAccept">${ic('check')}אישור · העבודה שלי</button>
+        <div class="row" style="margin-top:8px"><button type="button" class="btn ghost" data-skip>דילוג</button><button type="button" class="btn ghost" id="tkCounter">הצעה אחרת</button></div>`
+        : `<button type="button" class="btn big" id="tkOffer">${ic('send')}שליחת הצעת מחיר</button>
+        <button type="button" class="btn ghost" data-skip style="margin-top:8px">דילוג</button>`}
+      ${fee}
+    </div>`;
+  const stop = () => clearInterval(tick);
+  const close = (silent) => { stop(); el.remove(); if (popup?.el === el) popup = null; if (!silent) setTimeout(maybePop, 800); };
+  el.innerHTML = openView();
+  document.body.appendChild(el); fillIcons(el);
+  popup = { id: j.id, el, state: 'open', close,
+    missed() {
+      if (this.state !== 'open') return;
+      this.state = 'missed'; stop();
+      el.innerHTML = `${head('פספסת', esc(cats[j.categoryId]?.name ?? ''), false)}
+        <div class="tk-body tk-center"><span class="tk-big miss">${ic('clock', 48)}</span><b class="tk-h">${fixed ? 'מקצוען אחר אישר לפניך' : 'הקריאה כבר לא פתוחה'}</b>
+          <p class="muted">${fixed ? 'בפעם הבאה, מי שמאשר ראשון מקבל. הקריאה הבאה תקפוץ כאן.' : 'כל המקומות להצעות נתפסו, או שהלקוח כבר בחר.'}</p></div>
+        <div class="tk-foot"><button type="button" class="btn big" data-x>חזרה למפה</button></div>`;
+      fillIcons(el);
+    },
+    won(res) {
+      this.state = 'won'; stop();
+      const waze = (l) => l?.lat ? `<a class="waze big" href="https://waze.com/ul?ll=${l.lat},${l.lng}&amp;navigate=yes">${ic('nav', 18)}ניווט ב-Waze</a>` : '';
+      el.innerHTML = `${head('העבודה שלך!', esc(cats[j.categoryId]?.name ?? ''), false)}
+        <div class="tk-body"><div class="tk-center"><span class="tk-big win">${ic('check', 48)}</span><b class="tk-h">${ils(res.myOffer?.price ?? j.clientPrice)}</b>
+          <p class="muted">${res.paymentMode === 'in_app' ? 'התשלום מאובטח באפליקציה ויועבר אליך אחרי אישור הלקוח.' : 'הלקוח משלם לך ישירות בסיום.'}</p></div>
+          <div class="card">
+            ${res.phone ? `<a class="btn ghost" href="tel:${esc(tel(res.phone))}">${ic('phone', 18)}<span class="ltr">${esc(showPhone(res.phone))}</span></a>` : ''}
+            ${res.address ? `<div class="item">${ic('pin', 18)}<span class="grow">${res.dropoff ? 'איסוף: ' : ''}${esc(res.address)}${res.dropoff?.address ? `<br>מסירה: ${esc(res.dropoff.address)}` : ''}</span></div>` : ''}
+            ${PHYSICAL.includes(res.mode) ? waze(res.location) : ''}
+          </div></div>
+        <div class="tk-foot"><button type="button" class="btn big" id="tkJobs">${ic('briefcase')}לעבודה</button></div>`;
+      fillIcons(el);
+    } };
+  if (timer) {
+    const arc = $('.arc', el);
+    tick = setInterval(() => {
+      left -= 1; $('#cd', el).textContent = left;
+      arc.style.strokeDashoffset = C * (1 - left / POP_SECONDS);
+      if (left <= 10) $('.ring', el).classList.add('late');
+      if (left <= 0) { close(); toast('הקריאה נשארת בלשונית קריאות'); }
+    }, 1000);
+  }
+  el.addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-x') || b.hasAttribute('data-skip')) return close();
+    if (b.id === 'tkJobs') { close(true); jobsF = 'all'; return go('jobs'); }
+    if (b.id === 'tkOffer' || b.id === 'tkCounter') { close(true); return offerSheet(j); }
+    if (b.id === 'tkAccept') {
+      b.disabled = true; stop();
+      try {
+        const res = await api(`/api/jobs/${j.id}/take`, {});
+        popup?.won(res);
+        load(true);
+      } catch (err) {
+        if (['taken', 'closed', 'not_found'].includes(err.code)) popup?.missed();
+        else { b.disabled = false; $('#tkErr', el).textContent = err.message; }
+      }
+    }
+  });
 }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && popup) popup.close(); });
 
 // ---- offer sheet
 function searchForm(provider) {
@@ -717,7 +911,7 @@ function offerSheet(j) {
   const cat = cats[j.categoryId];
   const travel = cat?.parent === 'travel';
   const catalogOk = travel || j.paymentMode === 'in_app'; // supplier items need in-app payment
-  const short = me.balance < j.leadPrice;
+  const short = j.leadPrice > 0 && me.balance < j.leadPrice;
   const needPrice = j.paymentMode === 'in_app'; // a secure payment can't be accepted without a price
   const s = sheet(`${sheetHead('הצעת מחיר')}
     <div class="card">${summary(j, false)}</div>
@@ -736,15 +930,14 @@ function offerSheet(j) {
       ${providers.length ? `<select class="field" id="oProv" aria-label="ספק">${providers.map((p) => `<option value="${esc(p.id)}">${esc(providerName(p))}</option>`).join('')}</select>
       <div id="oQ">${searchForm(providers[0])}</div><button type="button" class="btn ghost" id="oSearch" style="margin-top:8px">${ic('search')}חיפוש</button><div id="oRes"></div>`
       : '<div class="muted">אין ספקים מחוברים</div>'}</details>` : ''}
-    <div class="cost"><span>עלות שליחת ההצעה</span><span><b>${ils(j.leadPrice)}</b> · יתרה ${ils(me.balance)}</span></div>
-    ${short ? `<div class="item warn" style="margin-bottom:10px">${ic('alert', 18)}<span class="grow">אין מספיק קרדיט</span><button type="button" class="btn sm" data-close data-go-after="wallet">לטעינה</button></div>` : ''}
+    ${j.leadPrice > 0 ? `<div class="cost"><span>עלות שליחת ההצעה</span><span><b>${ils(j.leadPrice)}</b> · יתרה ${ils(me.balance)}</span></div>` : '<div style="height:16px"></div>'}
+    ${short ? `<div class="item warn" style="margin-bottom:10px">${ic('alert', 18)}<span class="grow">אין מספיק קרדיט להצעה הזו</span></div>` : ''}
     <div class="err" id="oErr"></div>
-    <button type="button" class="btn" id="oSend" ${short ? 'disabled' : ''} style="margin-top:6px">${ic('send')}שליחת הצעה · ${ils(j.leadPrice)} קרדיט</button>`,
+    <button type="button" class="btn" id="oSend" ${short ? 'disabled' : ''} style="margin-top:6px">${ic('send')}שליחת הצעה${j.leadPrice > 0 ? ` · ${ils(j.leadPrice)} קרדיט` : ''}</button>`,
     () => setTimeout(maybePop, 700));
   const el = s.el;
   el.addEventListener('click', async (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.goAfter) return go(b.dataset.goAfter);
     if (b.dataset.step) { const p = $('#oPrice', el); p.value = Math.max(0, (+p.value || 0) + +b.dataset.step); if ($('#oLater', el)) $('#oLater', el).checked = false; p.disabled = false; p.classList.remove('bad'); $('#oErr', el).textContent = ''; }
     if (b.dataset.eta) { $('#oEta', el).value = b.dataset.eta; $$('[data-eta]', el).forEach((c) => c.classList.toggle('on', c === b)); }
     if (b.dataset.msg) { const m = $('#oMsg', el); m.value = m.value.trim() ? `${m.value.trim()}. ${b.dataset.msg}` : b.dataset.msg; }
@@ -784,11 +977,6 @@ function offerSheet(j) {
   });
   el.addEventListener('input', (e) => { if (e.target.id === 'oPrice') { e.target.classList.remove('bad'); $('#oErr', el).textContent = ''; } });
 }
-document.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-offer]'); if (!b || b.closest('.scrim')) return;
-  const j = feed.find((x) => x.id === b.dataset.offer);
-  if (j) offerSheet(j); else { toast('הקריאה כבר לא פתוחה', 'err'); load(true); }
-});
 
 // ---- feed
 function renderFeed() {
@@ -796,10 +984,11 @@ function renderFeed() {
   if (maxKm && !kms.includes(maxKm)) maxKm = 0;
   $('#feedFilter').innerHTML = FEED_F.map(([k, l]) => `<button type="button" class="chip ${feedF === k ? 'on' : ''}" data-ff="${k}">${k === 'urgent' ? ic('flame', 15) : ''}${l}</button>`).join('');
   $('#kmFilter').innerHTML = kms.length ? [0, ...kms].map((k) => `<button type="button" class="chip soft ${maxKm === k ? 'on' : ''}" data-km="${k}">${k ? `עד ${k} ק״מ` : `כל הרדיוס · ${me.radiusKm} ק״מ`}</button>`).join('') : '';
-  const list = feed.filter((j) => feedF === 'all' || (feedF === 'urgent' ? j.urgency === 'urgent' : j.mode === feedF))
+  const list = feed.filter((j) => feedF === 'all' || (feedF === 'fixed' ? j.clientPrice != null : feedF === 'urgent' ? j.urgency === 'urgent' : j.mode === feedF))
     .filter((j) => !maxKm || j.distanceKm == null || j.distanceKm <= maxKm);
   $('#feed').innerHTML = list.length ? list.map((j) => `<div class="card">${summary(j, false)}
-      <div class="frow">${slots(j)}<button type="button" class="btn sm" data-offer="${j.id}">${ic('send', 18)}הצעה · ${ils(j.leadPrice)}</button></div></div>`).join('')
+      <div class="frow">${j.clientPrice != null ? `<span class="pricetag"><small>הלקוח משלם</small>${ils(j.clientPrice)}</span>` : slots(j)}
+      <button type="button" class="btn sm" data-open="${j.id}">${j.clientPrice != null ? `${ic('check', 18)}לאשר` : `${ic('send', 18)}להציע מחיר`}</button></div></div>`).join('')
     : feed.length ? `<div class="empty">${ic('search', 44)}<b>אין קריאות בסינון הזה</b></div>`
     : !me.categories.length ? `<div class="empty">${ic('layers', 44)}<b>בחרו תחומים כדי לראות עבודות</b><button type="button" class="btn" data-go="domains">בחירת תחומים</button></div>`
     : me.available ? `<div class="empty">${ic('inbox', 44)}<b>אין כרגע קריאות שמתאימות לך</b>נודיע כשתגיע אחת.</div>`
@@ -807,6 +996,11 @@ function renderFeed() {
 }
 $('#feedFilter').onclick = (e) => { const b = e.target.closest('[data-ff]'); if (b) { feedF = b.dataset.ff; renderFeed(); } };
 $('#kmFilter').onclick = (e) => { const b = e.target.closest('[data-km]'); if (b) { maxKm = +b.dataset.km; renderFeed(); } };
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-open]'); if (!b || b.closest('.scrim,.take')) return;
+  const j = feed.find((x) => x.id === b.dataset.open);
+  if (j) jobPopup(j, { timer: false }); else { toast('הקריאה כבר לא פתוחה', 'err'); load(true); }
+});
 
 // ---- my jobs
 function jobCard(j) {
@@ -825,6 +1019,8 @@ function jobCard(j) {
   const money = j.escrow?.payout != null ? `<div class="item ok">${ic('check', 18)}<span>שולם לך ${ils(j.escrow.payout)}</span></div>`
     : j.escrow ? `<div class="item acc">${ic('lock', 18)}<span>התשלום מאובטח באפליקציה ומשתחרר אחרי אישור הלקוח</span></div>` : '';
   const sig = j.mode === 'onsite' && next?.[0] === 'completed';
+  const done = j.myOffer?.status === 'accepted' && ['completed', 'closed_done'].includes(j.status);
+  const paid = done && j.paymentMode === 'direct' ? (j.proPayment ? `<div class="item ok">${ic('check', 18)}<span>שולם לך ${ils(j.proPayment.amount)} · ${PAY[j.proPayment.method] ?? ''}</span></div>` : '') + payBox(j) : '';
   const act = j.myOffer?.status === 'accepted' && next && j.status !== 'booking_failed' ? `
       <div class="logrow"><input class="field" data-log placeholder="תיעוד: מה עשיתם, מה צריך" aria-label="תיעוד"><button type="button" class="btn sm ghost" data-addlog>הוספה</button></div>
       ${sig ? `<label class="lb">חתימת הלקוח</label><input class="field" data-sig placeholder="שם הלקוח לאישור" autocomplete="off"><div class="err" data-sigerr></div>` : ''}
@@ -832,8 +1028,8 @@ function jobCard(j) {
   return `<div class="card ${lost ? 'dim' : ''}" data-job="${j.id}">
     <div class="jh">${catTile(j.categoryId)}<span class="grow"><b class="clamp">${esc(j.description)}</b><span class="muted">${esc(cat?.name)} · ${MODE[j.mode]}</span></span></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><span class="tag ${cls}">${label}</span>
-      <span class="muted">ההצעה שלך: ${j.myOffer?.price != null ? ils(j.myOffer.price) : 'מחיר אחרי בדיקה'}</span></div>
-    ${mediaHtml(j.media)}${contact}${items}${booking}${money}
+      <span class="muted">${j.myOffer?.instant ? 'מחיר הלקוח' : 'ההצעה שלך'}: ${j.myOffer?.price != null ? ils(j.myOffer.price) : 'מחיר אחרי בדיקה'}</span></div>
+    ${mediaHtml(j.media)}${contact}${items}${booking}${money}${paid}
     ${(j.workLog ?? []).length ? `<div style="margin-top:12px">${j.workLog.map((l) => `<div class="log">${esc(l.text)}${l.photos?.length ? ` · צורפו ${l.photos.length} תמונות` : ''}</div>`).join('')}</div>` : ''}
     ${act}
   </div>`;
@@ -966,36 +1162,109 @@ $('#saveProfile').onclick = async () => {
   btn.disabled = false;
 };
 
-// ---- wallet
-async function renderWallet() {
-  $('#balVal').textContent = ils(me.balance);
+// ---- earnings: completed jobs, how much and how they were paid
+const PAY = { app: 'באפליקציה', cash: 'מזומן', bit: 'ביט / פייבוקס', transfer: 'העברה בנקאית', card: 'אשראי', other: 'אחר', none: 'לא נרשם' };
+let period = 'month';
+function earnRow(j) {
+  const when = j.closedAt ?? j.completedAt ?? j.createdAt;
+  if (j.paymentMode === 'in_app') {
+    const paid = j.escrow?.payout != null;
+    return { j, when, method: 'app', amount: paid ? j.escrow.payout : (j.escrow?.amount ?? j.myOffer?.price ?? 0), pending: !paid, fee: j.escrow?.fee };
+  }
+  if (j.proPayment) return { j, when, method: j.proPayment.method, amount: j.proPayment.amount };
+  return { j, when, method: 'none', amount: j.myOffer?.price ?? 0 };
+}
+function earnings(p = period) {
+  const now = new Date();
+  const from = p === 'today' ? new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    : p === 'week' ? Date.now() - 7 * 864e5 : p === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1).getTime() : 0;
+  const rows = jobs.filter((j) => j.myOffer?.status === 'accepted' && ['completed', 'closed_done'].includes(j.status))
+    .map(earnRow).filter((r) => r.when >= from).sort((a, b) => b.when - a.when);
+  const total = rows.reduce((s, r) => s + (r.pending ? 0 : +r.amount || 0), 0);
+  const by = {};
+  for (const r of rows) if (!r.pending) by[r.method] = (by[r.method] ?? 0) + (+r.amount || 0);
+  return { rows, total, by };
+}
+const day = (t) => new Date(t).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+function renderEarnings() {
+  const e = earnings();
+  $('#periods').innerHTML = [['week', 'השבוע'], ['month', 'החודש'], ['all', 'הכל']].map(([k, l]) => `<button type="button" class="chip ${period === k ? 'on' : ''}" data-period="${k}">${l}</button>`).join('');
+  $('#earnTotal').textContent = ils(e.total);
+  $('#earnSub').textContent = e.rows.length ? `${e.rows.length === 1 ? 'עבודה אחת' : `${e.rows.length} עבודות`}` : 'עוד אין עבודות שהסתיימו בתקופה הזו';
+  const max = Math.max(1, ...Object.values(e.by));
+  $('#earnSplit').innerHTML = Object.entries(e.by).sort((a, b) => b[1] - a[1]).map(([m, v]) => `<div class="split"><span>${PAY[m] ?? m}</span>
+    <span class="bar"><i style="width:${Math.max(4, Math.round(v / max * 100))}%"></i></span><b>${ils(v)}</b></div>`).join('');
+  $('#earnList').innerHTML = e.rows.length ? `<div class="list">${e.rows.map((r) => `<div class="hrow" data-job-row="${r.j.id}">
+      <span class="hic">${ic(r.method === 'app' ? 'lock' : r.method === 'none' ? 'alert' : 'check', 18)}</span>
+      <span class="grow"><b class="one">${esc(cats[r.j.categoryId]?.name ?? '')}</b><span class="muted one">${day(r.when)} · ${esc(r.j.description)}</span>
+        <span class="muted">${r.method === 'app' ? (r.pending ? 'באפליקציה · ממתין לאישור הלקוח' : `באפליקציה${r.fee ? ` · אחרי עמלה ${ils(r.fee)}` : ''}`) : PAY[r.method]}</span></span>
+      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="amt ${r.pending ? '' : 'pos'}">${ils(r.amount)}</span>
+        ${r.method === 'none' ? `<button type="button" class="btn sm" data-record="${r.j.id}">לרשום</button>` : ''}</span></div>`).join('')}</div>`
+    : `<div class="empty" style="padding:24px">${ic('wallet', 40)}<b>כאן יופיעו העבודות שסיימתם</b>עם הסכום ואיך שולם לכם.</div>`;
+}
+$('#periods').onclick = (e) => { const b = e.target.closest('[data-period]'); if (b) { period = b.dataset.period; renderEarnings(); } };
+
+// How a direct payment reached the pro (cash, Bit, transfer...).
+function payBox(j) {
+  const amount = j.proPayment?.amount ?? j.myOffer?.price ?? '';
+  return `<div class="paybox" data-paybox="${j.id}"><b>איך שולם לך?</b>
+    <div class="row" style="margin-top:8px;align-items:center"><input class="field" data-amount type="number" min="0" inputmode="numeric" value="${esc(amount)}" aria-label="כמה שולם"><span class="muted" style="flex:0 0 auto">ש״ח</span></div>
+    <div class="chips" style="margin-top:8px;flex-wrap:wrap">${['cash', 'bit', 'transfer', 'card', 'other'].map((m) => `<button type="button" class="chip ${j.proPayment?.method === m ? 'on' : ''}" data-paid="${m}">${PAY[m]}</button>`).join('')}</div></div>`;
+}
+async function savePaid(id, method, box) {
+  const amount = $('[data-amount]', box).value;
+  if (amount === '' || +amount < 0) { $('[data-amount]', box).classList.add('bad'); return false; }
+  try { await api(`/api/jobs/${id}/paid`, { method, amount: +amount }); toast('נרשם'); await load(true); return true; }
+  catch (err) { toast(err.message, 'err'); return false; }
+}
+document.addEventListener('click', async (e) => {
+  const rec = e.target.closest('[data-record]');
+  if (rec) {
+    const j = jobs.find((x) => x.id === rec.dataset.record); if (!j) return;
+    const s = sheet(`${sheetHead(esc(cats[j.categoryId]?.name ?? ''))}<p class="muted" style="margin-top:0">${esc(j.description)}</p>${payBox(j)}`);
+    s.el.addEventListener('click', async (ev) => { const b = ev.target.closest('[data-paid]'); if (b && await savePaid(j.id, b.dataset.paid, $('[data-paybox]', s.el))) { s.close(); renderEarnings(); } });
+    return;
+  }
+  const b = e.target.closest('#jobs [data-paid]');
+  if (b) await savePaid(b.closest('[data-job]').dataset.job, b.dataset.paid, b.closest('[data-paybox]'));
+});
+
+// Credit (only when lead fees are on) and the account.
+async function renderAccountBits() {
   const link = `${location.origin}/pro?ref=${me.refCode}`;
   $('#refBox').innerHTML = `<div style="display:flex;gap:12px;align-items:center"><span class="icon-tile" style="background:var(--accent-soft);color:var(--accent)">${ic('users')}</span>
-      <span class="grow"><b style="display:block">25 ש״ח כשהחבר מסיים עבודה ראשונה</b><span class="muted">שלחו את הקישור לבעלי מקצוע שאתם מכירים</span></span></div>
+      <span class="grow"><b style="display:block">הזמינו בעלי מקצוע שאתם מכירים</b><span class="muted">${cfg.leadFees ? '25 ש״ח קרדיט כשהחבר מסיים עבודה ראשונה' : 'שלחו להם את הקישור, ההרשמה בדקה'}</span></span></div>
     <div style="display:flex;gap:8px;margin-top:12px"><span class="reflink">${esc(link)}</span><button type="button" class="btn sm ghost" id="copyRef">${ic('copy', 18)}העתקה</button>
       ${navigator.share ? `<button type="button" class="btn sm ghost" id="shareRef" aria-label="שיתוף">${ic('share', 18)}</button>` : ''}</div>`;
   $('#copyRef').onclick = async () => { try { await navigator.clipboard.writeText(link); toast('הקישור הועתק'); } catch { toast(link); } };
-  if ($('#shareRef')) $('#shareRef').onclick = () => navigator.share({ title: 'ProMarket · מקצוענים', text: 'מצטרפים בדקה ומקבלים 30 ש״ח קרדיט מתנה', url: link }).catch(() => {});
+  if ($('#shareRef')) $('#shareRef').onclick = () => navigator.share({ title: 'ProMarket · מקצוענים', text: 'מקבלים עבודות באזור שלכם. ההרשמה בדקה', url: link }).catch(() => {});
   $('#acct').innerHTML = `<div class="hrow"><span class="hic">${ic('person')}</span><span class="grow"><span class="muted" style="display:block">שם</span>${esc(me.name)}</span></div>`;
+  $('#creditBox').hidden = !cfg.leadFees;
+  if (!cfg.leadFees) return;
+  $('#balVal').textContent = ils(me.balance);
   let history = [];
-  try { history = (await api('/api/pro/wallet')).history.slice().reverse(); } catch {}
+  try { history = (await api('/api/pro/wallet')).history.filter((x) => x.type !== 'payout').slice().reverse(); } catch {}
   const when = (t) => new Date(t).toLocaleString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const jobName = (id) => { const d = jobs.find((x) => x.id === id)?.description; return d ? ` · ${d.length > 28 ? d.slice(0, 28) + '…' : d}` : ''; };
-  $('#history').innerHTML = history.length ? `<div class="list">${history.map((e) => { const [l, i] = LEDGER[e.type] ?? [e.type, 'info'];
-    return `<div class="hrow"><span class="hic">${ic(i, 18)}</span><span class="grow"><b style="display:block">${esc(l)}</b><span class="muted">${when(e.at)}${esc(jobName(e.meta?.jobId))}${e.type === 'payout' ? ' · לא חלק מהקרדיט' : ''}</span></span>
-      <span class="amt ${e.amount > 0 ? 'pos' : ''}"><bdi dir="ltr">${e.amount > 0 ? '+' : '−'}${Math.abs(e.amount).toLocaleString('he-IL', { maximumFractionDigits: 2 })}</bdi>\u00a0ש״ח</span></div>`; }).join('')}</div>`
+  $('#history').innerHTML = history.length ? `<div class="list">${history.map((x) => { const [l, i] = LEDGER[x.type] ?? [x.type, 'info'];
+    return `<div class="hrow"><span class="hic">${ic(i, 18)}</span><span class="grow"><b style="display:block">${esc(l)}</b><span class="muted">${when(x.at)}</span></span>
+      <span class="amt ${x.amount > 0 ? 'pos' : ''}"><bdi dir="ltr">${x.amount > 0 ? '+' : '−'}${Math.abs(x.amount).toLocaleString('he-IL', { maximumFractionDigits: 2 })}</bdi> ש״ח</span></div>`; }).join('')}</div>`
     : `<div class="empty" style="padding:20px">${ic('wallet', 36)}<b>אין תנועות עדיין</b></div>`;
 }
-$('#topup').onclick = async () => {
-  const b = $('#topup'); b.disabled = true;
-  try { await api('/api/pro/wallet/topup', { amount: 100 }); me = await api('/api/pro/me'); toast('נטענו 100 ש״ח קרדיט'); renderHeader(); renderWallet(); renderToday(); }
-  catch (err) { toast(err.message, 'err'); }
-  b.disabled = false;
+$('#deleteAcct').onclick = () => {
+  const s = sheet(`${sheetHead('למחוק את החשבון?')}
+    <p style="margin-top:0">השם, הטלפון, המיקום והמסמכים יימחקו, ולא תקבלו יותר קריאות. אי אפשר לבטל את זה.</p>
+    <p class="muted">אי אפשר למחוק כשיש עבודה בביצוע.</p>
+    <button type="button" class="btn danger" id="doDelete">${ic('alert')}כן, למחוק</button>
+    <button type="button" class="btn ghost" data-close style="margin-top:8px">ביטול</button>`);
+  $('#doDelete', s.el).onclick = async () => {
+    try { await api('/api/me', null, 'DELETE'); s.close(); toast('החשבון נמחק'); $('#logout').click(); }
+    catch (err) { toast(err.message, 'err'); }
+  };
 };
 
-// ---- polling
+// ---- polling and automatic reload when the server was updated
 const jobsBusy = () => document.activeElement?.closest?.('#jobs') && document.activeElement.matches('input,textarea')
-  || $$('#jobs input').some((i) => i.value.trim());
+  || $$('#jobs input').some((i) => i.value.trim() && i.value !== i.defaultValue);
 async function load(force) {
   if (!token || !me) return;
   try {
@@ -1005,8 +1274,17 @@ async function load(force) {
   renderHeader(); renderToday();
   if (view === 'feed') renderFeed();
   if (view === 'jobs' && (force || !jobsBusy())) renderJobs();
-  if (view === 'wallet') $('#balVal').textContent = ils(me.balance);
+  if (view === 'wallet') { renderEarnings(); if (cfg.leadFees) $('#balVal').textContent = ils(me.balance); }
+  popupWatch();
   maybePop();
+}
+let build = null;
+async function checkBuild() {
+  try {
+    const v = await fetch('/api/version', { cache: 'no-store' }).then((r) => r.json());
+    if (build && v.build !== build && !popup && !$('.scrim') && !jobsBusy() && view !== 'domains') location.reload();
+    build = build ?? v.build;
+  } catch {}
 }
 async function boot() {
   if (!tree.length) {
@@ -1016,19 +1294,21 @@ async function boot() {
       for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, parentName: p.name, requirement: s.requirement ?? p.requirement };
     }
   }
+  cfg = await api('/api/config').catch(() => cfg);
   if (!token) return;
   try {
     [me, providers] = await Promise.all([api('/api/pro/me'), api('/api/catalog/providers')]);
     renderHeader(); go(view); await load(true);
     // keep the pro's position fresh each time the app opens (matters for couriers)
-    refreshLoc().then((l) => l && api('/api/pro/location', l, 'PUT').catch(() => {}));
+    refreshLoc().then((l) => l && api('/api/pro/location', l, 'PUT').then(() => { fitted = false; load(); }).catch(() => {}));
   } catch (err) { console.error(err); }
 }
 showShell(); boot().catch(() => toast('אין חיבור לשרת', 'err'));
 setInterval(load, 5000);
+checkBuild(); setInterval(checkBuild, 60000);
 // While available, refresh the position every minute so requests follow the pro (couriers move).
 setInterval(() => { if (me?.available) refreshLoc().then((l) => l && api('/api/pro/location', l, 'PUT').catch(() => {})); }, 60000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); checkBuild(); } });
 </script>
 </body>
 </html>
