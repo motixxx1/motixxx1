@@ -63,6 +63,22 @@
 
   /* choices: one big row per option, no tiles */
   .choices{display:flex;flex-direction:column;gap:10px}
+  main[data-view="home"]{background:#f4f1ea}
+  .bhead{font-size:28px;font-weight:900;letter-spacing:-.5px;margin:2px 0 16px}
+  .bento{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:118px;gap:10px}
+  .bt{border:0;border-radius:28px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:right;font:inherit;cursor:pointer;position:relative;overflow:hidden}
+  .bt b{font-size:17px;font-weight:800;line-height:1.15}
+  .bt.big{grid-row:span 2;background:var(--brand);color:#fff}
+  .bt.big b{font-size:26px;font-weight:900;line-height:1.05}
+  .bt .bdg{font-size:13px;font-weight:600;background:rgba(255,255,255,.22);padding:5px 10px;border-radius:12px}
+  .bt .bg-ico{position:absolute;left:-18px;bottom:-14px;color:rgba(255,255,255,.28)}
+  .bt.wide{grid-column:span 2;background:#1b1a20;color:#fff;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px}
+  .bt.wide small{display:block;font-size:13px;color:#c9c6d3;font-weight:400}
+  .bt .sq{width:54px;height:54px;border-radius:18px;background:#c6f36b;color:#1b1a20;display:flex;align-items:center;justify-content:center;flex:none}
+  .more-h{font-size:17px;font-weight:800;margin:22px 4px 10px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px}
+  .pills button{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;border:1px solid #e6e1d6;background:#fff;font:inherit;font-size:15px;font-weight:600;color:#1b1a20;cursor:pointer}
+  .pills button .i{color:var(--brand-ink)}
   .choice{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:12px 16px;border-radius:20px;border:2px solid var(--line);background:var(--card);text-align:right;cursor:pointer}
   .choice:active{border-color:var(--brand);background:var(--brand-soft)}
   .choice.plain{min-height:66px}
@@ -205,10 +221,18 @@
     <main data-view="home">
       <div class="muted" id="hello" style="font-size:19px"></div>
       <div id="homeJobs"></div>
-      <button type="button" class="qban" id="queueBan"><svg viewBox="0 0 120 64" width="120" height="64" aria-hidden="true"><g fill="#d9dcE6"><circle cx="100" cy="18" r="9"/><path d="M86 56c0-12 6-20 14-20s14 8 14 20z"/><circle cx="70" cy="18" r="9"/><path d="M56 56c0-12 6-20 14-20s14 8 14 20z"/></g><g fill="#ff6a00"><circle cx="38" cy="14" r="11"/><path d="M20 58c0-15 8-25 18-25s18 10 18 25z"/></g><path d="M31 15l5 5 9-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>לא בא לכם לעמוד בתור?</b><small>מישהו יעמוד במקומכם. בנק, משרד ממשלתי, קופת חולים</small></span></button>
-      <h1>במה אפשר לעזור?</h1>
-      <div class="choices" id="groups"></div>
-      <h2 style="font-size:19px;font-weight:500;color:var(--muted);margin:24px 0 10px">לא מצאתם? חפשו</h2>
+      <h1 class="bhead">במה נעזור היום?</h1>
+      <div class="bento" id="bento">
+        <button type="button" class="bt big" data-group="fix"><span class="bdg">הכי נפוץ</span><span class="bg-ico"></span><b>משהו<br>התקלקל<br>בבית</b></button>
+        <button type="button" class="bt" data-pick="errands.queue" style="background:#d9ecff;color:#12245c"><span class="ti" style="color:#1d4ed8"></span><b>לעמוד בתור במקומי</b></button>
+        <button type="button" class="bt" data-group="errand" style="background:#ffe58a;color:#3d2a00"><span class="ti" style="color:#7a5200"></span><b>משלוח או סידור</b></button>
+        <button type="button" class="bt wide" data-pick="errands.home_wait"><span class="sq"></span><span><b>מישהו שיחכה בבית</b><small>לטכנאי, למשלוח גדול, להובלה</small></span></button>
+        <button type="button" class="bt" data-group="home" style="background:#ffd9e4;color:#4a0a24"><span class="ti" style="color:#9d174d"></span><b>ניקיון ועזרה בבית</b></button>
+        <button type="button" class="bt" data-group="tech" style="background:#d6f5e3;color:#063b2a"><span class="ti" style="color:#047857"></span><b>טלפון ומחשב</b></button>
+      </div>
+      <h2 class="more-h">עוד שירותים</h2>
+      <div class="pills" id="groups"></div>
+      <h2 class="more-h">חיפוש בכל השירותים</h2>
       <label class="search"><span data-i="search" data-s="24"></span><input id="homeSearch" placeholder="למשל: אינסטלטור, שליח, עורך דין" autocomplete="off" aria-label="חיפוש"></label>
     </main>
 
@@ -492,9 +516,17 @@ async function uploadPicked(list, onStep) {
 }
 
 // ---- home
-$('#groups').innerHTML = GROUPS.map((g) => `<button type="button" class="choice" data-group="${g.id}"><span class="ico">${ic(g.icon, 26)}</span>
-    <span class="txt"><b>${g.title}</b><small>${g.sub}</small></span><span class="go">${ic('chev')}</span></button>`).join('')
-  + `<button type="button" class="choice" data-pick="other.general"><span class="ico">${ic('dots', 26)}</span><span class="txt"><b>משהו אחר</b><small>ספרו במילים שלכם</small></span><span class="go">${ic('chev')}</span></button>`;
+// bento tiles (icons filled in here) + the other groups as pills
+{
+  const B = $('#bento'), q = '<path d="M7 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4M17 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4M4 21v-8a3 3 0 0 1 6 0v8M14 21v-8a3 3 0 0 1 6 0v8"/>';
+  const truck = '<path d="M3 7h11v10H3zM14 10h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>';
+  B.querySelector('.bg-ico').innerHTML = ic('wrench', 130);
+  const ti = B.querySelectorAll('.ti'); [q, truck, ic('sparkle', 30), ic('mobile', 30)].forEach((x, k) => { ti[k].innerHTML = x.startsWith('<svg') ? x : ic(x, 30); });
+  B.querySelector('.sq').innerHTML = ic('home', 30);
+  B.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.group) startFlow({ group: b.dataset.group }); else startFlow({ categoryId: b.dataset.pick }); };
+}
+$('#groups').innerHTML = GROUPS.filter((g) => !['fix', 'errand', 'home', 'tech'].includes(g.id)).map((g) => `<button type="button" data-group="${g.id}">${ic(g.icon, 20)}${g.title}</button>`).join('')
+  + `<button type="button" data-pick="other.general">${ic('dots', 20)}משהו אחר</button>`;
 $('#groups').onclick = (e) => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.group) startFlow({ group: b.dataset.group }); else startFlow({ categoryId: b.dataset.pick });
@@ -529,7 +561,6 @@ function reqCard(j) {
     <span class="status ${cls}"><i></i>${esc(s)}</span>
     ${needsMe(j) ? `<span class="btn" style="margin-top:8px;min-height:54px;font-size:18px">${j.status === 'open' ? 'לראות את ההצעות' : j.status === 'completed' ? 'לאשר' : 'לדרג'}</span>` : ''}</button>`;
 }
-$('#queueBan').onclick = () => startFlow({ categoryId: 'errands.queue' });
 function queuePromo() {
   if (store.get('queuePromo') || $('.scrim')) return;
   store.set('queuePromo', '1');
