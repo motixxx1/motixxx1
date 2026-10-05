@@ -7,9 +7,9 @@ name: iPhone apps (iOS)
 #   ASC_ISSUER_ID     – Issuer ID shown above the keys list
 #   ASC_KEY_P8        – the downloaded AuthKey_XXXX.p8 file, pasted as text
 # Without them the apps are still built (not signed), to check that they compile.
+# Run by hand (Actions > iPhone apps > Run workflow): in a private repository a Mac minute
+# counts as 10 of the free monthly minutes, so it doesn't run on every push.
 on:
-  push:
-    paths: ['mobile/**', '.github/workflows/ios.yml']
   workflow_dispatch:
 
 permissions:
