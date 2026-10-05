@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'api.dart';
@@ -17,7 +19,38 @@ class _LoginScreenState extends State<LoginScreen> {
   final code = TextEditingController();
   final ref = TextEditingController();
   bool codeSent = false, busy = false;
-  String err = '';
+  String err = '', note = '';
+  int wait = 0; // seconds until "send again" is allowed
+  Timer? timer;
+
+  void startWait() {
+    timer?.cancel();
+    setState(() => wait = 30);
+    timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || wait <= 1) { t.cancel(); if (mounted) setState(() => wait = 0); return; }
+      setState(() => wait--);
+    });
+  }
+
+  Future<void> resend() async {
+    setState(() { err = ''; note = ''; busy = true; });
+    try {
+      final r = asMap(await Api.post('/api/auth/request', {'phone': phone.text.trim()}));
+      if (r['devCode'] != null) code.text = r['devCode'].toString();
+      setState(() => note = 'שלחנו קוד חדש');
+      startWait();
+    } on ApiError catch (e) {
+      setState(() => err = e.message);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -26,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> submit() async {
-    setState(() => err = '');
+    setState(() { err = ''; note = ''; });
     if (name.text.trim().isEmpty) {
       setState(() => err = 'כתבו את השם שלכם');
       return;
@@ -41,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final r = asMap(await Api.post('/api/auth/request', {'phone': phone.text.trim()}));
         if (r['devCode'] != null) code.text = r['devCode'].toString(); // demo server only
         setState(() => codeSent = true);
+        startWait();
       } else {
         if (code.text.trim().isEmpty) {
           setState(() => err = 'כתבו את הקוד מההודעה');
@@ -109,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: const TextStyle(letterSpacing: 4, fontSize: 22),
               ),
             ],
+            if (note.isNotEmpty && err.isEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(note, style: TextStyle(color: Pal.ok, fontSize: 15 * fs))),
             if (err.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(err, style: TextStyle(color: Pal.hot, fontSize: 15 * fs))),
             const SizedBox(height: 22),
             FilledButton(
@@ -118,10 +153,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   : Text(codeSent ? 'כניסה' : 'שלחו לי קוד'),
             ),
             if (codeSent)
-              TextButton(
-                onPressed: busy ? null : () => setState(() { codeSent = false; code.clear(); }),
-                child: const Text('לשנות מספר / לשלוח קוד שוב'),
-              ),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                TextButton(
+                  onPressed: busy || wait > 0 ? null : resend,
+                  child: Text(wait > 0 ? 'שליחת הקוד שוב ($wait)' : 'שליחת הקוד שוב'),
+                ),
+                TextButton(
+                  onPressed: busy ? null : () { timer?.cancel(); setState(() { codeSent = false; wait = 0; note = ''; code.clear(); }); },
+                  child: const Text('שינוי מספר'),
+                ),
+              ]),
             const SizedBox(height: 24),
             Wrap(alignment: WrapAlignment.center, spacing: 16, children: [
               TextButton(onPressed: () => openLink(Api.url('/privacy')), child: const Text('מדיניות פרטיות')),

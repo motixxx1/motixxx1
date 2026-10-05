@@ -32,7 +32,14 @@ export class Auth {
     const review = this.review.get(phone);
     const code = review ?? String(randomInt(100000, 1000000));
     this.codes.set(phone, { code, exp: Date.now() + this.codeTtlMs, sentAt: Date.now(), attempts: 0 });
-    if (!review) await this.sendSms(phone, `קוד הכניסה לזריז: ${code}`);
+    if (!review) {
+      try { await this.sendSms(phone, `קוד הכניסה לזריז: ${code}`); }
+      catch (e) {
+        this.codes.delete(phone);
+        console.warn(`[sms] ${phone}: ${e.message}`);
+        fail('sms_failed', 'Could not send the SMS');
+      }
+    }
     return { phone, code };
   }
 

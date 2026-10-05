@@ -184,6 +184,9 @@
         <label class="lb" for="lPhone">מספר טלפון נייד</label><input class="field" id="lPhone" name="phone" inputmode="tel" autocomplete="tel" style="direction:ltr;text-align:right">
         <div id="codeRow" hidden><label class="lb" for="lCode">הקוד שקיבלתם ב-SMS</label><input class="field" id="lCode" name="code" inputmode="numeric" autocomplete="one-time-code" style="direction:ltr;text-align:right;letter-spacing:4px"></div>
         <div class="err" id="loginErr" role="alert"></div>
+        <div id="resendRow" hidden style="justify-content:space-between;gap:12px;margin-top:12px;font-size:15px">
+          <button type="button" id="resendBtn" style="background:none;border:0;padding:6px 0;font:inherit;font-weight:700;color:#c94400;cursor:pointer">שליחת הקוד שוב</button>
+          <button type="button" id="changePhone" style="background:none;border:0;padding:6px 0;font:inherit;color:#5b6275;cursor:pointer">שינוי מספר</button></div>
         <button class="btn" id="loginBtn" style="margin-top:22px">שלחו לי קוד</button>
       </form>
       <p style="text-align:center;margin-top:32px"><a href="/pro" style="color:#0f766e;font-weight:500">יש לכם מקצוע? הצטרפו כמקצוענים</a></p>
@@ -336,7 +339,7 @@ const PHOTO_PARENTS = ['plumbing', 'electric', 'renovation', 'carpentry', 'locks
 const MODE_ASK = { onsite: ['home', 'שיבוא אליי', 'מקצוען מגיע לכתובת שלכם'], phone: ['phone', 'בשיחת טלפון', 'בלי שמישהו יגיע'],
   remote: ['monitor', 'מרחוק', 'דרך המחשב או שיחת וידאו'], delivery: ['box', 'לאסוף ולהביא', 'ממקום אחד למקום אחר'] };
 const MODE = { onsite: 'אצלי', remote: 'מרחוק', phone: 'בטלפון', delivery: 'איסוף ומשלוח' };
-const ERR = { bad_phone: 'מספר הטלפון לא נכון', bad_code: 'הקוד לא נכון', code_expired: 'הקוד כבר לא בתוקף. בקשו קוד חדש', too_soon: 'חכו רגע לפני שמבקשים קוד נוסף',
+const ERR = { bad_phone: 'מספר הטלפון לא נכון', bad_code: 'הקוד לא נכון', code_expired: 'הקוד כבר לא בתוקף. בקשו קוד חדש', too_soon: 'חכו רגע לפני שמבקשים קוד נוסף', sms_failed: 'לא הצלחנו לשלוח SMS כרגע. נסו שוב בעוד דקה',
   too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש', bad_name: 'צריך שם', bad_description: 'צריך לכתוב מה צריך', bad_location: 'לא הצלחנו למצוא את הכתובת',
   bad_dropoff: 'צריך כתובת איסוף וכתובת מסירה', closed: 'הקריאה כבר נסגרה', price_required: 'בתשלום מאובטח אפשר לבחור רק הצעה עם מחיר',
   traveler_required: 'נא למלא שם ואימייל של הנוסע', already_rated: 'כבר דירגתם', supplier_error: 'הספק לא זמין כרגע. נסו שוב',
@@ -392,6 +395,23 @@ $('nav.bottom').onclick = (e) => { const b = e.target.closest('[data-go]'); if (
 $('#backBtn').onclick = () => (view === 'flow' ? flowBack() : go(backTo ?? 'home'));
 $('#toBoard').onclick = () => go('board', 'account');
 
+
+// Resend: a new code after 30 s; "change number" goes back to the first step.
+let resendT = null;
+function resendTimer() {
+  const b = $('#resendBtn'); let left = 30; clearInterval(resendT);
+  $('#resendRow').hidden = false; $('#resendRow').style.display = 'flex';
+  const tick = () => { b.disabled = left > 0; b.style.opacity = left > 0 ? .5 : 1; b.textContent = left > 0 ? `שליחת הקוד שוב (${left})` : 'שליחת הקוד שוב'; if (left-- <= 0) clearInterval(resendT); };
+  tick(); resendT = setInterval(tick, 1000);
+}
+$('#resendBtn').onclick = async () => {
+  $('#loginErr').textContent = '';
+  try { const res = await api('/api/auth/request', { phone: $('#lPhone').value }); if (res.devCode) $('#lCode').value = res.devCode;
+    $('#loginErr').textContent = 'שלחנו קוד חדש'; resendTimer(); }
+  catch (err) { $('#loginErr').textContent = err.message; }
+};
+$('#changePhone').onclick = () => { clearInterval(resendT); $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none';
+  $('#lCode').value = ''; $('#loginBtn').textContent = 'שלחו לי קוד'; $('#loginErr').textContent = ''; $('#lPhone').focus(); };
 $('#loginForm').onsubmit = async (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(e.target));
@@ -402,7 +422,7 @@ $('#loginForm').onsubmit = async (e) => {
   try {
     if ($('#codeRow').hidden) {
       const res = await api('/api/auth/request', { phone: d.phone });
-      $('#codeRow').hidden = false; btn.textContent = 'כניסה';
+      $('#codeRow').hidden = false; btn.textContent = 'כניסה'; resendTimer();
       if (res.devCode) e.target.code.value = res.devCode; // dev mode only
       else $('#lCode').focus();
     } else {
@@ -415,7 +435,7 @@ $('#loginForm').onsubmit = async (e) => {
   btn.disabled = false;
 };
 for (const id of ['lName', 'lPhone', 'lCode']) $('#' + id).addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#loginErr').textContent = ''; });
-$('#logout').onclick = () => { token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
+$('#logout').onclick = () => { token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none'; clearInterval(resendT); $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
 $('#deleteAcct').onclick = () => {
   const s = sheet(`<div class="shead"><h2>למחוק את החשבון?</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
     <p>השם, הטלפון והקריאות הפתוחות שלכם יימחקו. אי אפשר לבטל את זה.</p>

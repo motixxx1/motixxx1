@@ -317,6 +317,9 @@
         <label class="lb" for="lRef">קוד חבר שהזמין אותך <span class="opt">לא חובה</span></label><input class="field" id="lRef" name="referralCode" autocomplete="off">
         <div id="codeRow" hidden><label class="lb" for="lCode">הקוד מה-SMS</label><input class="field" id="lCode" name="code" inputmode="numeric" autocomplete="one-time-code" style="direction:ltr;text-align:right"></div>
         <div class="err" id="loginErr" role="alert"></div>
+        <div id="resendRow" hidden style="justify-content:space-between;gap:12px;margin-top:12px;font-size:15px">
+          <button type="button" id="resendBtn" style="background:none;border:0;padding:6px 0;font:inherit;font-weight:700;color:#c94400;cursor:pointer">שליחת הקוד שוב</button>
+          <button type="button" id="changePhone" style="background:none;border:0;padding:6px 0;font:inherit;color:#5b6275;cursor:pointer">שינוי מספר</button></div>
         <button class="btn" id="loginBtn" style="margin-top:18px">שלחו לי קוד</button>
       </form>
       <p style="text-align:center;margin-top:28px"><a href="/" style="font-weight:700">צריכים מקצוען? לאפליקציית הלקוחות</a></p>
@@ -547,7 +550,7 @@ const ERR = { insufficient_credit: 'אין מספיק קרדיט', full: 'כל �
   in_app_required: 'מוצרים מהקטלוג רק בתשלום באפליקציה', bad_radius: 'רדיוס 1 עד 500 ק״מ', bad_mode: 'בחרו לפחות אופן עבודה אחד',
   payments_disabled: 'טעינת קרדיט עוד לא פתוחה בשרת הזה', signature_required: 'נדרשת חתימת לקוח', empty_log: 'כתבו מה עשיתם',
   booking_pending: 'ההזמנה אצל הספק עוד לא אושרה', bad_transition: 'אי אפשר לעבור לשלב הזה עכשיו',
-  bad_phone: 'מספר טלפון לא תקין', bad_code: 'הקוד שגוי', code_expired: 'פג תוקף הקוד. בקשו קוד חדש', too_soon: 'חכו רגע לפני בקשת קוד נוסף',
+  bad_phone: 'מספר טלפון לא תקין', bad_code: 'הקוד שגוי', code_expired: 'פג תוקף הקוד. בקשו קוד חדש', too_soon: 'חכו רגע לפני בקשת קוד נוסף', sms_failed: 'לא הצלחנו לשלוח SMS כרגע. נסו שוב בעוד דקה',
   too_many_attempts: 'יותר מדי ניסיונות. בקשו קוד חדש' };
 const FEED_F = [['all', 'הכל'], ['fixed', 'מחיר קבוע'], ['urgent', 'דחוף'], ['onsite', 'אצל הלקוח'], ['delivery', 'משלוחים'], ['remote', 'מרחוק'], ['phone', 'בטלפון']];
 const JOBS_F = [['all', 'הכל'], ['won', 'נבחרו בי'], ['road', 'בדרך'], ['work', 'בטיפול'], ['wait', 'ממתינות ללקוח'], ['done', 'נסגרו'], ['lost', 'נדחו']];
@@ -607,6 +610,23 @@ function go(v) {
 }
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g && !g.closest('.scrim')) { if (g.dataset.jobs) jobsF = g.dataset.jobs; go(g.dataset.go); } });
 
+
+// Resend: a new code after 30 s; "change number" goes back to the first step.
+let resendT = null;
+function resendTimer() {
+  const b = $('#resendBtn'); let left = 30; clearInterval(resendT);
+  $('#resendRow').hidden = false; $('#resendRow').style.display = 'flex';
+  const tick = () => { b.disabled = left > 0; b.style.opacity = left > 0 ? .5 : 1; b.textContent = left > 0 ? `שליחת הקוד שוב (${left})` : 'שליחת הקוד שוב'; if (left-- <= 0) clearInterval(resendT); };
+  tick(); resendT = setInterval(tick, 1000);
+}
+$('#resendBtn').onclick = async () => {
+  $('#loginErr').textContent = '';
+  try { const res = await api('/api/auth/request', { phone: $('#lPhone').value }); if (res.devCode) $('#lCode').value = res.devCode;
+    $('#loginErr').textContent = 'שלחנו קוד חדש'; resendTimer(); }
+  catch (err) { $('#loginErr').textContent = err.message; }
+};
+$('#changePhone').onclick = () => { clearInterval(resendT); $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none';
+  $('#lCode').value = ''; $('#loginBtn').textContent = 'שלחו לי קוד'; $('#loginErr').textContent = ''; $('#lPhone').focus(); };
 $('#loginForm').onsubmit = async (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(e.target));
@@ -617,7 +637,7 @@ $('#loginForm').onsubmit = async (e) => {
   try {
     if ($('#codeRow').hidden) {
       const res = await api('/api/auth/request', { phone: d.phone });
-      $('#codeRow').hidden = false; btn.textContent = 'כניסה';
+      $('#codeRow').hidden = false; btn.textContent = 'כניסה'; resendTimer();
       if (res.devCode) e.target.code.value = res.devCode; // dev mode only
       else $('#lCode').focus();
     } else {
@@ -632,7 +652,7 @@ $('#loginForm').onsubmit = async (e) => {
 };
 $('#logout').onclick = () => {
   token = null; me = null; store.set('proToken', null);
-  $('#codeRow').hidden = true; $('#loginBtn').textContent = 'שלחו לי קוד'; availShown = null; showShell();
+  $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none'; clearInterval(resendT); $('#loginBtn').textContent = 'שלחו לי קוד'; availShown = null; showShell();
 };
 
 // ---- header + today: full-screen map with a bottom panel (Wolt Partner style)

@@ -37,6 +37,7 @@ const errText = <String, String>{
   'bad_code': 'הקוד לא נכון',
   'code_expired': 'הקוד כבר לא בתוקף. בקשו קוד חדש',
   'too_soon': 'חכו רגע לפני שמבקשים קוד נוסף',
+  'sms_failed': 'לא הצלחנו לשלוח SMS כרגע. נסו שוב בעוד דקה',
   'too_many_attempts': 'יותר מדי ניסיונות. בקשו קוד חדש',
   'bad_name': 'צריך שם',
   'bad_description': 'צריך לכתוב מה צריך',
