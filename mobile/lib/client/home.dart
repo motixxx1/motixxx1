@@ -23,7 +23,7 @@ const groups = <Group>[
   Group('errand', Icons.shopping_bag_rounded, 'משלוח או סידור', 'קניות, תרופות, דואר, בנק', 'למשל: לקנות לחם, חלב וביצים ולהביא הביתה', [
     ['delivery.groceries', 'קניות מהסופר או מהמכולת'], ['delivery.pharmacy', 'תרופות מבית המרקחת'], ['delivery.food', 'אוכל ממסעדה'],
     ['delivery.package', 'חבילה או מסמכים'], ['errands.queue', 'לעמוד בתור במקומי'], ['errands.post', 'דואר ודואר רשום'],
-    ['errands.office', 'סידור בבנק או במשרד ממשלתי'],
+    ['errands.office', 'סידור בבנק או במשרד ממשלתי'], ['errands.home_wait', 'מישהו שיחכה בבית לטכנאי'],
   ]),
   Group('home', Icons.cleaning_services_rounded, 'ניקיון ועזרה בבית', 'ניקיון, רהיטים, תלייה, הובלה', 'למשל: ניקיון דירת 3 חדרים, פעם אחת', [
     ['cleaning.home', 'ניקיון הבית'], ['cleaning.windows', 'ניקוי חלונות'], ['cleaning.ironing', 'כביסה וגיהוץ'],

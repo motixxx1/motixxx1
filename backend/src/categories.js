@@ -26,6 +26,7 @@ export const CATEGORIES = [
     { id: 'errands.queue', name: 'עמידה בתור במקומך' },
     { id: 'errands.post', name: 'איסוף/שליחת דואר ודואר רשום' },
     { id: 'errands.office', name: 'סידורים במשרדי ממשלה / בנק' },
+    { id: 'errands.home_wait', name: 'המתנה בבית לטכנאי או למשלוח (מעל גיל 18)' },
     { id: 'errands.personal_shopper', name: 'קניות אישיות' },
     { id: 'errands.elderly_companion', name: 'ליווי מבוגרים לבדיקות ולסידורים' },
   ] },
