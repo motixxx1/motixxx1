@@ -21,11 +21,15 @@ import { createUpdater } from './updater.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (existsSync(join(root, 'config.env'))) process.loadEnvFile(join(root, 'config.env'));
 
-// DEMO_MODE=1 keeps the dev conveniences (test top-ups, mock suppliers, and — while no SMS
-// provider is configured — the login code shown on screen) on a public server.
-// Without an SMS provider anyone can log in as any phone number: demo data only!
+// Real mode by default. DEMO_MODE=1 (or NODE_ENV=development) turns on the test conveniences:
+// free credit top-ups, mock suppliers and the login code shown on screen. They are turned off
+// automatically once an SMS provider is configured, so a live server can never hand out
+// free credit.
 const env = process.env;
-const dev = env.NODE_ENV !== 'production' || env.DEMO_MODE === '1';
+const smsConfigured = Boolean(env.SMS_HTTP_URL || (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM));
+const dev = (env.DEMO_MODE === '1' || env.NODE_ENV === 'development') && !smsConfigured;
+if ((env.DEMO_MODE === '1' || env.NODE_ENV === 'development') && smsConfigured)
+  console.warn('[demo] DEMO_MODE ignored: an SMS provider is configured, running in real mode');
 const dataFile = env.DATA_FILE ? resolve(env.DATA_FILE) : join(root, 'data', 'state.json');
 
 // Token signing key: AUTH_SECRET, or one generated on first start and kept next to the data,

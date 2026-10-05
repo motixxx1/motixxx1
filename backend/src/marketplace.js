@@ -146,7 +146,7 @@ export class Marketplace {
 
   // ---- Wallet ----
   topUp(proId, amount, method = 'card') {
-    if (!(amount > 0)) fail('bad_amount', 'Amount must be positive');
+    if (!(amount > 0) && !(amount < 0 && String(method).startsWith('admin:'))) fail('bad_amount', 'Amount must be positive');
     const pro = this.#pro(proId);
     pro.balance += amount;
     return this.#record(proId, 'topup', amount, { method });

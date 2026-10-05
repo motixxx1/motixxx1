@@ -76,3 +76,10 @@ DuckDNS כשכתובת ה-IP של הבית משתנה.
 * מוסיפים ל-config.env את השורה GITHUB_TOKEN=... ומפעילים מחדש.
 * קישורי ההורדה לאפליקציות: https://zarizapp.duckdns.org/download/ProMarket-client.apk
   ו-https://zarizapp.duckdns.org/download/ProMarket-pro.apk
+
+קרדיט למקצוענים
+* מקצוען לא יכול להטעין לעצמו קרדיט בחינם. קרדיט נכנס רק בשתי דרכים:
+  תשלום דרך ספק סליקה (TOPUP_URL), או מנהל שמוסיף אותו ידנית.
+* דף ניהול: https://zarizapp.duckdns.org/admin – נכנסים עם טלפון שמופיע ב-ADMIN_PHONES וקוד ב-SMS,
+  מחפשים את המקצוען ומוסיפים או מורידים קרדיט. כל פעולה נרשמת בהיסטוריה שלו.
+* מצב דמו (DEMO_MODE=1) נכבה אוטומטית כשמוגדר ספק SMS.

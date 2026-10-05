@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 const STATUS = { not_found: 404, forbidden: 403, unauthorized: 401, too_soon: 429, too_many_attempts: 429,
   supplier_error: 502, booking_failed: 502, payments_disabled: 501, taken: 409 };
-const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html' };
+const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/pro': 'pro.html', '/pro.html': 'pro.html', '/admin': 'admin.html' };
 // Privacy policy, terms and account deletion: public pages the app stores link to.
 const LEGAL = { '/privacy': 'privacy.html', '/terms': 'terms.html', '/delete-account': 'delete-account.html' };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -165,6 +165,18 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     pro.documents.filter((d) => d.status === 'pending').map((d) => ({ proId: pro.id, proName: pro.name, ...d }))));
   on('POST', '/api/admin/pros/:id/documents/:doc/approve', 'admin', ({ p }) => market.approveDocument(p[0], p[1]));
   on('POST', '/api/admin/partners', 'admin', ({ body }) => partners.create(body));
+  // Credit is added only by the payment provider (webhook) or by an admin here, e.g. after a
+  // pro paid by bank transfer or Bit.
+  on('GET', '/api/admin/pros', 'admin', () => [...market.pros.values()].map((p) => ({
+    id: p.id, name: p.name, phone: p.phone, balance: p.balance, categories: p.categories ?? [] })));
+  on('POST', '/api/admin/pros/:id/credit', 'admin', ({ p, body, me }) => {
+    const amount = Number(body.amount);
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) fail('bad_amount', 'Amount must be a whole number up to 10,000');
+    const pro = market.getPro(p[0]);
+    if (amount < 0 && pro.balance + amount < 0) fail('bad_amount', 'Balance cannot go below zero');
+    market.topUp(p[0], amount, `admin:${me}`);
+    return { balance: market.getPro(p[0]).balance };
+  });
 
   return async (req, res) => {
     const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
