@@ -91,3 +91,12 @@ SMS דרך SMSAPI (smsapi.com)
     SMSAPI_FROM=Zariz
   ומפעילים מחדש. SMSAPI קודם ל-Twilio אם שניהם מוגדרים.
 * בדיקה בלי לשלוח ובלי לשלם: SMSAPI_TEST=1 (להסיר אחרי הבדיקה).
+
+SMS דרך SMS4Free (sms4free.co.il)
+* ב-config.env:
+    SMS4FREE_KEY=מפתח ה-API מהחשבון
+    SMS4FREE_USER=הנייד שאיתו נרשמתם
+    SMS4FREE_PASS=הסיסמה לחשבון
+    SMS4FREE_SENDER=Zariz   (שם או מספר שולח מאושר בחשבון)
+  ומפעילים מחדש. SMS4Free קודם לכל ספק אחר אם הוא מוגדר.
+* אם הקוד לא מגיע, ביומן השרת תופיע שורה SMS failed עם הסיבה (למשל -1 פרטים שגויים, -2 שולח לא מאושר, -4 נגמרה החבילה).

@@ -34,6 +34,25 @@ export function smsapiSms({ token, from = '', test = false, fetchImpl = fetch })
   };
 }
 
+// SMS4Free (sms4free.co.il): API key from the account, the account's mobile number (user) and
+// password (pass), and the sender (a name or number approved in the account). The reply is a
+// number: the count of messages sent, or a negative error code.
+export function sms4freeSms({ key, user, pass, sender, url = 'https://api.sms4free.co.il/ApiSMS/v2/SendSMS', fetchImpl = fetch }) {
+  const local = (p) => (String(p).startsWith('972') ? '0' + String(p).slice(3) : String(p));
+  return async (phone, text) => {
+    const body = JSON.stringify({ key, user: local(user.replace(/\D/g, '')), pass, sender, recipient: local(phone), msg: text });
+    let r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    if (r.status === 404 && url.includes('/v2/')) r = await fetchImpl(url.replace('/v2/', '/'), { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    const raw = await r.text();
+    let data = raw; try { data = JSON.parse(raw); } catch {}
+    const code = typeof data === 'number' ? data : Number(data?.status ?? data?.d ?? data);
+    if (!r.ok || !(code > 0)) {
+      const why = { '-1': 'key, user or pass is wrong', '-2': 'sender not approved', '-3': 'recipient invalid', '-4': 'no SMS left in the package', '-5': 'message invalid' }[String(code)] ?? '';
+      throw new Error(`SMS failed: ${r.status} ${raw.slice(0, 200)} ${why}`);
+    }
+  };
+}
+
 // Any SMS gateway with an HTTP API (most Israeli providers: 019, InforU, Cellact, Micropay...).
 // The URL / body are templates: {phone} = 972501234567, {phone0} = 0501234567, {text} = the message.
 //   SMS_HTTP_URL=https://gateway.example/send?user=X&pass=Y&to={phone0}&msg={text}   (GET)
