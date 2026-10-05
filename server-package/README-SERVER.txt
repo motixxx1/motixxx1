@@ -68,3 +68,11 @@ DuckDNS כשכתובת ה-IP של הבית משתנה.
 * השרת צריך כתובת ציבורית עם HTTPS (למשל Render, ראו render.yaml בפרויקט).
 * ממלאים BUSINESS_NAME ו-SUPPORT_EMAIL: הם מופיעים במדיניות הפרטיות (/privacy),
   בתנאי השימוש (/terms) ובעמוד מחיקת החשבון (/delete-account).
+
+מאגר פרטי ב-GitHub
+* כשהמאגר פרטי, השרת צריך הרשאת קריאה כדי לקבל עדכונים ולהגיש את קובצי ה-APK לטלפונים.
+* GitHub > Settings > Developer settings > Fine-grained tokens > Generate new token:
+  Repository access: רק motixxx1, Permissions > Contents: Read-only.
+* מוסיפים ל-config.env את השורה GITHUB_TOKEN=... ומפעילים מחדש.
+* קישורי ההורדה לאפליקציות: https://zarizapp.duckdns.org/download/ProMarket-client.apk
+  ו-https://zarizapp.duckdns.org/download/ProMarket-pro.apk

@@ -37,7 +37,7 @@ Future<J?> currentLocation({bool precise = false}) async {
   }
 }
 
-/// APKs from GitHub: offer the newer APK when the server says there is one.
+/// APKs downloaded from our server: offer the newer APK when the server says there is one.
 /// (Google Play builds update through the store.)
 Future<void> checkForUpdate(BuildContext context) async {
   if (!sideload) return;
@@ -51,7 +51,7 @@ Future<void> checkForUpdate(BuildContext context) async {
         text: 'יש גרסה חדשה. מורידים, מתקינים, וזהו. הנתונים והחשבון נשארים.',
         ok: 'להורדה');
     if (go) {
-      await openLink('https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/ProMarket-$appKind.apk');
+      await openLink(Api.url('/download/ProMarket-$appKind.apk'));
     } else {
       await Api.prefs.setInt('update_dismissed', latest);
     }

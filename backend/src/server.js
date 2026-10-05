@@ -12,6 +12,7 @@ import { providersFromEnv } from './providers/index.js';
 import { createFileStore } from './store.js';
 import { nominatimGeocoder, nominatimReverse, maptilerGeocoder, maptilerReverse, mapTiles } from './geocode.js';
 import { twilioSms, httpSms } from './sms.js';
+import { releaseSource } from './releases.js';
 import { Media } from './media.js';
 import { createUpdater } from './updater.js';
 
@@ -84,8 +85,9 @@ const maps = mapTiles(env.MAPTILER_KEY);
 
 // Automatic updates from the GitHub release: on by default for the downloadable package
 // (it ships build.json), off for Docker and development. AUTO_UPDATE=0 / 1 forces it.
-const updater = createUpdater({ root, beforeRestart: () => store.flush(),
-  url: env.UPDATE_URL || 'https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/promarket-update.json' });
+// GITHUB_TOKEN (read-only access to the repository) lets this work while the repository is private.
+const release = releaseSource({ token: env.GITHUB_TOKEN || '' });
+const updater = createUpdater({ root, beforeRestart: () => store.flush(), url: env.UPDATE_URL || '', source: release });
 // Free fixed address for a home server (https-setup.sh adds the HTTPS certificate):
 // DUCKDNS_DOMAIN=zariz-app (or zariz-app.duckdns.org) + DUCKDNS_TOKEN keep the name pointing
 // at the home's public IP, which can change.
@@ -106,7 +108,7 @@ if (env.AUTO_UPDATE === '1' || (existsSync(join(root, 'build.json')) && env.AUTO
 
 const port = env.PORT || 3000;
 const server = createServer(createApp({ market, auth, partners, catalog, geocode, reverseGeocode, maps, media, onChange: store.save, dev, echoOtp: dev && !sms,
-  version: updater.info, site: { name: env.BUSINESS_NAME || 'זריז', email: env.SUPPORT_EMAIL || '' },
+  version: updater.info, release, site: { name: env.BUSINESS_NAME || 'זריז', email: env.SUPPORT_EMAIL || '' },
   topup: { url: env.TOPUP_URL || '', secret: env.PAYMENT_WEBHOOK_SECRET || '' } }))
   .listen(port, () => {
     console.log(`Zariz is running on port ${port}${dev ? '  [demo mode]' : ''}`);

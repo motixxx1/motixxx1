@@ -23,7 +23,7 @@ const VENDOR_TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png',
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
   catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null, reverseGeocode = async () => null, maps = null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
-  onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }),
+  onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }), release = null,
   site = { name: 'זריז', email: '' }, topup = {} } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
@@ -173,6 +173,19 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     // The pages poll this and reload when the server was updated; the apps use `apk` to
     // offer a new APK only when the native shell itself changed.
     if (url.pathname === '/api/version') return send(200, version());
+    // The apps' APKs, passed through from the release so the repository can stay private.
+    const dl = url.pathname.match(/^\/download\/(ProMarket-(?:client|pro)\.apk)$/);
+    if (req.method === 'GET' && dl) {
+      if (!release) return send(404, { error: 'not_found' });
+      try {
+        const r = await release.fetchAsset(dl[1]);
+        if (!r.ok) return send(r.status === 404 ? 404 : 502, { error: 'download_failed' });
+        res.writeHead(200, { 'content-type': 'application/vnd.android.package-archive',
+          'content-disposition': `attachment; filename="${dl[1]}"`, ...(r.headers.get('content-length') ? { 'content-length': r.headers.get('content-length') } : {}) });
+        for await (const chunk of r.body) res.write(chunk);
+        return res.end();
+      } catch (e) { console.warn(`[download] ${dl[1]}: ${e.message}`); if (!res.headersSent) return send(502, { error: 'download_failed' }); return res.end(); }
+    }
     const v = url.pathname.match(/^\/vendor\/([\w-]+)\/([\w.-]+)\.(js|css|png|svg)$/);
     if (req.method === 'GET' && v) {
       try {

@@ -197,7 +197,7 @@ class AccountTab extends StatelessWidget {
             ]),
           ),
           Box(
-            onTap: () => openLink('https://github.com/motixxx1/motixxx1/releases/download/promarket-latest/ProMarket-pro.apk'),
+            onTap: () => openLink(Api.url('/download/ProMarket-pro.apk')),
             child: Row(children: [
               Icon(Icons.handyman_rounded, color: Pal.brandInk),
               const SizedBox(width: 12),

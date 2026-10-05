@@ -16,7 +16,7 @@ export function readBuild(root) {
   try { return JSON.parse(readFileSync(join(root, 'build.json'), 'utf8')); } catch { return { build: 'dev', apk: null }; }
 }
 
-export function createUpdater({ root, url, intervalMs = 30 * 60_000, log = console.log, beforeRestart = async () => {},
+export function createUpdater({ root, url, source = null, intervalMs = 30 * 60_000, log = console.log, beforeRestart = async () => {},
   exit = (code) => process.exit(code), fetchImpl = fetch } = {}) {
   let info = readBuild(root);
   let timer = null;
@@ -26,7 +26,8 @@ export function createUpdater({ root, url, intervalMs = 30 * 60_000, log = conso
     if (busy) return { updated: false };
     busy = true;
     try {
-      const r = await fetchImpl(url, { headers: { 'user-agent': 'ProMarket-updater' }, redirect: 'follow' });
+      const r = source && !url ? await source.fetchAsset('promarket-update.json')
+        : await fetchImpl(url, { headers: { 'user-agent': 'ProMarket-updater' }, redirect: 'follow' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const next = await r.json();
       if (!next?.build || next.build === info.build) return { updated: false };
