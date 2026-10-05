@@ -6,6 +6,7 @@ import '../core/api.dart';
 import '../core/device.dart';
 import '../core/login.dart';
 import '../core/ui.dart';
+import 'flow.dart';
 import 'home.dart';
 import 'job.dart';
 
@@ -143,29 +144,76 @@ class _ClientShellState extends State<ClientShell> {
   }
 }
 
-class MineTab extends StatelessWidget {
+class MineTab extends StatefulWidget {
   const MineTab({super.key});
+  @override
+  State<MineTab> createState() => _MineTabState();
+}
+
+class _MineTabState extends State<MineTab> {
+  bool showDone = false;
+
   @override
   Widget build(BuildContext context) {
     final jobs = ClientStore.i.jobs;
     final open = jobs.where(isOpenJob).toList(), done = jobs.where((j) => !isOpenJob(j)).toList();
-    return Scaffold(
-      appBar: AppBar(title: const Text('הקריאות שלי')),
-      body: RefreshIndicator(
-        onRefresh: ClientStore.i.load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          children: [
-            if (jobs.isEmpty)
-              Empty(
-                icon: Icons.list_alt_rounded,
-                title: ClientStore.i.loaded ? 'עוד לא פתחתם קריאה' : 'טוען…',
-                text: 'כשתפתחו, היא תופיע כאן.',
+    final list = showDone ? done : open;
+    Widget tab(String label, int n, bool on, VoidCallback tap) => Expanded(
+          child: Material(
+            color: on ? const Color(0xFF1B1A20) : Colors.white,
+            shape: StadiumBorder(side: BorderSide(color: on ? const Color(0xFF1B1A20) : const Color(0xFFE6E1D6))),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: tap,
+              child: SizedBox(
+                height: 46,
+                child: Center(
+                  child: Text('$label · $n', style: TextStyle(fontSize: 15 * fs, fontWeight: FontWeight.w700, color: on ? Colors.white : const Color(0xFF1B1A20))),
+                ),
               ),
-            ...open.map((j) => RequestCard(job: j)),
-            if (done.isNotEmpty) const SectionTitle('הסתיימו'),
-            ...done.map((j) => RequestCard(job: j)),
-          ],
+            ),
+          ),
+        );
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F1EA),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: ClientStore.i.load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            children: [
+              Text('הקריאות שלי', style: TextStyle(fontSize: 28 * fs, fontWeight: FontWeight.w900, color: const Color(0xFF1B1A20), letterSpacing: -.5)),
+              const SizedBox(height: 4),
+              Text('לוחצים על העיפרון כדי לתת לקריאה שם משלכם', style: TextStyle(fontSize: 14 * fs, color: const Color(0xFF5C5966))),
+              const SizedBox(height: 16),
+              Row(children: [
+                tab('פתוחות', open.length, !showDone, () => setState(() => showDone = false)),
+                const SizedBox(width: 10),
+                tab('הסתיימו', done.length, showDone, () => setState(() => showDone = true)),
+              ]),
+              const SizedBox(height: 16),
+              if (list.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(26),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26), border: Border.all(color: const Color(0xFFE9E4DA))),
+                  child: Column(children: [
+                    Icon(showDone ? Icons.task_alt_rounded : Icons.list_alt_rounded, size: 44, color: Pal.brand),
+                    const SizedBox(height: 10),
+                    Text(!ClientStore.i.loaded ? 'טוען…' : showDone ? 'עוד אין קריאות שהסתיימו' : 'אין קריאות פתוחות',
+                        style: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w800)),
+                    if (!showDone && ClientStore.i.loaded) ...[
+                      const SizedBox(height: 14),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: Pal.brand, shape: const StadiumBorder()),
+                        onPressed: () => startRequest(context),
+                        child: const Text('פתיחת קריאה'),
+                      ),
+                    ],
+                  ]),
+                ),
+              ...list.map((j) => RequestCard(job: j)),
+            ],
+          ),
         ),
       ),
     );
@@ -182,6 +230,30 @@ class AccountTab extends StatelessWidget {
     Api.onLoggedOut?.call();
   }
 
+  Future<void> _rename(BuildContext context) async {
+    final c = TextEditingController(text: Api.prefs.getString('name') ?? '');
+    final n = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('השם שלכם'),
+        content: TextField(controller: c, autofocus: true, maxLength: 40, onSubmitted: (v) => Navigator.pop(ctx, v)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ביטול')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('שמירה')),
+        ],
+      ),
+    );
+    if (n == null || n.trim().isEmpty) return;
+    try {
+      final r = asMap(await Api.post('/api/me/name', {'name': n.trim()}));
+      await Api.prefs.setString('name', r['name']?.toString() ?? n.trim());
+      if (context.mounted) toast(context, 'השם עודכן');
+      await ClientStore.i.load();
+    } on ApiError catch (e) {
+      if (context.mounted) toast(context, e.message, err: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,6 +266,7 @@ class AccountTab extends StatelessWidget {
               CircleAvatar(radius: 28, backgroundColor: Pal.brandSoft, child: Icon(Icons.person_rounded, color: Pal.brandInk, size: 30)),
               const SizedBox(width: 14),
               Expanded(child: Text(Api.prefs.getString('name') ?? '', style: TextStyle(fontSize: 20 * fs, fontWeight: FontWeight.w700))),
+              TextButton.icon(onPressed: () => _rename(context), icon: const Icon(Icons.edit_rounded, size: 20), label: const Text('עריכה')),
             ]),
           ),
           Box(

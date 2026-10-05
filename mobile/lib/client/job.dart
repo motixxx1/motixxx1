@@ -8,6 +8,7 @@ import '../core/api.dart';
 import '../core/map.dart';
 import '../core/ui.dart';
 import 'client_app.dart';
+import 'flow.dart';
 
 // ---- plain-language status of a request
 J? acceptedOffer(J j) => asList(j['offers']).where((o) => o['status'] == 'accepted').firstOrNull;
@@ -59,34 +60,111 @@ class StatusLine extends StatelessWidget {
   }
 }
 
+/// The request's name: the customer's own label, or the category.
+String jobTitle(J j) => (j['title']?.toString().trim().isNotEmpty ?? false) ? j['title'].toString() : Cats.name(j['categoryId']?.toString());
+
+/// Rename a request ("the AC in the living room"); empty goes back to the category name.
+Future<void> renameJob(BuildContext context, J job) async {
+  final c = TextEditingController(text: job['title']?.toString() ?? '');
+  final t = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('שם לקריאה'),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        maxLength: 60,
+        decoration: InputDecoration(hintText: Cats.name(job['categoryId']?.toString())),
+        onSubmitted: (v) => Navigator.pop(ctx, v),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ביטול')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('שמירה')),
+      ],
+    ),
+  );
+  if (t == null) return;
+  try {
+    await Api.post('/api/client/jobs/${job['id']}/title', {'title': t.trim()});
+    await ClientStore.i.load();
+  } on ApiError catch (e) {
+    if (context.mounted) toast(context, e.message, err: true);
+  }
+}
+
 class RequestCard extends StatelessWidget {
   const RequestCard({super.key, required this.job});
   final J job;
   @override
   Widget build(BuildContext context) {
     final s = job['status'];
-    return Box(
-      onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => JobScreen(id: job['id'].toString()))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          catTile(job['categoryId']?.toString(), size: 40),
-          const SizedBox(width: 12),
-          Expanded(child: Text(Cats.name(job['categoryId']?.toString()), style: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w700))),
-        ]),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(job['description']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Pal.muted, fontSize: 16 * fs)),
-        ),
-        StatusLine(job),
-        if (needsMe(job))
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: FilledButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => JobScreen(id: job['id'].toString()))),
-              child: Text(s == 'open' ? 'לראות את ההצעות' : s == 'completed' ? 'לאשר' : 'לדרג'),
+    final th = flowTheme(null, job['categoryId']?.toString());
+    final (text, color) = statusOf(job);
+    final open = () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => JobScreen(id: job['id'].toString())));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: const BorderSide(color: Color(0xFFE9E4DA))),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: open,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // colored top band in the service's color
+            Container(
+              color: th.soft,
+              padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+              child: Row(children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                  child: Icon(catIcon(job['categoryId']?.toString()), color: th.accent, size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(jobTitle(job), maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w800, color: th.ink)),
+                ),
+                IconButton(
+                  tooltip: 'שינוי שם',
+                  icon: Icon(Icons.edit_rounded, color: th.ink, size: 22),
+                  onPressed: () => renameJob(context, job),
+                ),
+              ]),
             ),
-          ),
-      ]),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if ((job['description']?.toString() ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(job['description'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: const Color(0xFF5C5966), fontSize: 15.5 * fs)),
+                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(color: (color == Pal.ink ? Pal.brand : color).withValues(alpha: .12), borderRadius: BorderRadius.circular(14)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 9, height: 9, decoration: BoxDecoration(color: color == Pal.ink ? Pal.brand : color, shape: BoxShape.circle)),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text(text, style: TextStyle(fontSize: 14.5 * fs, fontWeight: FontWeight.w700, color: color == Pal.ink ? const Color(0xFF1B1A20) : color))),
+                  ]),
+                ),
+                if (needsMe(job))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1B1A20), minimumSize: const Size.fromHeight(50), shape: const StadiumBorder()),
+                      onPressed: open,
+                      child: Text(s == 'open' ? 'לראות את ההצעות' : s == 'completed' ? 'לאשר' : 'לדרג'),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }

@@ -53,6 +53,39 @@ export function maptilerReverse({ key, fetchImpl = fetch } = {}) {
   };
 }
 
+// Address suggestions while typing (public address data): [{ label, lat, lng }].
+const short = new Map();
+function cached(key, ms, fn) {
+  const hit = short.get(key);
+  if (hit && Date.now() - hit.at < ms) return hit.v;
+  const v = fn().catch(() => []);
+  short.set(key, { at: Date.now(), v });
+  if (short.size > 2000) short.delete(short.keys().next().value);
+  return v;
+}
+export function maptilerSuggest({ key, fetchImpl = fetch } = {}) {
+  return (q) => cached('m:' + q, 3600_000, async () => {
+    const r = await fetchImpl(`https://api.maptiler.com/geocoding/${encodeURIComponent(q)}.json?key=${key}&country=il&language=he&limit=6&autocomplete=true`,
+      { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return [];
+    return ((await r.json()).features ?? []).filter((f) => f.center).map((f) => ({
+      label: String(f.place_name ?? f.text ?? '').replace(/, ישראל$/, ''), lat: f.center[1], lng: f.center[0] }));
+  });
+}
+export function nominatimSuggest({ fetchImpl = fetch, userAgent = 'Zariz/1.0' } = {}) {
+  return (q) => cached('n:' + q, 3600_000, async () => {
+    const r = await fetchImpl(`https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=il&accept-language=he&addressdetails=1&q=${encodeURIComponent(q)}`,
+      { headers: { 'user-agent': userAgent }, signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return [];
+    return (await r.json()).map((h) => {
+      const a = h.address ?? {};
+      const street = [a.road ?? a.pedestrian ?? a.amenity ?? h.name, a.house_number].filter(Boolean).join(' ');
+      const city = a.city ?? a.town ?? a.village ?? a.suburb ?? '';
+      return { label: [street, city].filter(Boolean).join(', ') || h.display_name, lat: Number(h.lat), lng: Number(h.lon) };
+    }).filter((x, i, all) => all.findIndex((y) => y.label === x.label) === i);
+  });
+}
+
 // Map tiles for the apps. With a MapTiler key: MapTiler streets (light) / dark.
 // Without: OpenStreetMap (fine for testing; heavy use needs a tile provider).
 export function mapTiles(key) {

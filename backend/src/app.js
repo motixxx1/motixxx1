@@ -21,7 +21,7 @@ const VENDOR_TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png',
 // response (only while no SMS provider is configured). Never enable either with real users.
 // geocode: address -> {lat,lng} | null. onChange: called after every successful write (persistence).
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
-  catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null, reverseGeocode = async () => null, maps = null,
+  catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null, reverseGeocode = async () => null, suggestAddress = async () => [], maps = null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
   onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }), release = null,
   site = { name: 'זריז', email: '' }, topup = {} } = {}) {
@@ -69,7 +69,14 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) fail('bad_location', 'lat and lng required');
     return { address: await reverseGeocode({ lat, lng }).catch(() => null) };
   });
+  // Suggestions while typing an address, from public address data.
+  on('GET', '/api/geocode/suggest', ['client', 'pro'], async ({ query }) => {
+    const q = String(query.q ?? '').trim();
+    return q.length < 3 ? [] : (await suggestAddress(q.slice(0, 80)).catch(() => [])).slice(0, 6);
+  });
   on('DELETE', '/api/me', ['client', 'pro'], ({ me, role }) => market.deleteAccount(role, me));
+  on('POST', '/api/me/name', ['client', 'pro'], ({ me, role, body }) => market.rename(role, me, body.name));
+  on('POST', '/api/client/jobs/:id/title', 'client', ({ me, p, body }) => market.renameJob(me, p[0], body.title));
   on('GET', '/api/jobs', null, ({ query }) => [...market.jobs.values()]
     .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))
       && (!query.mode || j.mode === query.mode))

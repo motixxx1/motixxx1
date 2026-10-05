@@ -103,6 +103,22 @@ export class Marketplace {
     return { deleted: true };
   }
   getPro(id) { return this.#pro(id); }
+  // The name shown to the other side; customers and pros can change it.
+  rename(role, id, name) {
+    const n = String(name ?? '').trim().replace(/\s+/g, ' ');
+    if (n.length < 2 || n.length > 40) fail('bad_name', 'Name must be 2-40 characters');
+    const u = role === 'pro' ? this.#pro(id) : this.#client(id);
+    u.name = n;
+    return { name: n };
+  }
+  // A customer's own label for a request ("the AC in the living room"); empty = back to the category name.
+  renameJob(clientId, jobId, title) {
+    const job = this.#job(jobId);
+    if (job.clientId !== clientId) fail('forbidden', 'Not your request');
+    const t = String(title ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (t) job.title = t; else delete job.title;
+    return { title: job.title ?? null };
+  }
   publicPro(pro) {
     const { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, documents, radiusKm, location } = pro;
     return { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, radiusKm, location,

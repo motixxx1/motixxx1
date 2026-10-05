@@ -22,6 +22,34 @@ const _modeAsk = {
   'delivery': [Icons.inventory_2_rounded, 'לאסוף ולהביא', 'ממקום אחד למקום אחר'],
 };
 
+/// Colors of a request's steps: the same color as the home tile it came from.
+class FlowTheme {
+  const FlowTheme(this.soft, this.ink, this.accent);
+  final Color soft, ink, accent;
+}
+const _bg = Color(0xFFF4F1EA);
+const _dark = Color(0xFF1B1A20);
+FlowTheme flowTheme(String? group, String? categoryId) {
+  if (categoryId == 'errands.queue') return const FlowTheme(Color(0xFFD9ECFF), Color(0xFF12245C), Color(0xFF1D4ED8));
+  if (categoryId == 'errands.home_wait') return const FlowTheme(Color(0xFFE6F9C4), Color(0xFF2F4A00), Color(0xFF3F6212));
+  switch (group ?? Cats.parentOf(categoryId)) {
+    case 'errand': case 'delivery': case 'errands':
+      return const FlowTheme(Color(0xFFFFE58A), Color(0xFF3D2A00), Color(0xFF9A6700));
+    case 'home': case 'cleaning': case 'help': case 'moving':
+      return const FlowTheme(Color(0xFFFFD9E4), Color(0xFF4A0A24), Color(0xFFBE185D));
+    case 'tech': case 'computers': case 'tutoring':
+      return const FlowTheme(Color(0xFFD6F5E3), Color(0xFF063B2A), Color(0xFF047857));
+    case 'car': case 'auto':
+      return const FlowTheme(Color(0xFFE3E8F4), Color(0xFF1E293B), Color(0xFF334155));
+    case 'care': case 'beauty':
+      return const FlowTheme(Color(0xFFFCE1F0), Color(0xFF500B34), Color(0xFFA21CAF));
+    case 'expert': case 'legal': case 'professional':
+      return const FlowTheme(Color(0xFFEDE6FF), Color(0xFF2A1466), Color(0xFF5B3DF5));
+    default:
+      return const FlowTheme(Color(0xFFFFE6D1), Color(0xFF5A2300), Color(0xFFE25C00));
+  }
+}
+
 /// New request: one question per screen, big buttons, nothing extra.
 class NewRequestScreen extends StatefulWidget {
   const NewRequestScreen({super.key, this.group, this.categoryId});
@@ -37,7 +65,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   final itemsCost = TextEditingController(), price = TextEditingController();
   final List<J> photos = [];
   bool allowCalls = true, uploading = false, sending = false;
-  J? myLocation;
+  J? myLocation, addrLoc, dropLoc;
   int ix = 0;
   String err = '';
 
@@ -123,7 +151,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         'description': desc.text.trim(),
         'address': physical && address.text.trim().isNotEmpty ? address.text.trim() : null,
         'myLocation': physical ? myLocation : null,
-        'dropoff': mode == 'delivery' ? {'address': dropoff.text.trim().isEmpty ? 'המיקום שלי' : dropoff.text.trim()} : null,
+        if (physical && addrLoc != null) 'location': addrLoc,
+        'dropoff': mode == 'delivery' ? {'address': dropoff.text.trim().isEmpty ? 'המיקום שלי' : dropoff.text.trim(), if (dropLoc != null) 'location': dropLoc} : null,
         'itemsCost': mode == 'delivery' ? asNum(itemsCost.text.trim()) : null,
         'urgency': urgency ?? 'normal',
         'paymentMode': 'direct',
@@ -143,28 +172,40 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final n = steps.length;
+    final th = flowTheme(group, categoryId);
     return PopScope(
       canPop: ix == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _back();
       },
       child: Scaffold(
+        backgroundColor: _bg,
         appBar: AppBar(
+          backgroundColor: _bg,
+          surfaceTintColor: _bg,
           leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: _back, tooltip: 'חזרה'),
-          title: const Text('קריאה חדשה'),
+          title: Text('קריאה חדשה', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19 * fs, color: _dark)),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(30),
+            preferredSize: const Size.fromHeight(34),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
               child: Row(children: [
-                Text('שלב ${ix + 1} מתוך $n', style: TextStyle(color: Pal.muted, fontSize: 14 * fs)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(value: (ix + 1) / n, minHeight: 8, color: Pal.brand, backgroundColor: Pal.line),
+                for (var i = 0; i < n; i++) ...[
+                  if (i > 0) const SizedBox(width: 6),
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: i <= ix ? th.accent : Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: i <= ix ? null : Border.all(color: const Color(0xFFE6E1D6)),
+                      ),
+                    ),
                   ),
-                ),
+                ],
+                const SizedBox(width: 12),
+                Text('${ix + 1}/$n', style: TextStyle(color: th.ink, fontSize: 14 * fs, fontWeight: FontWeight.w700)),
               ]),
             ),
           ),
@@ -174,13 +215,72 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     );
   }
 
-  Widget _head(String title, [String? sub]) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(fontSize: 26 * fs, fontWeight: FontWeight.w800, height: 1.2)),
-          if (sub != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(sub, style: TextStyle(fontSize: 16 * fs, color: Pal.muted))),
+  FlowTheme get th => flowTheme(group, categoryId);
+
+  Widget _head(String title, [String? sub]) => Container(
+        margin: const EdgeInsets.fromLTRB(0, 4, 0, 18),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        decoration: BoxDecoration(color: th.soft, borderRadius: BorderRadius.circular(28)),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (sub != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: .7), borderRadius: BorderRadius.circular(14)),
+                  child: Text(sub, style: TextStyle(fontSize: 14 * fs, fontWeight: FontWeight.w700, color: th.ink)),
+                ),
+              Text(title, style: TextStyle(fontSize: 27 * fs, fontWeight: FontWeight.w900, height: 1.15, color: th.ink, letterSpacing: -.3)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+            child: Icon(categoryId != null ? catIcon(categoryId) : (groupOf(group)?.icon ?? Icons.bolt_rounded), color: th.accent, size: 30),
+          ),
         ]),
       );
+
+  /// One answer: white card with a colored icon square; the chosen one takes the step's color.
+  Widget _opt({IconData? icon, required String title, String? sub, required bool selected, required VoidCallback onTap, Color? tint}) {
+    final c = tint ?? th.accent;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: selected ? th.soft : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: selected ? c : const Color(0xFFE9E4DA), width: selected ? 2.5 : 1.2),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(color: selected ? Colors.white : th.soft, borderRadius: BorderRadius.circular(16)),
+                child: Icon(icon ?? Icons.circle_outlined, color: c, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: TextStyle(fontSize: 18 * fs, fontWeight: FontWeight.w800, color: _dark)),
+                  if (sub != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(sub, style: TextStyle(fontSize: 14.5 * fs, color: const Color(0xFF5C5966)))),
+                ]),
+              ),
+              Icon(selected ? Icons.check_circle_rounded : Icons.chevron_left_rounded, color: selected ? c : const Color(0xFFB9B4AA), size: 28),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _page(List<Widget> children, {String? cta, VoidCallback? onCta, bool busy = false}) => Column(children: [
         Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), children: children)),
@@ -189,6 +289,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _dark, minimumSize: const Size.fromHeight(60), shape: const StadiumBorder(),
+                  textStyle: TextStyle(fontSize: 19 * fs, fontWeight: FontWeight.w800)),
               onPressed: busy ? null : onCta,
               child: busy ? const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3)) : Text(cta),
             ),
@@ -202,8 +304,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         return _page([
           _head(g?.title ?? 'מה צריך?', 'מה בדיוק?'),
           for (final o in g?.opts ?? <List<String>>[])
-            if (Cats.get(o[0]) != null) ChoiceTile(title: o[1], selected: categoryId == o[0], onTap: () => _pick(o[0])),
-          ChoiceTile(title: 'משהו אחר', selected: categoryId == 'other.general', onTap: () => _pick('other.general')),
+            if (Cats.get(o[0]) != null) _opt(icon: catIcon(o[0]), title: o[1], selected: categoryId == o[0], onTap: () => _pick(o[0])),
+          _opt(icon: Icons.more_horiz_rounded, title: 'משהו אחר', selected: categoryId == 'other.general', onTap: () => _pick('other.general')),
         ]);
       case 'desc':
         final photosOk = _photoParents.contains(Cats.parentOf(categoryId));
@@ -264,7 +366,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         return _page([
           _head('איך זה יעבוד?'),
           for (final m in Cats.modes(categoryId))
-            ChoiceTile(
+            _opt(
               icon: _modeAsk[m]?[0] as IconData?,
               title: (_modeAsk[m]?[1] ?? modeLabel[m] ?? m).toString(),
               sub: _modeAsk[m]?[2] as String?,
@@ -280,7 +382,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         return _page([
           _head(delivery ? 'מאיפה לאסוף ולאן להביא?' : 'לאיזו כתובת להגיע?', 'רחוב, מספר ועיר'),
           if (delivery) _label('איפה לאסוף'),
-          TextField(controller: address, style: TextStyle(fontSize: 19 * fs), decoration: InputDecoration(hintText: delivery ? 'למשל: סופר יוחננוף, הרצל 20, רחובות' : 'למשל: הרצל 10, רחובות')),
+          AddressField(controller: address, hint: delivery ? 'למשל: סופר יוחננוף, הרצל 20, רחובות' : 'מתחילים להקליד רחוב ועיר', onLoc: (l) => addrLoc = l),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () async {
@@ -305,7 +407,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           ),
           if (delivery) ...[
             _label('לאן להביא'),
-            TextField(controller: dropoff, style: TextStyle(fontSize: 19 * fs), decoration: const InputDecoration(hintText: 'ריק = אליי, למיקום שלי')),
+            AddressField(controller: dropoff, hint: 'ריק = אליי, למיקום שלי', onLoc: (l) => dropLoc = l),
             _label('כמה בערך תעלה הקנייה? (לא חובה)'),
             TextField(controller: itemsCost, keyboardType: TextInputType.number, decoration: const InputDecoration(suffixText: 'ש״ח')),
           ],
@@ -319,11 +421,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       case 'when':
         return _page([
           _head('כמה זה דחוף?'),
-          ChoiceTile(icon: Icons.bolt_rounded, title: 'כמה שיותר מהר', sub: 'היום, עכשיו', selected: urgency == 'urgent', onTap: () {
+          _opt(icon: Icons.bolt_rounded, tint: const Color(0xFFE25C00), title: 'כמה שיותר מהר', sub: 'היום, עכשיו', selected: urgency == 'urgent', onTap: () {
             urgency = 'urgent';
             _next();
           }),
-          ChoiceTile(icon: Icons.event_rounded, title: 'לא דחוף', sub: 'בימים הקרובים', selected: urgency == 'normal', onTap: () {
+          _opt(icon: Icons.event_rounded, tint: const Color(0xFF1D4ED8), title: 'לא דחוף', sub: 'בימים הקרובים', selected: urgency == 'normal', onTap: () {
             urgency = 'normal';
             _next();
           }),
@@ -331,7 +433,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       case 'price':
         return _page([
           _head('כמה תרצו לשלם?'),
-          ChoiceTile(
+          _opt(
             icon: Icons.sell_rounded,
             title: 'אני קובע/ת מחיר',
             sub: 'המקצוען הראשון שמאשר מקבל את העבודה. הכי מהיר',
@@ -352,7 +454,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               child: Text('מקצוען שמאשר מתחייב למחיר הזה. אפשר שיציעו גם במחיר אחר, ואתם תחליטו.', style: TextStyle(color: Pal.muted, fontSize: 15 * fs)),
             ),
           ],
-          ChoiceTile(
+          _opt(
             icon: Icons.format_list_bulleted_rounded,
             title: 'שהמקצוענים יציעו מחיר',
             sub: 'מקבלים כמה הצעות ובוחרים',
@@ -374,7 +476,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         final physical = mode == 'onsite' || mode == 'delivery';
         return _page([
           _head('הכל נכון?'),
-          Box(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFE9E4DA))),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _sum(catIcon(categoryId), Cats.name(categoryId)),
               _sum(Icons.notes_rounded, desc.text.trim()),
@@ -401,10 +505,102 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   Widget _sum(IconData icon, String text) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: Pal.brandInk, size: 24),
+        child: Row(children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: th.soft, borderRadius: BorderRadius.circular(13)),
+            child: Icon(icon, color: th.accent, size: 22),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: TextStyle(fontSize: 17 * fs))),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 17 * fs, fontWeight: FontWeight.w600, color: _dark))),
         ]),
+      );
+}
+
+
+/// Address with suggestions from public address data while typing; picking one also gives the exact spot.
+class AddressField extends StatefulWidget {
+  const AddressField({super.key, required this.controller, required this.hint, required this.onLoc});
+  final TextEditingController controller;
+  final String hint;
+  final void Function(J?) onLoc;
+  @override
+  State<AddressField> createState() => _AddressFieldState();
+}
+
+class _AddressFieldState extends State<AddressField> {
+  final focus = FocusNode();
+  String picked = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(() {
+      if (widget.controller.text != picked) widget.onLoc(null);
+    });
+  }
+
+  @override
+  void dispose() {
+    focus.dispose();
+    super.dispose();
+  }
+
+  Future<List<J>> _options(TextEditingValue v) async {
+    final q = v.text.trim();
+    if (q.length < 3 || q == picked) return const [];
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (widget.controller.text.trim() != q) return const [];
+    try {
+      return asList(await Api.get('/api/geocode/suggest?q=${Uri.encodeQueryComponent(q)}')).map(asMap).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => RawAutocomplete<J>(
+        textEditingController: widget.controller,
+        focusNode: focus,
+        optionsBuilder: _options,
+        displayStringForOption: (o) => o['label']?.toString() ?? '',
+        onSelected: (o) {
+          picked = o['label']?.toString() ?? '';
+          widget.onLoc({'lat': o['lat'], 'lng': o['lng']});
+        },
+        fieldViewBuilder: (ctx, c, f, submit) => TextField(
+          controller: c,
+          focusNode: f,
+          style: TextStyle(fontSize: 19 * fs),
+          decoration: InputDecoration(hintText: widget.hint, prefixIcon: const Icon(Icons.place_rounded)),
+        ),
+        optionsViewBuilder: (ctx, select, options) => Align(
+          alignment: AlignmentDirectional.topStart,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Material(
+              color: Colors.white,
+              elevation: 8,
+              borderRadius: BorderRadius.circular(18),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: 300, maxWidth: MediaQuery.of(ctx).size.width - 32),
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  children: [
+                    for (final o in options)
+                      ListTile(
+                        leading: Icon(Icons.place_outlined, color: Pal.brand),
+                        title: Text(o['label']?.toString() ?? '', style: TextStyle(fontSize: 16 * fs)),
+                        onTap: () => select(o),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 }
