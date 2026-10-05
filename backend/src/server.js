@@ -11,7 +11,7 @@ import { Partners } from './partners.js';
 import { providersFromEnv } from './providers/index.js';
 import { createFileStore } from './store.js';
 import { nominatimGeocoder, nominatimReverse, maptilerGeocoder, maptilerReverse, mapTiles } from './geocode.js';
-import { twilioSms, httpSms } from './sms.js';
+import { twilioSms, httpSms, smsapiSms } from './sms.js';
 import { releaseSource } from './releases.js';
 import { Media } from './media.js';
 import { createUpdater } from './updater.js';
@@ -26,7 +26,7 @@ if (existsSync(join(root, 'config.env'))) process.loadEnvFile(join(root, 'config
 // automatically once an SMS provider is configured, so a live server can never hand out
 // free credit.
 const env = process.env;
-const smsConfigured = Boolean(env.SMS_HTTP_URL || (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM));
+const smsConfigured = Boolean(env.SMSAPI_TOKEN || env.SMS_HTTP_URL || (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM));
 const dev = (env.DEMO_MODE === '1' || env.NODE_ENV === 'development') && !smsConfigured;
 if ((env.DEMO_MODE === '1' || env.NODE_ENV === 'development') && smsConfigured)
   console.warn('[demo] DEMO_MODE ignored: an SMS provider is configured, running in real mode');
@@ -42,7 +42,10 @@ function loadOrCreateSecret(dir) {
   writeFileSync(file, secret, { mode: 0o600 });
   return secret;
 }
-const sms = env.SMS_HTTP_URL
+// SMS provider, first one configured wins: SMSAPI, any HTTP gateway, Twilio.
+const sms = env.SMSAPI_TOKEN
+  ? smsapiSms({ token: env.SMSAPI_TOKEN, from: env.SMSAPI_FROM || '', test: env.SMSAPI_TEST === '1' })
+  : env.SMS_HTTP_URL
   ? httpSms({ url: env.SMS_HTTP_URL, method: (env.SMS_HTTP_METHOD || 'GET').toUpperCase(), body: env.SMS_HTTP_BODY || '',
     headers: env.SMS_HTTP_HEADERS ? JSON.parse(env.SMS_HTTP_HEADERS) : {} })
   : env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM

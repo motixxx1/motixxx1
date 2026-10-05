@@ -83,3 +83,11 @@ DuckDNS כשכתובת ה-IP של הבית משתנה.
 * דף ניהול: https://zarizapp.duckdns.org/admin – נכנסים עם טלפון שמופיע ב-ADMIN_PHONES וקוד ב-SMS,
   מחפשים את המקצוען ומוסיפים או מורידים קרדיט. כל פעולה נרשמת בהיסטוריה שלו.
 * מצב דמו (DEMO_MODE=1) נכבה אוטומטית כשמוגדר ספק SMS.
+
+SMS דרך SMSAPI (smsapi.com)
+* בפאנל של SMSAPI: API Tokens > יוצרים טוקן עם הרשאת SMS. Sender names > מוסיפים שם שולח (למשל Zariz) ומחכים לאישור.
+* ב-config.env:
+    SMSAPI_TOKEN=הטוקן
+    SMSAPI_FROM=Zariz
+  ומפעילים מחדש. SMSAPI קודם ל-Twilio אם שניהם מוגדרים.
+* בדיקה בלי לשלוח ובלי לשלם: SMSAPI_TEST=1 (להסיר אחרי הבדיקה).
