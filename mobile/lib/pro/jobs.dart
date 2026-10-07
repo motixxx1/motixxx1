@@ -207,7 +207,7 @@ class _FeedTabState extends State<FeedTab> {
                     Row(children: [
                       Expanded(
                         child: j['clientPrice'] != null
-                            ? Text('הלקוח משלם ${ils(j['clientPrice'])}', style: TextStyle(color: Pal.brand, fontWeight: FontWeight.w800, fontSize: 16))
+                            ? Text('הלקוח משלם ${ils(j['clientPrice'])}${payName(j['payMethod'])}', style: TextStyle(color: Pal.brand, fontWeight: FontWeight.w800, fontSize: 16))
                             : Text('נשארו ${j['offersLeft'] ?? ''} מקומות להצעות', style: TextStyle(color: Pal.muted, fontSize: 13)),
                       ),
                       FilledButton.icon(

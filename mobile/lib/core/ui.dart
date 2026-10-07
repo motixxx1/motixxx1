@@ -93,6 +93,9 @@ String ils(dynamic v) {
   return '$s ש״ח';
 }
 
+/// The customer's preferred way to pay, as a short suffix for a pro's job card.
+String payName(dynamic m) => const {'cash': ' · מזומן', 'bit': ' · ביט/פייבוקס', 'transfer': ' · העברה', 'card': ' · אשראי'}[m] ?? '';
+
 String showPhone(String? p) {
   if (p == null) return '';
   final d = p.replaceAll(RegExp(r'\D'), '');

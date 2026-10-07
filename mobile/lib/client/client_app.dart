@@ -9,6 +9,7 @@ import '../core/ui.dart';
 import 'flow.dart';
 import 'home.dart';
 import 'job.dart';
+import 'profile.dart';
 
 /// Customer data shared by the screens: my requests, refreshed every few seconds.
 class ClientStore extends ChangeNotifier {
@@ -18,10 +19,28 @@ class ClientStore extends ChangeNotifier {
   bool loaded = false;
   Timer? _timer;
 
+  Map<String, (String, int)>? _seen;
+
+  /// A local notification when a request gets a new offer or moves on (per the customer's settings).
+  void _notifyChanges(List<J> list) {
+    final prev = _seen;
+    _seen = {for (final j in list) j['id'].toString(): (j['status'].toString(), asList(j['offers']).length)};
+    if (prev == null) return;
+    final nt = Profile.notify;
+    for (final j in list) {
+      final old = prev[j['id'].toString()];
+      if (old == null) continue;
+      final more = asList(j['offers']).length > old.$2 && nt['offers'] == true;
+      final moved = j['status'].toString() != old.$1 && nt['status'] == true;
+      if (more || moved) ClientNotes.show(j['id'].toString(), 'זריז · ${jobTitle(j)}', statusOf(j).$1);
+    }
+  }
+
   Future<void> load() async {
     try {
       final list = asList(await Api.get('/api/client/jobs'));
       list.sort((a, b) => (asNum(b['createdAt']) ?? 0).compareTo(asNum(a['createdAt']) ?? 0));
+      _notifyChanges(list);
       jobs = list;
       loaded = true;
       Api.writeCache('jobs', list.map((j) => {...j, 'tracking': null}).toList());
@@ -40,6 +59,11 @@ class ClientStore extends ChangeNotifier {
     load();
     cfg = Api.config;
     Api.refreshConfig().then((c) => cfg = c);
+    Profile.load();
+    // ask once for permission to show updates about the customer's requests
+    final ask = Api.prefs.getBool('notifAsked') != true;
+    Api.prefs.setBool('notifAsked', true);
+    ClientNotes.init(ask: ask);
   }
 
   void stop() => _timer?.cancel();
@@ -269,6 +293,7 @@ class AccountTab extends StatelessWidget {
               TextButton.icon(onPressed: () => _rename(context), icon: const Icon(Icons.edit_rounded, size: 20), label: const Text('עריכה')),
             ]),
           ),
+          const ProfileSection(),
           Box(
             onTap: () => openLink(Api.url('/download/ProMarket-pro.apk')),
             child: Row(children: [

@@ -228,6 +228,29 @@
   .pro-pin{display:block;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--brand);border:4px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .2s}
   .home-pin{display:block;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#1d1f2b;border:4px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 
+  /* profile: settings rows and switches */
+  .prow{display:flex;align-items:center;gap:14px;width:100%;min-height:74px;padding:12px 16px;border-radius:22px;border:1px solid #e9e4da;background:#fff;text-align:right;font:inherit;cursor:pointer;margin-bottom:10px}
+  .prow .pi{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex:none}
+  .prow .tx{flex:1;min-width:0;display:flex;flex-direction:column}.prow b{font-size:18px;font-weight:800}.prow small{font-size:15px;color:#5c5966}
+  .prow .go{color:#8a90a3}
+  .ncard{background:#fff;border:1px solid #e9e4da;border-radius:22px;padding:6px 16px;margin-bottom:10px}
+  .nhead{display:flex;align-items:center;gap:14px;padding:12px 0 8px}
+  .nrow{display:flex;align-items:center;gap:12px;min-height:58px;border-top:1px solid #f0ece4;cursor:pointer}
+  .nrow>span:first-child{flex:1;font-size:17px}.nrow small{display:block;font-size:14px;color:#5c5966}
+  .nrow .sw,.sw{position:relative;width:54px;height:32px;flex:none}
+  .sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw i{position:absolute;inset:0;border-radius:16px;background:#cfd3dd;transition:background .15s;pointer-events:none}
+  .sw i::after{content:"";position:absolute;top:3px;right:3px;width:26px;height:26px;border-radius:13px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .15s}
+  .sw input:checked+i{background:var(--ok)}
+  .sw input:checked+i::after{transform:translateX(-22px)}
+  .sw input:focus-visible+i{outline:3px solid var(--brand);outline-offset:2px}
+  .addr{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0ece4}
+  .addr:last-child{border-bottom:0}
+  .addr .tx{flex:1;min-width:0}.addr b{display:block;font-size:17px}.addr span{font-size:15px;color:#5c5966}
+  .savedaddr{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px}
+  .savedaddr button{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #e6e1d6;background:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;color:#1b1a20}
+  .savedaddr button .i{color:var(--fa,#e25c00)}
+
   /* ---- desktop: side navigation, wide home, centered flows. Mobile is untouched below 1024px. */
   .dk{display:none}
   @media (min-width:1024px){
@@ -408,6 +431,7 @@
     <!-- account -->
     <main data-view="account" hidden>
       <div class="card" id="acct"></div>
+      <div id="acctMore"></div>
       <p class="muted">הטלפון שלכם נחשף למקצוען רק אם אישרתם שמותר להתקשר, או אחרי שבחרתם בו.</p>
       <button class="btn soft" id="toBoard" style="margin-top:12px"><span data-i="list"></span>איך נראות קריאות של אחרים</button>
       <button class="btn soft" id="logout" style="margin-top:12px"><span data-i="logout"></span>יציאה מהחשבון</button>
@@ -564,7 +588,7 @@ function showLogin() {
     const nm = (store.get('clientName') || '').trim();
     $('#hello').textContent = `שלום ${nm}`.trim();
     $('#heroHello').textContent = nm ? `${nm}, במה נעזור היום?` : 'במה נעזור היום?';
-    go('home'); setTimeout(queuePromo, 1200);
+    go('home'); setTimeout(queuePromo, 1200); loadProfile();
   }
 }
 function go(v, back = null) {
@@ -652,7 +676,94 @@ document.addEventListener('click', (e) => {
   };
   $('#nmOk', sh.el).onclick = save; $('#nmT', sh.el).onkeydown = (ev) => { if (ev.key === 'Enter') save(); };
 });
+const BELL = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>';
+const CARD = '<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/>';
+const PLUS = '<path d="M12 5v14M5 12h14"/>';
+const TRASH = '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>';
+const PAY = { cash: ['מזומן', 'משלמים לבעל המקצוע במקום'], bit: ['ביט או פייבוקס', 'העברה מהטלפון בסיום העבודה'],
+  transfer: ['העברה בנקאית', 'לחשבון של בעל המקצוע'], card: ['כרטיס אשראי', 'אצל בעל המקצוע, אם הוא מכבד'], other: ['נסגור ביננו', 'מסכמים מול בעל המקצוע'] };
+let profile = null;
+async function loadProfile() { try { profile = await api('/api/client/profile'); } catch {} return profile; }
+const notifyOk = () => 'Notification' in window && Notification.permission === 'granted';
+function renderAccountMore() {
+  const box = $('#acctMore'); if (!box) return;
+  const pr = profile ?? { addresses: [], payMethod: null, notify: { offers: true, status: true, promos: false } };
+  const n = pr.addresses.length, nt = pr.notify, pm = PAY[pr.payMethod];
+  const blocked = 'Notification' in window && Notification.permission === 'denied';
+  box.innerHTML = `
+    <button type="button" class="prow" id="pAddr"><span class="pi" style="background:#d9ecff;color:#1d4ed8">${ic('pin', 26)}</span>
+      <span class="tx"><b>הכתובות שלי</b><small>${n ? `${n} ${n === 1 ? 'כתובת שמורה' : 'כתובות שמורות'} · ${esc(pr.addresses.map((a) => a.label).join(', '))}` : 'בית, עבודה, ההורים. בוחרים בקליק בקריאה חדשה'}</small></span><span class="go">${ic('chev')}</span></button>
+    <button type="button" class="prow" id="pPay"><span class="pi" style="background:#d6f5e3;color:#047857">${ic(CARD, 26)}</span>
+      <span class="tx"><b>אמצעי תשלום</b><small>${pm ? `${pm[0]} · בעל המקצוע רואה את זה בקריאה` : 'איך נוח לכם לשלם לבעל המקצוע'}</small></span><span class="go">${ic('chev')}</span></button>
+    <div class="ncard"><div class="nhead"><span class="pi" style="width:48px;height:48px;border-radius:16px;background:#ffe58a;color:#7a5200;display:flex;align-items:center;justify-content:center">${ic(BELL, 26)}</span>
+      <span style="flex:1"><b style="font-size:18px;font-weight:800">התראות</b>${blocked ? '<small style="display:block;font-size:14px;color:var(--err)">ההתראות חסומות בדפדפן. אפשר לאשר אותן בהגדרות האתר</small>' : ''}</span></div>
+      ${[['status', 'עדכונים על הקריאות שלי', 'מקצוען אישר, בדרך אליכם, הגיע, סיים'], ['offers', 'הצעות מחיר חדשות', 'כשמקצוען שולח הצעה'], ['promos', 'מבצעים וחדשות', 'פעם בכמה זמן, לא יותר']]
+        .map(([k, t, sub]) => `<label class="nrow"><span>${t}<small>${sub}</small></span><span class="sw"><input type="checkbox" data-nt="${k}" ${nt[k] ? 'checked' : ''}><i></i></span></label>`).join('')}</div>`;
+}
+document.addEventListener('change', async (e) => {
+  const t = e.target.closest('[data-nt]'); if (!t) return;
+  const k = t.dataset.nt, on = t.checked;
+  if (on && k !== 'promos' && 'Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} }
+  try { profile = await api('/api/client/settings', { notify: { [k]: on } }); renderAccountMore(); toast(on ? 'ההתראות הופעלו' : 'ההתראות כובו'); }
+  catch (err) { t.checked = !on; toast(err.message, 'err'); }
+});
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#pPay')) {
+    const cur = profile?.payMethod;
+    const sh = sheet(`<div class="shead"><h2>אמצעי תשלום</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
+      <p class="muted" style="margin:0 0 12px">התשלום עובר ישירות לבעל המקצוע בסוף העבודה. מה שתבחרו יופיע לו בקריאה, כדי שיידע מראש.</p>
+      <div class="choices" style="display:flex">${Object.entries(PAY).map(([k, [t, sub]]) => `<button type="button" class="choice ${cur === k ? 'on' : ''}" data-pay="${k}"><span class="radio">${cur === k ? ic('check', 18) : ''}</span><span class="txt"><b>${t}</b><small>${sub}</small></span></button>`).join('')}</div>`);
+    sh.el.addEventListener('click', async (ev) => { const b = ev.target.closest('[data-pay]'); if (!b) return;
+      try { profile = await api('/api/client/settings', { payMethod: b.dataset.pay }); sh.close(); renderAccountMore(); toast('אמצעי התשלום נשמר'); }
+      catch (err) { toast(err.message, 'err'); } });
+  }
+  if (e.target.closest('#pAddr')) openAddresses();
+});
+function openAddresses() {
+  const list = () => (profile?.addresses ?? []).map((a) => `<div class="addr">${ic('pin', 22)}<div class="tx"><b>${esc(a.label)}</b><span>${esc(a.address)}</span></div>
+    <button type="button" class="rqe" data-del="${a.id}" aria-label="מחיקת הכתובת" style="color:var(--err)">${ic(TRASH, 20)}</button></div>`).join('')
+    || '<p class="muted" style="margin:6px 0 10px">עוד אין כתובות שמורות.</p>';
+  const sh = sheet(`<div class="shead"><h2>הכתובות שלי</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
+    <div id="aList">${list()}</div>
+    <h2 style="font-size:19px;margin:18px 0 6px">כתובת חדשה</h2>
+    <div class="savedaddr" id="aLabels">${['בית', 'עבודה', 'הורים'].map((l) => `<button type="button" data-lab="${l}">${l}</button>`).join('')}</div>
+    <label class="lb" for="aLab" style="margin-top:10px">שם לכתובת</label><input class="field" id="aLab" maxlength="30" placeholder="למשל: בית" value="בית">
+    <label class="lb" for="aAdr">הכתובת</label><div class="sugwrap"><input class="field" id="aAdr" placeholder="מתחילים להקליד רחוב ועיר" autocomplete="off"></div>
+    <div class="err" id="aErr"></div>
+    <button type="button" class="btn" id="aSave" style="margin-top:16px">${ic(PLUS)}שמירת הכתובת</button>`, () => renderAccountMore());
+  let loc = null;
+  addressSuggest($('#aAdr', sh.el), (l) => { loc = l; });
+  sh.el.addEventListener('click', async (ev) => {
+    const lb = ev.target.closest('[data-lab]'); if (lb) { $('#aLab', sh.el).value = lb.dataset.lab; return; }
+    const d = ev.target.closest('[data-del]');
+    if (d) { try { profile = await api('/api/client/addresses/' + d.dataset.del, null, 'DELETE'); $('#aList', sh.el).innerHTML = list(); fillIcons(sh.el); } catch (err) { toast(err.message, 'err'); } }
+  });
+  $('#aSave', sh.el).onclick = async () => {
+    const address = $('#aAdr', sh.el).value.trim();
+    if (address.length < 3) { $('#aErr', sh.el).textContent = 'צריך כתובת'; return $('#aAdr', sh.el).focus(); }
+    try { profile = await api('/api/client/addresses', { label: $('#aLab', sh.el).value.trim(), address, location: loc });
+      $('#aList', sh.el).innerHTML = list(); $('#aAdr', sh.el).value = ''; loc = null; $('#aErr', sh.el).textContent = ''; toast('הכתובת נשמרה'); }
+    catch (err) { $('#aErr', sh.el).textContent = err.message; }
+  };
+}
+// Browser notifications when a request changes and the tab is in the background.
+let seenJobs = null;
+function notifyChanges(list) {
+  const prev = seenJobs; seenJobs = new Map(list.map((j) => [j.id, [j.status, j.offers.length]]));
+  if (!prev || !notifyOk()) return;
+  const nt = profile?.notify ?? { offers: true, status: true };
+  for (const j of list) {
+    const old = prev.get(j.id); if (!old) continue;
+    const moreOffers = j.offers.length > old[1] && nt.offers, moved = j.status !== old[0] && nt.status;
+    if (!moreOffers && !moved) continue;
+    if (!document.hidden) continue; // the page already shows it
+    try { const n = new Notification(`זריז · ${jobTitle(j)}`, { body: statusOf(j)[0], tag: j.id, icon: document.querySelector('link[rel=icon]')?.href });
+      n.onclick = () => { window.focus(); openJobId = j.id; go('job', 'mine'); n.close(); }; } catch {}
+  }
+}
+
 function renderAccount() {
+  renderAccountMore(); loadProfile().then(renderAccountMore);
   $('#acct').innerHTML = `<div class="sum">${ic('person')}<div style="flex:1"><span>שם</span>${esc(store.get('clientName') || '')}</div>
       <button type="button" class="rqe" id="editName" aria-label="עריכת השם" style="color:var(--brand-ink)">${ic(PEN, 20)}</button></div>
     <div class="sum">${ic('phone')}<div><span>טלפון</span><bdi class="ltr">${esc(store.get('clientPhone') || '')}</bdi></div></div>`;
@@ -876,10 +987,13 @@ function renderStep() {
       <label class="lb" for="cost">השליח קונה בשבילכם? כמה זה עולה בערך <span class="opt">לא חובה</span></label>
       <input class="field" id="cost" type="number" min="0" inputmode="numeric" placeholder="ש״ח" value="${esc(draft.itemsCost)}">
       <p class="muted" style="margin:8px 2px 0">את הקנייה מחזירים לשליח לפי הקבלה, בלי עמלה.</p>` : `
+      ${profile?.addresses?.length ? `<label class="lb">כתובת שמורה</label><div class="savedaddr" id="savedAddr">${profile.addresses.map((a, i) => `<button type="button" data-sa="${i}">${ic('pin', 18)}${esc(a.label)}</button>`).join('')}</div>` : ''}
       <label class="lb" for="addr">הכתובת</label><div class="sugwrap"><input class="field" id="addr" placeholder="מתחילים להקליד רחוב ועיר" autocomplete="off" value="${esc(draft.address)}"></div><div class="err" id="addrErr"></div>
       <p class="muted" style="margin:8px 2px 0">הכתובת נשלחת רק למקצוען שתבחרו.</p>`) + cta('המשך');
     $('#addr').addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#addrErr').textContent = ''; });
     addressSuggest($('#addr'), (loc) => { draft.addrLoc = loc; });
+    $('#savedAddr')?.addEventListener('click', (e) => { const b = e.target.closest('[data-sa]'); if (!b) return; const a = profile.addresses[+b.dataset.sa];
+      $('#addr').value = a.address; draft.addrLoc = a.location; $('#addr').classList.remove('bad'); $('#addrErr').textContent = ''; });
     if ($('#drop')) addressSuggest($('#drop'), (loc) => { draft.dropLoc = loc; });
     $('#nextBtn').onclick = () => {
       draft.address = $('#addr').value.trim(); draft.dropoff = $('#drop')?.value.trim() ?? ''; draft.itemsCost = $('#cost')?.value ?? '';
@@ -1112,6 +1226,7 @@ async function load() {
     jobs = await api('/api/client/jobs');
     jobs.sort((a, b) => b.createdAt - a.createdAt);
   } catch { return; } // 401 handled in api()
+  notifyChanges(jobs);
   const n = jobs.filter(needsMe).length;
   $('#mineBadge').hidden = !n; $('#mineBadge').textContent = n;
   const json = JSON.stringify(jobs.map(({ tracking, ...j }) => j)); // the moving dot must not redraw the page

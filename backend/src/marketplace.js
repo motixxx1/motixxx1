@@ -11,6 +11,8 @@ export const MODES = ['onsite', 'remote', 'phone', 'delivery'];
 const PHYSICAL = ['onsite', 'delivery']; // modes where distance matters
 export const PAYMENT_MODES = ['in_app', 'direct'];
 export const PAY_METHODS = ['cash', 'bit', 'transfer', 'card', 'other']; // how a direct payment reached the pro
+// what a customer is told about: offers on a request, status changes, and (off by default) news
+export const NOTIFY_DEFAULTS = { offers: true, status: true, promos: false };
 
 // Job status flow per service mode (after the client accepts an offer).
 const FLOW = {
@@ -94,7 +96,7 @@ export class Marketplace {
       for (const j of this.jobs.values()) if (j.status === 'open') j.offers = j.offers.filter((o) => o.proId !== id);
     } else {
       const c = this.#client(id);
-      Object.assign(c, { deleted: true, name: 'לקוח שמחק את החשבון', phone: null });
+      Object.assign(c, { deleted: true, name: 'לקוח שמחק את החשבון', phone: null, addresses: [], payMethod: null });
       for (const j of mine) {
         if (j.status === 'open') j.status = 'cancelled';
         Object.assign(j, { phone: null, address: j.address && 'נמחק', description: 'נמחק לבקשת הלקוח', media: [] });
@@ -110,6 +112,41 @@ export class Marketplace {
     const u = role === 'pro' ? this.#pro(id) : this.#client(id);
     u.name = n;
     return { name: n };
+  }
+  // ---- customer profile: saved addresses, preferred payment method, notifications
+  clientProfile(id) {
+    const c = this.#client(id);
+    return { name: c.name, phone: c.phone, addresses: c.addresses ?? [], payMethod: c.payMethod ?? null,
+      notify: { ...NOTIFY_DEFAULTS, ...(c.notify ?? {}) } };
+  }
+  addAddress(id, { label, address, location } = {}) {
+    const c = this.#client(id);
+    const a = String(address ?? '').trim().replace(/\s+/g, ' ');
+    if (a.length < 3 || a.length > 160) fail('bad_address', 'Address must be 3-160 characters');
+    const l = String(label ?? '').trim().replace(/\s+/g, ' ').slice(0, 30) || 'כתובת';
+    const loc = location && Number.isFinite(+location.lat) && Number.isFinite(+location.lng) ? { lat: +location.lat, lng: +location.lng } : null;
+    c.addresses = c.addresses ?? [];
+    if (c.addresses.length >= 10) fail('too_many_addresses', 'Up to 10 saved addresses');
+    c.addresses.push({ id: randomUUID(), label: l, address: a, location: loc });
+    return this.clientProfile(id);
+  }
+  removeAddress(id, addrId) {
+    const c = this.#client(id);
+    c.addresses = (c.addresses ?? []).filter((x) => x.id !== addrId);
+    return this.clientProfile(id);
+  }
+  clientSettings(id, { payMethod, notify } = {}) {
+    const c = this.#client(id);
+    if (payMethod !== undefined) {
+      if (payMethod !== null && !PAY_METHODS.includes(payMethod)) fail('bad_pay_method', 'Unknown payment method');
+      c.payMethod = payMethod;
+    }
+    if (notify && typeof notify === 'object') {
+      const n = { ...NOTIFY_DEFAULTS, ...(c.notify ?? {}) };
+      for (const k of Object.keys(NOTIFY_DEFAULTS)) if (typeof notify[k] === 'boolean') n[k] = notify[k];
+      c.notify = n;
+    }
+    return this.clientProfile(id);
   }
   // A customer's own label for a request ("the AC in the living room"); empty = back to the category name.
   renameJob(clientId, jobId, title) {
@@ -214,6 +251,7 @@ export class Marketplace {
       dropoff: mode === 'delivery' ? { address: dropoff.address, location: dropoff.location } : null,
       itemsCost: itemsCost == null ? null : Number(itemsCost),
       clientPrice: clientPrice == null ? null : Number(clientPrice),
+      payMethod: client.payMethod ?? null,
       offers: [], assignedProId: null, escrow: null, workLog: [], signature: null, createdAt: Date.now() };
     this.jobs.set(job.id, job);
     job.dispatchedTo = this.dispatch(job);
@@ -239,7 +277,7 @@ export class Marketplace {
     const pub = { id: job.id, categoryId: job.categoryId, mode: job.mode, description: job.description,
       urgency: job.urgency, budget: job.budget, allowCalls: job.allowCalls,
       paymentMode: job.paymentMode, leadPrice: job.leadPrice, status: job.status, createdAt: job.createdAt,
-      itemsCost: job.itemsCost, clientPrice: job.clientPrice ?? null, offersLeft: Math.max(0, MAX_OFFERS - job.offers.length) };
+      itemsCost: job.itemsCost, clientPrice: job.clientPrice ?? null, payMethod: job.payMethod ?? null, offersLeft: Math.max(0, MAX_OFFERS - job.offers.length) };
     const approx = (l) => ({ lat: +l.lat.toFixed(2), lng: +l.lng.toFixed(2) });
     if (job.location) pub.location = approx(job.location);
     if (job.dropoff) {

@@ -76,6 +76,10 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   });
   on('DELETE', '/api/me', ['client', 'pro'], ({ me, role }) => market.deleteAccount(role, me));
   on('POST', '/api/me/name', ['client', 'pro'], ({ me, role, body }) => market.rename(role, me, body.name));
+  on('GET', '/api/client/profile', 'client', ({ me }) => market.clientProfile(me));
+  on('POST', '/api/client/addresses', 'client', ({ me, body }) => market.addAddress(me, body));
+  on('DELETE', '/api/client/addresses/:id', 'client', ({ me, p }) => market.removeAddress(me, p[0]));
+  on('POST', '/api/client/settings', 'client', ({ me, body }) => market.clientSettings(me, body));
   on('POST', '/api/client/jobs/:id/title', 'client', ({ me, p, body }) => market.renameJob(me, p[0], body.title));
   on('GET', '/api/jobs', null, ({ query }) => [...market.jobs.values()]
     .filter((j) => j.status === 'open' && (!query.category || j.categoryId.startsWith(query.category))

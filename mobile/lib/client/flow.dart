@@ -7,6 +7,7 @@ import '../core/ui.dart';
 import 'client_app.dart';
 import 'home.dart';
 import 'job.dart';
+import 'profile.dart';
 
 void startRequest(BuildContext context, {String? group, String? categoryId, bool replace = false}) {
   final route = MaterialPageRoute<void>(builder: (_) => NewRequestScreen(group: group, categoryId: categoryId));
@@ -382,6 +383,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         return _page([
           _head(delivery ? 'מאיפה לאסוף ולאן להביא?' : 'לאיזו כתובת להגיע?', 'רחוב, מספר ועיר'),
           if (delivery) _label('איפה לאסוף'),
+          if (!delivery)
+            SavedAddressChips(onPick: (a) => setState(() {
+                  address.text = a['address']?.toString() ?? '';
+                  addrLoc = a['location'] == null ? null : asMap(a['location']);
+                })),
           AddressField(controller: address, hint: delivery ? 'למשל: סופר יוחננוף, הרצל 20, רחובות' : 'מתחילים להקליד רחוב ועיר', onLoc: (l) => addrLoc = l),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -407,6 +413,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           ),
           if (delivery) ...[
             _label('לאן להביא'),
+            SavedAddressChips(onPick: (a) => setState(() {
+                  dropoff.text = a['address']?.toString() ?? '';
+                  dropLoc = a['location'] == null ? null : asMap(a['location']);
+                })),
             AddressField(controller: dropoff, hint: 'ריק = אליי, למיקום שלי', onLoc: (l) => dropLoc = l),
             _label('כמה בערך תעלה הקנייה? (לא חובה)'),
             TextField(controller: itemsCost, keyboardType: TextInputType.number, decoration: const InputDecoration(suffixText: 'ש״ח')),

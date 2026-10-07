@@ -672,6 +672,7 @@ const missingDocs = () => [...new Set(me.categories.map((c) => cats[c]?.requirem
 // The map: Leaflet with dark tiles when it loads; otherwise a drawn grid with the same pins.
 let map = null, meMk = null, radiusC = null, pinLayer = null, fitted = false, tripKey = '';
 const center = () => { const o = me?.location ?? loc; return o ? [o.lat, o.lng] : [32.0853, 34.7818]; };
+const PAYNAME = { cash: 'במזומן', bit: 'בביט או פייבוקס', transfer: 'בהעברה בנקאית', card: 'בכרטיס אשראי', other: '' };
 const pinHtml = (j) => j.clientPrice ? `<span class="pin fixed">${Math.round(j.clientPrice)} ש״ח</span>` : `<span class="pin ${j.urgency === 'urgent' ? 'hot' : ''}"></span>`;
 function sizeLive() { const h = $('header.top')?.offsetHeight || 64; document.documentElement.style.setProperty('--hdr', `${h}px`); }
 function fitMap() {
@@ -911,7 +912,7 @@ function jobPopup(j, { timer = false } = {}) {
   const fee = j.leadPrice > 0 ? `<p class="muted tk-fee">עלות: ${ils(j.leadPrice)} קרדיט · יתרה ${ils(me.balance)}</p>` : '';
   const openView = () => `${head(timer ? 'קריאה חדשה' : esc(cats[j.categoryId]?.name ?? ''), esc(where))}
     <div class="tk-body">
-      ${fixed ? `<div class="tk-price"><span class="muted">הלקוח משלם</span><b>${ils(j.clientPrice)}</b><span class="muted">${j.paymentMode === 'in_app' ? 'תשלום מאובטח באפליקציה' : 'תשלום ישירות ממנו, בסיום'}</span></div>`
+      ${fixed ? `<div class="tk-price"><span class="muted">הלקוח משלם</span><b>${ils(j.clientPrice)}</b><span class="muted">${j.paymentMode === 'in_app' ? 'תשלום מאובטח באפליקציה' : `תשלום ישירות ממנו, בסיום${PAYNAME[j.payMethod] ? ` · ${PAYNAME[j.payMethod]}` : ''}`}</span></div>`
         : `<div class="tk-price quote"><span class="muted">הלקוח מחכה להצעות מחיר</span>${slots(j)}</div>`}
       <div class="card">${summary(j)}</div>
       <p class="muted" style="margin:4px 2px 0">${fixed ? 'הקריאה נשלחה לכל המקצוענים באזור. מי שמאשר ראשון מקבל אותה.' : 'הלקוח יבחר מבין ההצעות. אפשר עד 5 הצעות.'}</p>
