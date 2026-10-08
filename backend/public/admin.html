@@ -43,7 +43,7 @@
 </style>
 </head>
 <body>
-<header><b>זריז · ניהול</b><button class="ghost" id="out" hidden>יציאה</button></header>
+<header><b>זריז · ניהול</b><button class="ghost" id="upd" hidden style="margin-inline-start:auto">עדכון השרת עכשיו</button><button class="ghost" id="out" hidden style="margin-inline-start:8px">יציאה</button></header>
 <main>
   <section class="card" id="login">
     <h2 style="margin:0 0 4px">כניסת מנהל</h2>
@@ -109,9 +109,16 @@ $('#go').onclick = async () => {
 };
 function logout() { if (token) fetch('/api/auth/logout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"role":"admin"}' }).catch(() => {}); token = null; ss.set('adminToken', null); $('#app').hidden = true; $('#login').hidden = false; $('#out').hidden = true; }
 $('#out').onclick = logout;
+$('#upd').onclick = async () => {
+  const b = $('#upd'); b.disabled = true; toast('בודק אם יש גרסה חדשה…');
+  try { const r = await api('/api/admin/update', {});
+    toast(r.restart ? 'מתעדכן ועולה מחדש. רעננו בעוד חצי דקה' : r.updated ? `עודכן לגרסה ${r.build}` : r.error ? `לא הצלחנו לבדוק: ${r.error}` : `כבר בגרסה האחרונה (${r.build})`); }
+  catch (e) { toast(e.message); }
+  b.disabled = false;
+};
 
 async function start() {
-  $('#login').hidden = true; $('#app').hidden = false; $('#out').hidden = false;
+  $('#login').hidden = true; $('#app').hidden = false; $('#out').hidden = false; $('#upd').hidden = false;
   try { pros = await api('/api/admin/pros'); draw(); } catch (e) { toast(e.message); }
   loadDocs(); loadKyc();
 }

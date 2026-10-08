@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { Marketplace, MarketplaceError, TOPUP_PACKAGES } from './marketplace.js';
 import { CATEGORIES, searchCategories } from './categories.js';
@@ -23,7 +24,7 @@ const VENDOR_TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png',
 export function createApp({ market = new Marketplace(), auth, partners = new Partners(),
   catalog = new Catalog({ providers: [partners.provider()] }), geocode = async () => null, reverseGeocode = async () => null, suggestAddress = async () => [], maps = null,
   media = new Media(join(tmpdir(), 'promarket-uploads-' + process.pid)),
-  onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }), release = null,
+  onChange = () => {}, dev = false, echoOtp = dev, version = () => ({ build: 'dev', apk: null }), release = null, updateNow = null, deployToken = '',
   site = { name: 'זריז', email: '' }, topup = {} } = {}) {
   if (!auth) throw new Error('auth required');
   const routes = [];
@@ -202,6 +203,15 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   // ---- Admin
   on('GET', '/api/admin/pending-documents', 'admin', () => market.pendingDocuments());
   on('GET', '/api/admin/kyc-pending', 'admin', () => market.pendingKyc());
+  // Deploy: pull the newest release from GitHub now (instead of waiting for the regular check).
+  on('POST', '/api/admin/update', 'admin', async () => (updateNow ? { ...(await updateNow()), build: version().build } : fail('not_available', 'Automatic updates are off')));
+  on('POST', '/api/deploy', null, async ({ req }) => {
+    const given = String(req.headers['x-deploy-token'] ?? '');
+    const ok = deployToken.length >= 16 && given.length === deployToken.length && timingSafeEqual(Buffer.from(given), Buffer.from(deployToken));
+    if (!ok || !updateNow) fail('forbidden', 'Bad deploy token');
+    setTimeout(() => updateNow().catch(() => {}), 50); // answer first: an update may restart the server
+    return { ok: true, build: version().build };
+  });
   on('POST', '/api/admin/pros/:id/kyc/approve', 'admin', ({ p }) => market.reviewKyc(p[0], true));
   on('POST', '/api/admin/pros/:id/kyc/reject', 'admin', ({ p, body }) => market.reviewKyc(p[0], false, body.reason));
   on('POST', '/api/admin/pros/:id/documents/:doc/approve', 'admin', ({ p }) => market.approveDocument(p[0], p[1]));

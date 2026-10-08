@@ -195,3 +195,13 @@ jobs:
           **Google Play:** ProMarket-client-play.aab / ProMarket-pro-play.aab (when the signing key is set up).
           **Server:** promarket-server-linux-x64.tar.gz (PC/server), -linux-arm64 / -linux-armv7l (Raspberry Pi), -windows-x64.zip, or promarket-server.zip (needs Node 22 / Docker).
           Extract, run start.sh (Linux) or start.bat (Windows). See README-SERVER.txt."
+      # Deploy at once: tell the server to fetch this release now (instead of its 5-minute check).
+      # Needs the secret DEPLOY_TOKEN (same value as DEPLOY_TOKEN in the server's config.env).
+      - name: Deploy to the server
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$DEPLOY_TOKEN" ]; then echo "::notice::No DEPLOY_TOKEN secret: the server picks up this release within 5 minutes"; exit 0; fi
+          code=$(curl -s -o /tmp/deploy.json -w '%{http_code}' -m 20 -X POST "$SERVER_URL/api/deploy" -H "x-deploy-token: $DEPLOY_TOKEN" || true)
+          echo "deploy: HTTP $code $(cat /tmp/deploy.json 2>/dev/null)"
+          [ "$code" = 200 ] && echo "::notice::Deployed to $SERVER_URL" || echo "::warning::Server did not accept the deploy (HTTP $code); it will update within 5 minutes"
