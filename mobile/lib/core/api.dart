@@ -161,6 +161,9 @@ class Api {
     } catch (_) {
       data = null;
     }
+    // the server renews a sign-in that's in use (6 months, renewed weekly): keep the new one
+    final fresh = r.headers['x-auth-token'];
+    if (fresh != null && fresh.isNotEmpty && token != null && r.statusCode < 400) await setToken(fresh);
     if (r.statusCode == 401 && token != null) {
       await setToken(null);
       onLoggedOut?.call();

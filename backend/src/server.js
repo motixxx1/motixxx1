@@ -68,7 +68,10 @@ const auth = new Auth({
 // PAYMENTS=1  - secure in-app card payment and travel (turn on once a payment provider is connected).
 const leadFees = env.LEAD_FEES === '1';
 const payments = env.PAYMENTS === '1';
-const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', userId, msg), leadFees, payments });
+// Pros are verified by hand (ID, selfie, business details) before any job reaches them.
+// Off in demo mode; REQUIRE_PRO_VERIFY=0 turns it off in real mode.
+const requireKyc = env.REQUIRE_PRO_VERIFY === '1' || (!dev && env.REQUIRE_PRO_VERIFY !== '0');
+const market = new Marketplace({ notify: (userId, msg) => console.log('[push]', userId, msg), leadFees, payments, requireKyc });
 const partners = new Partners();
 const catalog = new Catalog({ providers: [partners.provider(), ...providersFromEnv(env, { dev })] });
 const media = new Media(join(dirname(dataFile), 'uploads'));

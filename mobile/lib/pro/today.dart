@@ -7,6 +7,7 @@ import '../core/map.dart';
 import '../core/ui.dart';
 import 'jobs.dart';
 import 'pro_app.dart';
+import 'verify.dart';
 
 /// Wolt Partner style: the map with my area and the requests around me, and one panel at
 /// the bottom: go available, or (on a job) the trip card with the next step.
@@ -228,6 +229,7 @@ class _TodayTabState extends State<TodayTab> {
           const SizedBox(width: 8),
           _kpi('דירוג', (asNum(s.me['ratingCount']) ?? 0) > 0 ? '★ ${s.me['ratingAvg']}' : 'חדש', () => widget.goTab(2)),
         ]),
+        if (verifyBanner(context) case final Widget banner) banner,
         if (notes.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 10),

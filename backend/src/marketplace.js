@@ -9,6 +9,13 @@ export const REFERRAL_BONUS = 25;   // to the referrer when the referred pro com
 export const TOPUP_PACKAGES = [50, 100, 200, 500]; // credit packages a pro can buy (ILS)
 export const MODES = ['onsite', 'remote', 'phone', 'delivery'];
 const PHYSICAL = ['onsite', 'delivery']; // modes where distance matters
+// Israeli ID number check digit (9 digits, weights 1,2,1,2..., digit sums).
+export function validIsraeliId(id) {
+  if (!/^\d{9}$/.test(id) || /^0+$/.test(id)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) { let d = +id[i] * ((i % 2) + 1); if (d > 9) d -= 9; sum += d; }
+  return sum % 10 === 0;
+}
 export const PAYMENT_MODES = ['in_app', 'direct'];
 export const PAY_METHODS = ['cash', 'bit', 'transfer', 'card', 'other']; // how a direct payment reached the pro
 // what a customer is told about: offers on a request, status changes, and (off by default) news
@@ -35,8 +42,9 @@ export class Marketplace {
   // leadFees: pay-per-lead on (each offer costs credit) or off (launch period: offers are free).
   // payments: in-app card payments available (needs a payment provider; off = direct payment only).
   constructor({ notify = () => {}, welcomeCredit = WELCOME_CREDIT, referralBonus = REFERRAL_BONUS,
-    leadFees = true, payments = true } = {}) {
+    leadFees = true, payments = true, requireKyc = false } = {}) {
     this.leadFees = leadFees;
+    this.requireKyc = requireKyc; // pros get jobs only after their identity was verified
     this.payments = payments;
     this.welcomeCredit = leadFees ? welcomeCredit : 0;
     this.referralBonus = leadFees ? referralBonus : 0;
@@ -158,7 +166,9 @@ export class Marketplace {
   }
   publicPro(pro) {
     const { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, documents, radiusKm, location } = pro;
+    const kyc = pro.kyc ?? { status: 'none' };
     return { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, radiusKm, location,
+      kyc: { ...kyc, idNumber: kyc.idNumber ? `•••••${kyc.idNumber.slice(-4)}` : null }, verifyRequired: this.requireKyc,
       documents: documents.map(({ id, type, status, reason }) => ({ id, type, status, reason: reason ?? null })), ...this.rating(pro) };
   }
   registerClient({ phone, name }) {
@@ -195,6 +205,51 @@ export class Marketplace {
     }
     return doc;
   }
+  // ---- pro identity verification (KYC): who the pro is, a selfie and an ID photo,
+  // business details and agreeing to the terms. An admin checks it by hand.
+  submitKyc(proId, b = {}) {
+    const pro = this.#pro(proId);
+    if (pro.kyc?.status === 'approved') fail('kyc_locked', 'Already verified. Contact support to change details');
+    const str = (v, max) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
+    const fullName = str(b.fullName, 60), city = str(b.city, 40), bio = str(b.bio, 300);
+    if (fullName.split(' ').length < 2 || fullName.length < 4) fail('bad_full_name', 'First and last name');
+    const idNumber = String(b.idNumber ?? '').replace(/\D/g, '').padStart(9, '0');
+    if (!validIsraeliId(idNumber)) fail('bad_id_number', 'Invalid ID number');
+    const taken = [...this.pros.values()].some((p) => p.id !== proId && !p.deleted && p.kyc?.idNumber === idNumber);
+    if (taken) fail('id_in_use', 'This ID number belongs to another account');
+    const birth = new Date(String(b.birthDate ?? ''));
+    if (Number.isNaN(+birth)) fail('bad_birth_date', 'Birth date required');
+    const age = (Date.now() - birth) / (365.25 * 864e5);
+    if (age < 18) fail('too_young', 'Pros must be 18 or older');
+    if (age > 100) fail('bad_birth_date', 'Check the birth date');
+    if (city.length < 2) fail('bad_city', 'City required');
+    const businessType = ['none', 'exempt', 'licensed', 'company'].includes(b.businessType) ? b.businessType : fail('bad_business_type', 'Business type required');
+    const businessId = businessType === 'none' ? null : String(b.businessId ?? '').replace(/\D/g, '');
+    if (businessType !== 'none' && !/^\d{8,9}$/.test(businessId)) fail('bad_business_id', 'Business number required');
+    const experienceYears = Math.max(0, Math.min(60, Math.round(+b.experienceYears || 0)));
+    const media = (u) => /^\/media\/[0-9a-f-]{36}$/.test(String(u ?? ''));
+    if (!media(b.selfieUrl)) fail('bad_selfie', 'A selfie is required');
+    if (!media(b.idPhotoUrl)) fail('bad_id_photo', 'A photo of the ID card is required');
+    if (b.acceptTerms !== true) fail('terms_required', 'Accept the terms to continue');
+    pro.kyc = { status: 'pending', fullName, idNumber, birthDate: birth.toISOString().slice(0, 10), city, businessType, businessId,
+      experienceYears, bio, selfieUrl: b.selfieUrl, idPhotoUrl: b.idPhotoUrl, termsAt: Date.now(), submittedAt: Date.now(), reason: null };
+    if (!pro.name || pro.name.length < 2) pro.name = fullName;
+    return pro.kyc;
+  }
+  pendingKyc() {
+    return [...this.pros.values()].filter((p) => !p.deleted && p.kyc?.status === 'pending')
+      .map((p) => ({ proId: p.id, name: p.name, phone: p.phone, categories: p.categories.map((c) => getCategory(c)?.name ?? c), ...p.kyc }))
+      .sort((a, b) => a.submittedAt - b.submittedAt);
+  }
+  reviewKyc(proId, approve, reason = '') {
+    const pro = this.#pro(proId);
+    if (!pro.kyc || pro.kyc.status === 'none') fail('not_found', 'Nothing to review');
+    Object.assign(pro.kyc, { status: approve ? 'approved' : 'rejected', reviewedAt: Date.now(),
+      reason: approve ? null : String(reason ?? '').trim().slice(0, 200) || 'הפרטים לא אומתו' });
+    if (!approve) pro.available = false;
+    this.notify(pro.id, { type: approve ? 'kyc_approved' : 'kyc_rejected' });
+    return pro.kyc;
+  }
   // Admin: everything waiting for review, oldest first.
   pendingDocuments() {
     return [...this.pros.values()].filter((p) => !p.deleted).flatMap((pro) => pro.documents.filter((d) => d.status === 'pending')
@@ -206,6 +261,7 @@ export class Marketplace {
   updateLocation(proId, location) { const p = this.#pro(proId); p.location = location; p.locationAt = Date.now(); }
 
   canServe(pro, job) {
+    if (this.requireKyc && pro.kyc?.status !== 'approved') return false;
     const cat = getCategory(job.categoryId);
     if (!cat || !pro.serviceModes.includes(job.mode)) return false;
     const covers = pro.categories.some((c) => c === job.categoryId || c === cat.parent);

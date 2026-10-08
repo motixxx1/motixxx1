@@ -16,9 +16,9 @@ export function normalizePhone(raw = '') {
 // sendSms: (phone, text) => Promise — plug in an SMS provider (e.g. InforU, 019, Twilio).
 export class Auth {
   constructor({ secret, sendSms, codeTtlMs = 5 * 60_000, resendMs = 30_000, maxAttempts = 5,
-    tokenTtlMs = 30 * 24 * 3600_000, adminPhones = [], reviewLogins = {} }) {
+    tokenTtlMs = 180 * 24 * 3600_000, adminTtlMs = 30 * 24 * 3600_000, adminPhones = [], reviewLogins = {} }) {
     if (!secret || secret.length < 16) throw new Error('Auth secret must be at least 16 chars');
-    Object.assign(this, { secret, sendSms, codeTtlMs, resendMs, maxAttempts, tokenTtlMs });
+    Object.assign(this, { secret, sendSms, codeTtlMs, resendMs, maxAttempts, tokenTtlMs, adminTtlMs });
     this.adminPhones = new Set(adminPhones.map(normalizePhone));
     this.codes = new Map(); // phone -> { code, exp, sentAt, attempts }
     // App-store reviewers can't receive our SMS: a test number with a fixed code, no SMS sent.
@@ -56,10 +56,16 @@ export class Auth {
 
   isAdmin(phone) { return this.adminPhones.has(phone); }
 
+  // Customers and pros stay signed in for 6 months; every week of use renews that (see
+  // needsRefresh), so someone who keeps using the app never sees the SMS code again.
+  // Admins: 30 days.
   issueToken({ sub, role, phone }) {
-    const body = b64(JSON.stringify({ sub, role, phone, exp: Date.now() + this.tokenTtlMs }));
+    const now = Date.now();
+    const body = b64(JSON.stringify({ sub, role, phone, iat: now, exp: now + (role === 'admin' ? this.adminTtlMs : this.tokenTtlMs) }));
     return `${body}.${this.#sign(body)}`;
   }
+  needsRefresh(payload) { return !payload.iat || Date.now() - payload.iat > 7 * 24 * 3600_000; }
+  ttlMs(role) { return role === 'admin' ? this.adminTtlMs : this.tokenTtlMs; }
 
   verifyToken(token = '') {
     const [body, sig] = token.split('.');
@@ -67,7 +73,7 @@ export class Auth {
     const expected = Buffer.from(this.#sign(body));
     const given = Buffer.from(sig);
     if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    let payload; try { payload = JSON.parse(Buffer.from(body, 'base64url').toString()); } catch { return null; }
     return payload.exp > Date.now() ? payload : null;
   }
 

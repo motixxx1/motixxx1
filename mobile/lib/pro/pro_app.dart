@@ -12,6 +12,7 @@ import 'earnings.dart';
 import 'jobs.dart';
 import 'popup.dart';
 import 'today.dart';
+import 'verify.dart';
 
 const tripStatuses = ['assigned', 'en_route', 'picked_up', 'arrived', 'in_progress'];
 const movingStatuses = ['en_route', 'picked_up', 'arrived'];
@@ -268,6 +269,17 @@ class _ProShellState extends State<ProShell> {
     };
     s.addListener(_openPending);
     WidgetsBinding.instance.addPostFrameCallback((_) => checkForUpdate(context));
+    // new pros start with identity verification (once; afterwards it's a card on the home screen)
+    void askVerify() {
+      final me = s.me;
+      if (me.isEmpty || !mounted) return;
+      s.removeListener(askVerify);
+      if (me['verifyRequired'] == true && (asMap(me['kyc'])['status'] ?? 'none') == 'none' && Api.prefs.getBool('kycAsked') != true) {
+        Api.prefs.setBool('kycAsked', true);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifyPage()));
+      }
+    }
+    s.addListener(askVerify);
   }
 
   @override

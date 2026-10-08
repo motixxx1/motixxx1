@@ -301,6 +301,20 @@
   .toast.err{background:#3b1520;color:var(--hot);border-color:rgba(251,113,133,.4)}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .kph{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kbox{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:12px;border-radius:16px;border:1.5px dashed var(--line);background:var(--surface2);cursor:pointer}
+  .kbox input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .kbox .kimg{width:100%;aspect-ratio:4/3;border-radius:12px;background:var(--surface) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .kbox.done{border-style:solid;border-color:var(--accent)}
+  .kbox .muted{font-size:12px}
+  .kchk{display:flex;gap:12px;align-items:flex-start;margin:18px 0 4px;font-size:14px;line-height:1.5;cursor:pointer}
+  .kchk input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--accent)}
+  .kst{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;margin:4px 0 12px;font-size:14px;line-height:1.5}
+  .kst b{display:block;font-size:16px}
+  .kst.pending{background:rgba(251,191,36,.12);color:var(--fg);border:1px solid rgba(251,191,36,.4)}
+  .kst.rejected{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.45)}
+  .kst.approved{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.45)}
+  .kst.none{background:var(--accent-soft);border:1px solid var(--accent)}
 </style>
 </head>
 <body>
@@ -384,6 +398,33 @@
       <div class="savebar"><button class="btn" id="saveProfile"><span data-i="check"></span>שמירה · כולל המיקום הנוכחי שלי</button></div>
     </main>
 
+    <!-- identity verification: required before any job arrives -->
+    <main data-view="verify" hidden>
+      <div id="kycStatus"></div>
+      <form id="kycForm" novalidate>
+        <h2 class="sec">פרטים אישיים</h2>
+        <label class="lb" for="kName">שם מלא כמו בתעודת הזהות</label><input class="field" id="kName" autocomplete="name">
+        <label class="lb" for="kId">מספר תעודת זהות</label><input class="field" id="kId" inputmode="numeric" maxlength="9" style="direction:ltr;text-align:right">
+        <label class="lb" for="kBirth">תאריך לידה</label><input class="field" id="kBirth" type="date">
+        <label class="lb" for="kCity">עיר מגורים</label><input class="field" id="kCity" autocomplete="address-level2">
+        <h2 class="sec">צילומים לאימות</h2>
+        <p class="muted" style="margin:0 2px 10px;font-size:14px">משמשים רק לבדיקה שלנו. הלקוחות לא רואים אותם.</p>
+        <div class="kph">
+          <label class="kbox" id="kSelfieBox"><input type="file" accept="image/*" capture="user" data-kph="selfie"><span class="kimg" id="kSelfieImg"></span><b>סלפי</b><span class="muted">פנים ברורות, בלי משקפי שמש</span></label>
+          <label class="kbox" id="kIdBox"><input type="file" accept="image/*" capture="environment" data-kph="id"><span class="kimg" id="kIdImg"></span><b>תעודת זהות</b><span class="muted">הצד עם התמונה, כל הפרטים קריאים</span></label>
+        </div>
+        <h2 class="sec">העסק</h2>
+        <label class="lb" for="kBiz">סוג העסק</label>
+        <select class="field" id="kBiz"><option value="">בחרו</option><option value="none">פרטי, בלי עסק (סידורים, שליחויות, עזרה)</option><option value="exempt">עוסק פטור</option><option value="licensed">עוסק מורשה</option><option value="company">חברה בע״מ</option></select>
+        <div id="kBizIdRow" hidden><label class="lb" for="kBizId">מספר עוסק / ח״פ</label><input class="field" id="kBizId" inputmode="numeric" maxlength="9" style="direction:ltr;text-align:right"></div>
+        <label class="lb" for="kExp">שנות ניסיון</label><input class="field" id="kExp" type="number" min="0" max="60" inputmode="numeric">
+        <label class="lb" for="kBio">כמה מילים עליכם <span class="opt">לא חובה</span></label><textarea class="field" id="kBio" maxlength="300" placeholder="למשל: חשמלאי מוסמך, 12 שנה בתחום, עובד באזור השרון"></textarea>
+        <label class="kchk"><input type="checkbox" id="kTerms"><span>קראתי ואני מסכים/ה ל<a href="/terms" target="_blank">תנאי השימוש</a>. הפרטים נכונים, אני מעל גיל 18, ואעבוד רק בתחומים שיש לי בהם הכשרה ורישיון כנדרש בחוק.</span></label>
+        <div class="err" id="kErr" role="alert"></div>
+        <div class="savebar"><button class="btn" id="kSend"><span data-i="check"></span>שליחה לאימות</button></div>
+      </form>
+    </main>
+
     <!-- earnings: jobs done, how much and how they were paid -->
     <main data-view="wallet" hidden>
       <div class="card bal">
@@ -446,6 +487,7 @@ const P = {
   nav: '<path d="M3 11l19-9-9 19-2-8z"/>',
   route: '<circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   star: '<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
   flame: '<path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/>',
@@ -552,7 +594,10 @@ const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד 
 const reqName = (r) => Object.values(cats).find((c) => c.requirement === r && c.requirementName)?.requirementName ?? REQ[r] ?? r;
 const LEDGER = { welcome_bonus: ['מתנת הצטרפות', 'gift'], topup: ['טעינת קרדיט', 'plus'], offer_fee: ['שליחת הצעה', 'send'],
   payout: ['תשלום על עבודה', 'check'], referral_bonus: ['בונוס על חבר שהזמנת', 'users'] };
-const ERR = { insufficient_credit: 'אין מספיק קרדיט', full: 'כל המקומות להצעות כבר נתפסו', closed: 'הקריאה כבר נסגרה',
+const ERR = { bad_full_name: 'כתבו שם פרטי ושם משפחה', bad_id_number: 'מספר תעודת זהות לא תקין', id_in_use: 'תעודת הזהות כבר רשומה בחשבון אחר',
+  bad_birth_date: 'תאריך לידה לא תקין', too_young: 'מקצוענים בזריז חייבים להיות מעל גיל 18', bad_city: 'כתבו עיר', bad_business_type: 'בחרו סוג עסק',
+  bad_business_id: 'מספר עוסק או ח״פ לא תקין', bad_selfie: 'צריך סלפי', bad_id_photo: 'צריך צילום של תעודת הזהות', terms_required: 'צריך לאשר את התנאים', kyc_locked: 'החשבון כבר מאומת. לשינוי פרטים פנו אלינו',
+  insufficient_credit: 'אין מספיק קרדיט', full: 'כל המקומות להצעות כבר נתפסו', closed: 'הקריאה כבר נסגרה',
   already_offered: 'כבר שלחתם הצעה לקריאה הזו', not_eligible: 'הקריאה לא מתאימה לתחומים או לרדיוס שלכם', bad_price: 'מחיר לא תקין',
   in_app_required: 'מוצרים מהקטלוג רק בתשלום באפליקציה', bad_radius: 'רדיוס 1 עד 500 ק״מ', bad_mode: 'בחרו לפחות אופן עבודה אחד',
   payments_disabled: 'טעינת קרדיט עוד לא פתוחה בשרת הזה', signature_required: 'נדרשת חתימת לקוח', empty_log: 'כתבו מה עשיתם',
@@ -596,13 +641,14 @@ async function api(path, body, method) {
   const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
     headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
   const data = await r.json().catch(() => ({}));
+  const fresh = r.headers.get('x-auth-token'); if (fresh && token) { token = fresh; store.set('proToken', fresh); } // sign-in renewed
   if (r.status === 401 && token) { token = null; me = null; store.set('proToken', null); showShell(); }
   if (!r.ok) throw Object.assign(new Error(ERR[data.error] || data.message || data.error || 'שגיאה'), { code: data.error });
   return data;
 }
 
 // ---- session & navigation
-const TITLES = { today: 'היום', feed: 'קריאות', jobs: 'עבודות', domains: 'תחומים', wallet: 'הכנסות' };
+const TITLES = { today: 'היום', feed: 'קריאות', jobs: 'עבודות', domains: 'תחומים', wallet: 'הכנסות', verify: 'אימות חשבון' };
 function showShell() {
   $('#login').hidden = !!token; $('#shell').hidden = !token;
   document.body.classList.toggle('nonav', !token);
@@ -612,7 +658,7 @@ function go(v) {
   for (const m of $$('main[data-view]')) m.hidden = m.dataset.view !== v;
   for (const b of $$('nav.bottom button')) { const on = b.dataset.go === v; b.classList.toggle('on', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); }
   $('#topTitle').textContent = TITLES[v];
-  if (me) { if (v === 'domains') renderDomains(); if (v === 'wallet') { renderEarnings(); renderAccountBits(); } if (v === 'feed') renderFeed(); if (v === 'jobs') renderJobs(); if (v === 'today') renderToday(); }
+  if (me) { if (v === 'domains') renderDomains(); if (v === 'wallet') { renderEarnings(); renderAccountBits(); } if (v === 'feed') renderFeed(); if (v === 'jobs') renderJobs(); if (v === 'today') renderToday(); if (v === 'verify') renderKyc(); }
   window.scrollTo(0, 0);
 }
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g && !g.closest('.scrim')) { if (g.dataset.jobs) jobsF = g.dataset.jobs; go(g.dataset.go); } });
@@ -658,6 +704,7 @@ $('#loginForm').onsubmit = async (e) => {
   btn.disabled = false;
 };
 $('#logout').onclick = () => {
+  api('/api/auth/logout', { role: 'pro' }).catch(() => {});
   token = null; me = null; store.set('proToken', null);
   $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none'; clearInterval(resendT); $('#loginBtn').textContent = 'שלחו לי קוד'; availShown = null; showShell();
 };
@@ -808,6 +855,8 @@ function renderToday() {
     <button type="button" data-go="jobs"><span class="muted">דירוג</span><b>${me.ratingCount ? `${ic('star', 15)}${me.ratingAvg}` : 'חדש'}</b></button>`;
 
   const notes = [];
+  const ks = me.kyc?.status ?? 'none';
+  if (me.verifyRequired && ks !== 'approved') notes.push([ks === 'pending' ? 'החשבון בבדיקה. קריאות יתחילו להגיע אחרי האישור' : ks === 'rejected' ? `האימות לא אושר: ${me.kyc.reason || ''}` : 'השלימו אימות חשבון כדי לקבל קריאות', 'verify', ks === 'pending' ? 'פרטים' : ks === 'rejected' ? 'תיקון' : 'לאימות']);
   if (!me.categories.length) notes.push(['עוד לא בחרתם תחומים', 'domains', 'בחירה']);
   const docs = missingDocs();
   if (docs.length) notes.push([`חסר: ${docs.map(reqName).join(', ')}. בלי זה לא יגיעו קריאות בתחום`, 'domains', 'העלאה']);
@@ -1248,6 +1297,67 @@ $('#docs').addEventListener('change', async (e) => {
     renderDocs(); toast('המסמך נשלח לבדיקה');
   } catch (err) { toast(err.message, 'err'); }
 });
+
+// ---- identity verification
+const kyc = { selfie: null, id: null };
+const ISRAELI_ID = (v) => { const id = String(v).replace(/\D/g, '').padStart(9, '0'); if (!/^\d{9}$/.test(id) || /^0+$/.test(id)) return false;
+  let s = 0; for (let i = 0; i < 9; i++) { let d = +id[i] * ((i % 2) + 1); if (d > 9) d -= 9; s += d; } return s % 10 === 0; };
+function renderKyc() {
+  const k = me.kyc ?? { status: 'none' }, st = k.status;
+  const when = (t) => (t ? new Date(t).toLocaleDateString('he-IL') : '');
+  $('#kycStatus').innerHTML = {
+    none: `<div class="kst none">${ic('shield', 22)}<span><b>אימות חשבון</b>כדי שלקוחות יסמכו עליכם, כל מקצוען בזריז עובר אימות: פרטים, סלפי ותעודת זהות. זה לוקח 2 דקות, והבדיקה בדרך כלל עד יום עסקים.</span></div>`,
+    pending: `<div class="kst pending">${ic('clock', 22)}<span><b>בבדיקה</b>שלחתם ב-${when(k.submittedAt)}. נעדכן כשיאושר, בדרך כלל עד יום עסקים. בינתיים אפשר לבחור תחומים ולהעלות מסמכים.</span></div>`,
+    rejected: `<div class="kst rejected">${ic('alert', 22)}<span><b>האימות לא אושר</b>${esc(k.reason || '')}. תקנו ושלחו שוב.</span></div>`,
+    approved: `<div class="kst approved">${ic('check', 22)}<span><b>החשבון מאומת</b>אושר ב-${when(k.reviewedAt)}. לשינוי פרטים פנו אלינו.</span></div>`,
+  }[st];
+  $('#kycForm').hidden = st === 'approved' || st === 'pending';
+  if (st === 'none' || st === 'rejected') {
+    if (!$('#kName').value) $('#kName').value = k.fullName || me.name || '';
+    if (!$('#kCity').value) $('#kCity').value = k.city || '';
+    if (!$('#kBirth').value) $('#kBirth').value = k.birthDate || '';
+    if (!$('#kBiz').value) $('#kBiz').value = k.businessType || '';
+    if (!$('#kExp').value && k.experienceYears != null) $('#kExp').value = k.experienceYears;
+    if (!$('#kBio').value) $('#kBio').value = k.bio || '';
+    $('#kBizIdRow').hidden = !$('#kBiz').value || $('#kBiz').value === 'none';
+  }
+  fillIcons($('#kycStatus'));
+}
+$('#kBiz').onchange = () => { $('#kBizIdRow').hidden = !$('#kBiz').value || $('#kBiz').value === 'none'; };
+$('#kycForm').addEventListener('change', async (e) => {
+  const inp = e.target.closest('[data-kph]'); const f = inp?.files?.[0]; if (!f) return;
+  const which = inp.dataset.kph; inp.value = '';
+  const box = which === 'selfie' ? $('#kSelfieBox') : $('#kIdBox'), img = which === 'selfie' ? $('#kSelfieImg') : $('#kIdImg');
+  img.style.backgroundImage = `url(${URL.createObjectURL(f)})`; img.textContent = '';
+  try {
+    const body = await shrink(f);
+    const r = await fetch('/api/uploads', { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': body.type || f.type || 'application/octet-stream' }, body });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || 'ההעלאה נכשלה');
+    kyc[which] = data.url; box.classList.add('done');
+  } catch (err) { img.style.backgroundImage = ''; toast(err.message, 'err'); }
+});
+$('#kycForm').addEventListener('submit', (e) => e.preventDefault());
+$('#kSend').onclick = async (e) => {
+  e.preventDefault();
+  const err = (m, el) => { $('#kErr').textContent = m; el?.focus?.(); };
+  const v = { fullName: $('#kName').value.trim(), idNumber: $('#kId').value.trim(), birthDate: $('#kBirth').value, city: $('#kCity').value.trim(),
+    businessType: $('#kBiz').value, businessId: $('#kBizId').value.trim(), experienceYears: +$('#kExp').value || 0, bio: $('#kBio').value.trim(),
+    selfieUrl: kyc.selfie, idPhotoUrl: kyc.id, acceptTerms: $('#kTerms').checked };
+  if (v.fullName.split(/\s+/).length < 2) return err(ERR.bad_full_name, $('#kName'));
+  if (!ISRAELI_ID(v.idNumber)) return err(ERR.bad_id_number, $('#kId'));
+  if (!v.birthDate) return err('בחרו תאריך לידה', $('#kBirth'));
+  if (!v.city) return err(ERR.bad_city, $('#kCity'));
+  if (!v.selfieUrl) return err(ERR.bad_selfie);
+  if (!v.idPhotoUrl) return err(ERR.bad_id_photo);
+  if (!v.businessType) return err(ERR.bad_business_type, $('#kBiz'));
+  if (v.businessType !== 'none' && !/^\d{8,9}$/.test(v.businessId)) return err(ERR.bad_business_id, $('#kBizId'));
+  if (!v.acceptTerms) return err(ERR.terms_required);
+  $('#kErr').textContent = ''; const b = $('#kSend'); b.disabled = true;
+  try { await api('/api/pro/kyc', v); me = await api('/api/pro/me'); renderKyc(); window.scrollTo(0, 0); toast('נשלח לאימות. נעדכן כשיאושר'); }
+  catch (ex) { err(ex.message); }
+  b.disabled = false;
+};
 $('#radiusR').oninput = (e) => { $('#radius').value = e.target.value; $('#radius').classList.remove('bad'); $('#radErr').textContent = ''; };
 $('#radius').oninput = (e) => { $('#radiusR').value = Math.min(100, +e.target.value || 1); e.target.classList.remove('bad'); $('#radErr').textContent = ''; };
 $('#modeChips').onchange = () => { $('#modeErr').textContent = ''; };
@@ -1402,6 +1512,7 @@ $('#topupBtn').onclick = () => {
 
 // ---- promo: earn by standing in line for someone else (shown once)
 function queuePromo() {
+  if (view === 'verify') return; // not on top of the verification form
   if (store.get('queuePromo') || popup || $('.scrim') || !me) return;
   if (me.categories.some((c) => c === 'errands' || c === 'errands.queue')) return;
   store.set('queuePromo', '1');
@@ -1448,9 +1559,13 @@ async function boot() {
   }
   cfg = await api('/api/config').catch(() => cfg);
   if (cfg.leadFees) { $('#lgSub').textContent = 'נרשמים בדקה, מקבלים 30 ש״ח קרדיט מתנה ומתחילים להציע.'; $('#lgPerk').textContent = 'משלמים רק כששולחים הצעה'; }
-  if (!token) return;
+  if (!token) { // the browser lost its storage? the saved session cookie signs back in, no SMS
+    try { const r = await api('/api/auth/session?role=pro'); token = r.token; store.set('proToken', r.token); showShell(); } catch { return; }
+  }
   try {
     [me, providers] = await Promise.all([api('/api/pro/me'), api('/api/catalog/providers')]);
+    // new pros start with identity verification (once; afterwards it's a note on the home screen)
+    if (me.verifyRequired && (me.kyc?.status ?? 'none') === 'none' && !store.get('kycAsked')) { store.set('kycAsked', '1'); view = 'verify'; }
     renderHeader(); go(view); await load(true);
     setTimeout(queuePromo, 1500);
     // keep the pro's position fresh each time the app opens (matters for couriers)

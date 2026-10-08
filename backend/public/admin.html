@@ -36,6 +36,10 @@
   .doc .ok{background:var(--ok)} .doc .no{background:var(--bad)}
   .pill{display:inline-block;background:#fff1e6;color:#a83a00;border-radius:10px;padding:2px 10px;font-weight:700;font-size:14px;margin-inline-start:6px}
   .lb{position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:9;padding:16px}.lb img{max-width:100%;max-height:100%;border-radius:10px}
+  .kyc{padding:14px 0;border-top:1px solid var(--line)}.kyc:first-child{border-top:0}
+  .kyc .ph{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .kyc .ph img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:#eee;cursor:zoom-in}
+  .kyc dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:6px 0;font-size:15px}.kyc dt{color:var(--muted)}.kyc dd{margin:0;font-weight:600}
 </style>
 </head>
 <body>
@@ -52,6 +56,11 @@
 
   <section id="app" hidden>
     <div class="card">
+      <h2 style="margin:0 0 4px">מקצוענים לאימות<span class="pill" id="kn">0</span></h2>
+      <p class="muted">מקצוען לא מקבל אף קריאה עד שמאשרים כאן. בודקים שהסלפי תואם לתמונה בתעודה, שהשם ומספר הזהות זהים לתעודה ושהגיל מעל 18.</p>
+      <div id="kyc"></div>
+    </div>
+    <div class="card">
       <h2 style="margin:0 0 4px">מסמכים לאישור<span class="pill" id="dn">0</span></h2>
       <p class="muted">מקצוען בתחום שמסומן במנעול (חשמל, הדברה, גרירה, מנוף, מכונאי, עורך דין, נוטריון, מנעולן, שיפוצים ועוד) לא מקבל קריאות בתחום עד שתאשרו כאן את המסמך. כל רישיון מאשר רק את המקצוע שלו.</p>
       <div id="docs"></div>
@@ -67,13 +76,15 @@
 <div class="toast" id="toast"></div>
 <script>
 const $ = (s) => document.querySelector(s);
-let token = sessionStorage.getItem('adminToken');
+const ss = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} } };
+let token = ss.get('adminToken');
 let pros = [];
 const toast = (t) => { const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.display = 'none'), 2600); };
 async function api(path, body) {
   const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
     body: body ? JSON.stringify(body) : undefined });
   const data = await r.json().catch(() => ({}));
+  const fresh = r.headers.get('x-auth-token'); if (fresh && token) { token = fresh; ss.set('adminToken', fresh); }
   if (r.status === 401) { logout(); throw new Error('צריך להתחבר מחדש'); }
   if (!r.ok) throw new Error(MSG[data.error] || data.message || 'שגיאה');
   return data;
@@ -92,18 +103,47 @@ $('#go').onclick = async () => {
       $('#codeBox').hidden = false; $('#go').textContent = 'כניסה'; $('#code').focus();
     } else {
       const r = await api('/api/auth/verify', { phone: $('#phone').value, code: $('#code').value, role: 'admin' });
-      token = r.token; sessionStorage.setItem('adminToken', token); start();
+      token = r.token; ss.set('adminToken', token); start();
     }
   } catch (e) { $('#lerr').textContent = e.message; } finally { $('#go').disabled = false; }
 };
-function logout() { token = null; sessionStorage.removeItem('adminToken'); $('#app').hidden = true; $('#login').hidden = false; $('#out').hidden = true; }
+function logout() { if (token) fetch('/api/auth/logout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"role":"admin"}' }).catch(() => {}); token = null; ss.set('adminToken', null); $('#app').hidden = true; $('#login').hidden = false; $('#out').hidden = true; }
 $('#out').onclick = logout;
 
 async function start() {
   $('#login').hidden = true; $('#app').hidden = false; $('#out').hidden = false;
   try { pros = await api('/api/admin/pros'); draw(); } catch (e) { toast(e.message); }
-  loadDocs();
+  loadDocs(); loadKyc();
 }
+let kycs = [];
+const BIZ = { none: 'פרטי, בלי עסק', exempt: 'עוסק פטור', licensed: 'עוסק מורשה', company: 'חברה בע״מ' };
+const ageOf = (d) => Math.floor((Date.now() - new Date(d)) / (365.25 * 864e5));
+async function loadKyc() {
+  try { kycs = await api('/api/admin/kyc-pending'); } catch (e) { return toast(e.message); }
+  $('#kn').textContent = kycs.length;
+  $('#kyc').innerHTML = kycs.length ? kycs.map((k) => `
+    <div class="kyc" data-pro="${esc(k.proId)}">
+      <b style="font-size:18px">${esc(k.fullName)}</b> · <span dir="ltr">${esc(local(k.phone || ''))}</span>
+      <div class="ph"><img src="${esc(k.selfieUrl)}" alt="סלפי" data-big="${esc(k.selfieUrl)}"><img src="${esc(k.idPhotoUrl)}" alt="תעודת זהות" data-big="${esc(k.idPhotoUrl)}"></div>
+      <dl><dt>ת״ז</dt><dd dir="ltr" style="text-align:right">${esc(k.idNumber)}</dd><dt>תאריך לידה</dt><dd>${esc(k.birthDate)} (גיל ${ageOf(k.birthDate)})</dd>
+        <dt>עיר</dt><dd>${esc(k.city)}</dd><dt>עסק</dt><dd>${esc(BIZ[k.businessType] || '')}${k.businessId ? ` · ${esc(k.businessId)}` : ''}</dd>
+        <dt>ניסיון</dt><dd>${k.experienceYears} שנים</dd><dt>תחומים</dt><dd>${esc((k.categories || []).join(', ') || 'לא נבחרו')}</dd>
+        ${k.bio ? `<dt>על עצמו</dt><dd>${esc(k.bio)}</dd>` : ''}<dt>נשלח</dt><dd>${new Date(k.submittedAt).toLocaleString('he-IL')}</dd></dl>
+      <div class="doc"><div></div><div class="acts" style="margin:0"><button class="ok" style="background:var(--ok)" data-kact="approve">אישור החשבון</button><button style="background:var(--bad)" data-kact="reject">דחייה</button></div></div>
+    </div>`).join('') : '<p class="muted">אין מקצוענים שמחכים לאימות</p>';
+}
+$('#kyc').onclick = async (e) => {
+  const big = e.target.closest('[data-big]');
+  if (big) { const l = document.createElement('div'); l.className = 'lb'; l.innerHTML = `<img src="${esc(big.dataset.big)}" alt="">`; l.onclick = () => l.remove(); return document.body.appendChild(l); }
+  const b = e.target.closest('[data-kact]'); if (!b) return;
+  const k = kycs.find((x) => x.proId === b.closest('.kyc').dataset.pro);
+  let body = {};
+  if (b.dataset.kact === 'approve') { if (!confirm(`לאשר את ${k.fullName}? מעכשיו יקבל קריאות.`)) return; }
+  else { const reason = prompt('למה נדחה? (המקצוען יראה את זה)', 'הסלפי לא תואם לתמונה בתעודה'); if (reason === null) return; body = { reason }; }
+  b.disabled = true;
+  try { await api(`/api/admin/pros/${encodeURIComponent(k.proId)}/kyc/${b.dataset.kact}`, body); toast(b.dataset.kact === 'approve' ? 'החשבון אושר' : 'נדחה'); loadKyc(); }
+  catch (err) { toast(err.message); b.disabled = false; }
+};
 let docs = [];
 async function loadDocs() {
   try { docs = await api('/api/admin/pending-documents'); } catch (e) { return toast(e.message); }
@@ -141,7 +181,7 @@ function draw() {
   const list = pros.filter((p) => !q || (p.name || '').includes(q) || local(p.phone).includes(q) || p.phone.includes(q));
   $('#list').innerHTML = list.length ? list.map((p) => `
     <div class="row" data-id="${esc(p.id)}">
-      <div><b>${esc(p.name || 'ללא שם')}</b><div class="muted">${esc(local(p.phone))}</div></div>
+      <div><b>${esc(p.name || 'ללא שם')}</b> <span class="muted">${{ approved: '✓ מאומת', pending: '⏳ בבדיקה', rejected: '✗ נדחה' }[p.verified] || 'לא אומת'}</span><div class="muted">${esc(local(p.phone))}</div></div>
       <div class="bal">${ils(p.balance)}</div>
       <div class="add"><input type="number" step="1" placeholder="סכום" aria-label="סכום"><button>עדכון קרדיט</button></div>
     </div>`).join('') : '<p class="muted">אין מקצוענים להצגה</p>';
@@ -158,6 +198,7 @@ $('#list').onclick = async (e) => {
   catch (err) { toast(err.message); b.disabled = false; }
 };
 if (token) start();
+else fetch('/api/auth/session?role=admin').then((r) => (r.ok ? r.json() : null)).then((r) => { if (r?.token) { token = r.token; ss.set('adminToken', token); start(); } }).catch(() => {});
 </script>
 </body>
 </html>

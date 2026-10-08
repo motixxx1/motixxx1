@@ -581,6 +581,7 @@ async function api(path, body, method) {
   const r = await fetch(path, { method: method ?? (body ? 'POST' : 'GET'),
     headers: { 'content-type': 'application/json', ...(token && { authorization: `Bearer ${token}` }) }, body: body && JSON.stringify(body) });
   const data = await r.json().catch(() => ({}));
+  const fresh = r.headers.get('x-auth-token'); if (fresh && token) { token = fresh; store.set('clientToken', fresh); } // sign-in renewed
   if (r.status === 401 && token) { token = null; store.set('clientToken', null); showLogin(); }
   if (!r.ok) throw Object.assign(new Error(ERR[data.error] || data.message || data.error || 'משהו השתבש. נסו שוב'), { status: r.status });
   return data;
@@ -659,7 +660,7 @@ $('#loginForm').onsubmit = async (e) => {
   btn.disabled = false;
 };
 for (const id of ['lName', 'lPhone', 'lCode']) $('#' + id).addEventListener('input', (e) => { e.target.classList.remove('bad'); $('#loginErr').textContent = ''; });
-$('#logout').onclick = () => { token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none'; clearInterval(resendT); $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
+$('#logout').onclick = () => { api('/api/auth/logout', { role: 'client' }).catch(() => {}); token = null; store.set('clientToken', null); $('#codeRow').hidden = true; $('#resendRow').hidden = true; $('#resendRow').style.display = 'none'; clearInterval(resendT); $('#loginBtn').textContent = 'שלחו לי קוד'; showLogin(); };
 $('#deleteAcct').onclick = () => {
   const s = sheet(`<div class="shead"><h2>למחוק את החשבון?</h2><button type="button" class="xbtn" data-close aria-label="סגירה">${ic('x')}</button></div>
     <p>השם, הטלפון והקריאות הפתוחות שלכם יימחקו. אי אפשר לבטל את זה.</p>
@@ -1315,8 +1316,14 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { lo
 api('/api/categories').then((t) => {
   tree = t;
   for (const p of tree) for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, modes: s.modes ?? p.modes, payment: p.payment, parentName: p.name };
-  showLogin(); load();
+  restoreSession().then(() => { showLogin(); load(); });
 }).catch(() => { showLogin(); toast('אין חיבור לשרת', 'err'); });
+// The browser lost its storage (Safari, cleared data)? The saved session cookie signs back in, no SMS.
+async function restoreSession() {
+  if (token) return;
+  try { const r = await api('/api/auth/session?role=client'); token = r.token; store.set('clientToken', r.token);
+    if (r.name) store.set('clientName', r.name); if (r.phone) store.set('clientPhone', r.phone); } catch {}
+}
 setInterval(load, 5000);
 setInterval(() => { if (view === 'job' && jobs.some((j) => j.id === openJobId && trackOn(j))) load(); }, 3000); // live map: refresh every 3 seconds
 </script>

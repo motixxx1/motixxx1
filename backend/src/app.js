@@ -33,16 +33,42 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   const fail = (code, msg) => { throw new MarketplaceError(code, msg); };
 
   // ---- Auth: one screen, phone + SMS code. New users are created on first verify.
+  // Sessions: the token goes back in the response (the pages and apps keep it) and, for the
+  // web pages, also in a 6-month HttpOnly cookie, so a browser that clears its storage
+  // (Safari, private tabs) signs back in without a new SMS code. The cookie is only read
+  // by /api/auth/session; every other call needs the Authorization header.
+  const COOKIE = (role) => `zt_${role}`;
+  const secure = (req) => req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+  const sessionCookie = (req, role, token) => `${COOKIE(role)}=${token}; Max-Age=${Math.floor(auth.ttlMs(role) / 1000)}; Path=/; HttpOnly; SameSite=Lax${secure(req) ? '; Secure' : ''}`;
+  const readCookie = (req, name) => (req.headers.cookie ?? '').split(/;\s*/).map((c) => c.split('=')).find(([k]) => k === name)?.slice(1).join('=') ?? null;
+  on('GET', '/api/auth/session', null, ({ query, req, setCookie }) => {
+    const role = query.role;
+    if (!['client', 'pro', 'admin'].includes(role)) fail('bad_role', 'role must be client, pro or admin');
+    const t = auth.verifyToken(readCookie(req, COOKIE(role)) ?? '');
+    if (!t || t.role !== role || (role !== 'admin' && !market.isActive(role, t.sub)) || (role === 'admin' && !auth.isAdmin(t.phone))) {
+      fail('unauthorized', 'No saved session');
+    }
+    const token = auth.issueToken({ sub: t.sub, role, phone: t.phone });
+    setCookie(sessionCookie(req, role, token));
+    const user = role === 'pro' ? market.getPro(t.sub) : role === 'client' ? market.clientProfile(t.sub) : null;
+    return { token, phone: t.phone, name: user?.name ?? null };
+  });
+  on('POST', '/api/auth/logout', null, ({ body, req, setCookie }) => {
+    if (['client', 'pro', 'admin'].includes(body.role)) setCookie(`${COOKIE(body.role)}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secure(req) ? '; Secure' : ''}`);
+    return { ok: true };
+  });
   on('POST', '/api/auth/request', null, async ({ body }) => {
     const { code } = await auth.requestCode(body.phone);
     return echoOtp ? { sent: true, devCode: code } : { sent: true };
   });
-  on('POST', '/api/auth/verify', null, ({ body }) => {
+  on('POST', '/api/auth/verify', null, ({ body, req, setCookie }) => {
     const phone = auth.verifyCode(body.phone, body.code);
     const role = body.role;
     if (role === 'admin') {
       if (!auth.isAdmin(phone)) fail('forbidden', 'Not an admin');
-      return { token: auth.issueToken({ sub: phone, role, phone }) };
+      const token = auth.issueToken({ sub: phone, role, phone });
+      setCookie(sessionCookie(req, role, token));
+      return { token };
     }
     if (!['client', 'pro'].includes(role)) fail('bad_role', 'role must be client or pro');
     let user = role === 'pro' ? market.proByPhone(phone) : market.clientByPhone(phone);
@@ -52,8 +78,9 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         ? market.registerPro({ phone, name: body.name, categories: body.categories, referralCode: body.referralCode })
         : market.registerClient({ phone, name: body.name });
     }
-    return { token: auth.issueToken({ sub: user.id, role, phone }), isNew,
-      user: role === 'pro' ? market.publicPro(user) : { id: user.id, name: user.name } };
+    const token = auth.issueToken({ sub: user.id, role, phone });
+    setCookie(sessionCookie(req, role, token));
+    return { token, isNew, user: role === 'pro' ? market.publicPro(user) : { id: user.id, name: user.name } };
   });
 
   // Travel is sold with in-app payment only, so it is hidden until payments are connected.
@@ -90,6 +117,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('GET', '/api/pro/me', 'pro', ({ me }) => market.publicPro(market.getPro(me)));
   on('PUT', '/api/pro/me', 'pro', ({ me, body }) => market.publicPro(market.updateProfile(me, body)));
   on('POST', '/api/pro/documents', 'pro', ({ me, body }) => market.uploadDocument(me, body));
+  on('POST', '/api/pro/kyc', 'pro', ({ me, body }) => market.submitKyc(me, body));
   on('PUT', '/api/pro/availability', 'pro', ({ me, body }) => (market.setAvailability(me, body.available), { ok: true }));
   on('PUT', '/api/pro/location', 'pro', ({ me, body }) => (market.updateLocation(me, body), { ok: true }));
   on('GET', '/api/pro/wallet', 'pro', ({ me }) => ({ balance: market.getPro(me).balance, history: market.history(me) }));
@@ -173,13 +201,16 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
 
   // ---- Admin
   on('GET', '/api/admin/pending-documents', 'admin', () => market.pendingDocuments());
+  on('GET', '/api/admin/kyc-pending', 'admin', () => market.pendingKyc());
+  on('POST', '/api/admin/pros/:id/kyc/approve', 'admin', ({ p }) => market.reviewKyc(p[0], true));
+  on('POST', '/api/admin/pros/:id/kyc/reject', 'admin', ({ p, body }) => market.reviewKyc(p[0], false, body.reason));
   on('POST', '/api/admin/pros/:id/documents/:doc/approve', 'admin', ({ p }) => market.approveDocument(p[0], p[1]));
   on('POST', '/api/admin/pros/:id/documents/:doc/reject', 'admin', ({ p, body }) => market.rejectDocument(p[0], p[1], body.reason));
   on('POST', '/api/admin/partners', 'admin', ({ body }) => partners.create(body));
   // Credit is added only by the payment provider (webhook) or by an admin here, e.g. after a
   // pro paid by bank transfer or Bit.
   on('GET', '/api/admin/pros', 'admin', () => [...market.pros.values()].map((p) => ({
-    id: p.id, name: p.name, phone: p.phone, balance: p.balance, categories: p.categories ?? [] })));
+    id: p.id, name: p.name, phone: p.phone, balance: p.balance, categories: p.categories ?? [], verified: p.kyc?.status ?? 'none' })));
   on('POST', '/api/admin/pros/:id/credit', 'admin', ({ p, body, me }) => {
     const amount = Number(body.amount);
     if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) fail('bad_amount', 'Amount must be a whole number up to 10,000');
@@ -275,6 +306,7 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
       if (!m) continue;
       try {
         let me = null, role = null;
+        const extra = {}, cookies = [];
         if (r.role === 'partner') me = partners.authenticate(req.headers['x-api-key']).id;
         else if (r.role) {
           const token = auth.verifyToken((req.headers.authorization ?? '').replace(/^Bearer /, ''));
@@ -282,13 +314,21 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
           if (![r.role].flat().includes(token.role)) fail('forbidden', `Requires ${r.role} account`);
           if (token.role !== 'admin' && !market.isActive(token.role, token.sub)) fail('unauthorized', 'Account not found');
           me = token.sub; role = token.role;
+          if (auth.needsRefresh(token)) {
+            const fresh = auth.issueToken({ sub: token.sub, role: token.role, phone: token.phone });
+            extra['x-auth-token'] = fresh;
+            cookies.push(sessionCookie(req, token.role, fresh));
+          }
         }
         let raw = '';
         for await (const c of req) raw += c;
         const body = raw ? JSON.parse(raw) : {};
-        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role, req });
+        const out = await r.fn({ p: m.slice(1), body, query: Object.fromEntries(url.searchParams), me, role, req,
+          setCookie: (c) => cookies.push(c) });
         if (req.method !== 'GET') onChange();
-        return send(200, out);
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...extra,
+          ...(extra['x-auth-token'] && { 'access-control-expose-headers': 'x-auth-token' }), ...(cookies.length && { 'set-cookie': cookies }) });
+        return res.end(JSON.stringify(out));
       } catch (e) {
         if (e instanceof MarketplaceError) return send(STATUS[e.code] ?? 400, { error: e.code, message: e.message });
         if (e instanceof SyntaxError) return send(400, { error: 'bad_json' });
