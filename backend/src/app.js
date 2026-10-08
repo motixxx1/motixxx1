@@ -232,6 +232,27 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
         return send(500, { error: 'internal' });
       }
     }
+    // Installable web app (iPhone: Share > Add to Home Screen; Android/desktop Chrome: Install)
+    const ico = url.pathname.match(/^\/icons\/(client|pro)-(180|192|512)\.png$/);
+    if (req.method === 'GET' && ico) {
+      try {
+        const file = await readFile(new URL(`../public/icons/${ico[1]}-${ico[2]}.png`, import.meta.url));
+        res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=604800' });
+        return res.end(file);
+      } catch { return send(404, { error: 'not_found' }); }
+    }
+    const mf = url.pathname.match(/^\/manifest-(client|pro)\.webmanifest$/);
+    if (req.method === 'GET' && mf) {
+      const pro = mf[1] === 'pro', name = site.name || 'זריז';
+      res.writeHead(200, { 'content-type': 'application/manifest+json; charset=utf-8', 'cache-control': 'no-cache' });
+      return res.end(JSON.stringify({
+        name: pro ? `${name} מקצוענים` : name, short_name: pro ? `${name} מקצוען` : name,
+        description: pro ? 'קריאות ועבודות באזור שלכם' : 'בעלי מקצוע וסידורים בקליק',
+        start_url: pro ? '/pro' : '/', scope: pro ? '/pro' : '/', display: 'standalone', dir: 'rtl', lang: 'he',
+        background_color: pro ? '#12151f' : '#f4f1ea', theme_color: pro ? '#12151f' : '#ff6a00',
+        icons: [192, 512].map((n) => ({ src: `/icons/${mf[1]}-${n}.png`, sizes: `${n}x${n}`, type: 'image/png', purpose: 'any' })),
+      }));
+    }
     if (req.method === 'GET' && LEGAL[url.pathname]) {
       const html = (await readFile(new URL(`../public/legal/${LEGAL[url.pathname]}`, import.meta.url), 'utf8'))
         .replaceAll('{{NAME}}', esc(site.name || 'זריז'))

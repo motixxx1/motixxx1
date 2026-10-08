@@ -46,6 +46,14 @@ if [ -f ios/Podfile ]; then
   sed -i '' -E "s/^#? *platform :ios, .*/platform :ios, '15.0'/" ios/Podfile
 fi
 
+# Notifications also show while the app is open (flutter_local_notifications needs the
+# app delegate to be the notification center's delegate).
+AD=ios/Runner/AppDelegate.swift
+if [ -f "$AD" ] && ! grep -q "UNUserNotificationCenter" "$AD"; then
+  perl -0pi -e 's/import UIKit\n/import UIKit\nimport UserNotifications\n/; s/(\n\s*)(return super\.application\(application, didFinishLaunchingWithOptions)/$1UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate$1$2/' "$AD"
+  grep -q "UNUserNotificationCenter" "$AD" && echo "AppDelegate: notifications in the foreground on" || echo "::warning::AppDelegate not patched (template changed)"
+fi
+
 # App icon: one 1024px image (Xcode makes the other sizes)
 SET=ios/Runner/Assets.xcassets/AppIcon.appiconset
 rm -rf "$SET" && mkdir -p "$SET"

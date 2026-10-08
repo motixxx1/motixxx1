@@ -295,11 +295,12 @@ class AccountTab extends StatelessWidget {
           ),
           const ProfileSection(),
           Box(
-            onTap: () => openLink(Api.url('/download/ProMarket-pro.apk')),
+            // APK builds download the pros' APK; iPhone and store builds open the pros' web app
+            onTap: () => openLink(Api.url(sideload ? '/download/ProMarket-pro.apk' : '/pro')),
             child: Row(children: [
               Icon(Icons.handyman_rounded, color: Pal.brandInk),
               const SizedBox(width: 12),
-              Expanded(child: Text('יש לכם מקצוע? הורידו את זריז מקצוענים', style: TextStyle(fontSize: 17 * fs, fontWeight: FontWeight.w600))),
+              Expanded(child: Text(sideload ? 'יש לכם מקצוע? הורידו את זריז מקצוענים' : 'יש לכם מקצוע? הצטרפו לזריז מקצוענים', style: TextStyle(fontSize: 17 * fs, fontWeight: FontWeight.w600))),
             ]),
           ),
           const SizedBox(height: 8),

@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#12151f">
+<link rel="manifest" href="/manifest-pro.webmanifest">
+<link rel="apple-touch-icon" href="/icons/pro-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="זריז מקצוען"><meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>זריז מקצוענים · קריאות ועבודות</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f766e'/%3E%3Cpath fill='%23fff' d='M32 8c-10.5 0-19 8.3-19 18.6C13 40 32 56 32 56s19-16 19-29.4C51 16.300 42.500 8 32 8z'/%3E%3Cpath fill='%230f766e' d='M35 15 24 31h8l-3 14 12-17h-8z'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;600;700&display=swap">
@@ -1454,6 +1458,23 @@ checkBuild(); setInterval(checkBuild, 60000);
 // While available, refresh the position every minute so requests follow the pro (couriers move).
 setInterval(() => { if (me?.available) refreshLoc().then((l) => l && api('/api/pro/location', l, 'PUT').catch(() => {})); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); checkBuild(); } });
+</script>
+<script>
+// iPhone/iPad Safari: a one-time hint to install the app on the home screen.
+(() => {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  let seen = null; try { seen = localStorage.getItem('iosHint'); } catch {}
+  if (!ios || standalone || seen) return;
+  addEventListener('load', () => setTimeout(() => {
+    const d = document.createElement('div');
+    d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'התקנה באייפון');
+    d.style.cssText = 'position:fixed;inset-inline:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:95;max-width:520px;margin:0 auto;display:flex;gap:12px;align-items:center;background:#1b1a20;color:#fff;border-radius:20px;padding:14px 14px 14px 16px;box-shadow:0 18px 40px rgba(0,0,0,.35);font:500 16px/1.4 Rubik,system-ui,sans-serif;direction:rtl';
+    d.innerHTML = '<img src="/icons/pro-180.png" alt="" width="44" height="44" style="border-radius:11px;flex:none"><span style="flex:1">להתקנה באייפון: לוחצים על <b>שיתוף</b> <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> ואז <b>"הוספה למסך הבית"</b></span><button type="button" aria-label="סגירה" style="width:40px;height:40px;border-radius:20px;border:0;background:#ffffff22;color:#fff;font-size:22px;cursor:pointer;flex:none">×</button>';
+    d.querySelector('button').onclick = () => { d.remove(); try { localStorage.setItem('iosHint', '1'); } catch {} };
+    document.body.appendChild(d);
+  }, 2500));
+})();
 </script>
 </body>
 </html>
