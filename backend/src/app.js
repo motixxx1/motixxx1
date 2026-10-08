@@ -233,6 +233,11 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
       }
     }
     // Installable web app (iPhone: Share > Add to Home Screen; Android/desktop Chrome: Install)
+    if (req.method === 'GET' && (url.pathname === '/install.js' || url.pathname === '/sw.js')) {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache',
+        ...(url.pathname === '/sw.js' ? { 'service-worker-allowed': '/' } : {}) });
+      return res.end(await readFile(new URL(`../public${url.pathname}`, import.meta.url)));
+    }
     const ico = url.pathname.match(/^\/icons\/(client|pro)-(180|192|512)\.png$/);
     if (req.method === 'GET' && ico) {
       try {
