@@ -16,6 +16,10 @@ const reqNames = <String, String>{
   'vehicle': 'רישיון רכב ונהיגה',
 };
 
+/// A license is per profession ('license:electric' -> 'רישיון חשמל'); the name comes with the categories.
+String reqName(String r) =>
+    Cats.byId.values.where((c) => c['requirement'] == r && c['requirementName'] != null).firstOrNull?['requirementName']?.toString() ?? reqNames[r] ?? r;
+
 /// What I do, how I work and how far I go. A plain checklist per field.
 class DomainsTab extends StatefulWidget {
   const DomainsTab({super.key});
@@ -171,11 +175,21 @@ class _DomainsTabState extends State<DomainsTab> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(reqNames[r] ?? r, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        Text(
-                          approved.contains(r) ? 'מאושר' : docs.any((d) => d['type'] == r) ? 'בבדיקה' : 'חסר. קריאות בתחום יגיעו אחרי אישור',
-                          style: TextStyle(color: approved.contains(r) ? Pal.ok : Pal.muted, fontSize: 12),
-                        ),
+                        Text(reqName(r), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Builder(builder: (_) {
+                          final last = docs.where((d) => d['type'] == r).lastOrNull;
+                          final rejected = !approved.contains(r) && last?['status'] == 'rejected';
+                          return Text(
+                            approved.contains(r)
+                                ? 'מאושר'
+                                : rejected
+                                    ? 'נדחה: ${last?['reason'] ?? 'העלו מסמך ברור ובתוקף'}'
+                                    : last != null
+                                        ? 'בבדיקה. קריאות בתחום יגיעו אחרי האישור'
+                                        : 'חסר. בלי מסמך מאושר לא יגיעו קריאות בתחום',
+                            style: TextStyle(color: approved.contains(r) ? Pal.ok : rejected ? Pal.hot : Pal.muted, fontSize: 12),
+                          );
+                        }),
                       ]),
                     ),
                     if (!approved.contains(r))
@@ -237,6 +251,9 @@ class _DomainsTabState extends State<DomainsTab> {
                 dense: true,
                 value: sel!.contains(s['id']),
                 title: Text(s['name'].toString()),
+                secondary: (s['requirement'] ?? req) != null && !approved.contains(s['requirement'] ?? req)
+                    ? Icon(Icons.lock_outline_rounded, color: Pal.warn, size: 18)
+                    : null,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (v) {
                   setState(() => v == true ? sel!.add(s['id'].toString()) : sel!.remove(s['id'].toString()));
@@ -249,7 +266,7 @@ class _DomainsTabState extends State<DomainsTab> {
                 [
                   if (ProStore.i.cfg['leadFees'] == true && lead > 0) 'כל הצעה בתחום: ${ils(lead)}',
                   if (p['starter'] == true) 'אפשר להתחיל בלי רישיון',
-                  if (locked) 'קריאות יגיעו אחרי שנאשר ${reqNames[req] ?? req}',
+                  if (locked) 'קריאות יגיעו רק אחרי שנאשר ${reqName(req)}',
                 ].join(' · '),
                 style: TextStyle(color: Pal.muted, fontSize: 12),
               ),

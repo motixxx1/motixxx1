@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { distanceKm } from './geo.js';
-import { getCategory } from './categories.js';
+import { getCategory, isRequirement, requirementNames } from './categories.js';
 
 export const MAX_OFFERS = 5;
 export const COMMISSION_RATE = 0.12;
@@ -159,7 +159,7 @@ export class Marketplace {
   publicPro(pro) {
     const { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, documents, radiusKm, location } = pro;
     return { id, name, categories, serviceModes, available, balance, refCode, approvedRequirements, radiusKm, location,
-      documents: documents.map(({ id, type, status }) => ({ id, type, status })), ...this.rating(pro) };
+      documents: documents.map(({ id, type, status, reason }) => ({ id, type, status, reason: reason ?? null })), ...this.rating(pro) };
   }
   registerClient({ phone, name }) {
     if (!name) fail('bad_name', 'Name required');
@@ -169,17 +169,38 @@ export class Marketplace {
   }
   uploadDocument(proId, { type, url }) {
     const pro = this.#pro(proId);
-    const doc = { id: randomUUID(), type, url, status: 'pending' };
+    if (!isRequirement(type)) fail('bad_document_type', 'Unknown document type');
+    if (!/^\/media\/[0-9a-f-]{36}$/.test(String(url ?? ''))) fail('bad_document', 'Attach a photo of the document');
+    const doc = { id: randomUUID(), type, url, status: 'pending', uploadedAt: Date.now() };
     pro.documents.push(doc);
     return doc;
   }
-  // Admin: manual approval unlocks licensed categories.
+  // Admin: manual approval unlocks that profession (or requirement) only.
   approveDocument(proId, docId) {
     const pro = this.#pro(proId);
     const doc = pro.documents.find((d) => d.id === docId) ?? fail('not_found', 'Document not found');
-    doc.status = 'approved';
+    doc.status = 'approved'; doc.reviewedAt = Date.now(); delete doc.reason;
     if (!pro.approvedRequirements.includes(doc.type)) pro.approvedRequirements.push(doc.type);
     return doc;
+  }
+  // Admin: a document that isn't valid (unreadable, expired, someone else's). The pro sees the reason.
+  rejectDocument(proId, docId, reason = '') {
+    const pro = this.#pro(proId);
+    const doc = pro.documents.find((d) => d.id === docId) ?? fail('not_found', 'Document not found');
+    doc.status = 'rejected'; doc.reviewedAt = Date.now();
+    doc.reason = String(reason ?? '').trim().slice(0, 200) || null;
+    // a rejected document never keeps a profession unlocked unless another approved one covers it
+    if (!pro.documents.some((d) => d.type === doc.type && d.status === 'approved')) {
+      pro.approvedRequirements = pro.approvedRequirements.filter((r) => r !== doc.type);
+    }
+    return doc;
+  }
+  // Admin: everything waiting for review, oldest first.
+  pendingDocuments() {
+    return [...this.pros.values()].filter((p) => !p.deleted).flatMap((pro) => pro.documents.filter((d) => d.status === 'pending')
+      .map((d) => ({ ...d, proId: pro.id, proName: pro.name, proPhone: pro.phone, typeName: requirementNames[d.type] ?? d.type,
+        categories: pro.categories.filter((c) => getCategory(c)?.requirement === d.type).map((c) => getCategory(c).name) })))
+      .sort((a, b) => (a.uploadedAt ?? 0) - (b.uploadedAt ?? 0));
   }
   setAvailability(proId, available) { this.#pro(proId).available = !!available; }
   updateLocation(proId, location) { const p = this.#pro(proId); p.location = location; p.locationAt = Date.now(); }
@@ -544,6 +565,15 @@ export class Marketplace {
   restore({ pros = [], clients = [], jobs = [], ledger = [], topups = [] } = {}) {
     this.topups = topups;
     this.pros = new Map(pros.map((x) => [x.id, x]));
+    // Licenses used to be one shared 'license' type; now each profession has its own.
+    // Carry old approvals and documents over to the licensed professions the pro chose.
+    for (const pro of this.pros.values()) {
+      const keys = [...new Set((pro.categories ?? []).map((c) => getCategory(c)?.requirement).filter((r) => r?.startsWith('license:')))];
+      if ((pro.approvedRequirements ?? []).includes('license')) {
+        pro.approvedRequirements = [...new Set([...pro.approvedRequirements.filter((r) => r !== 'license'), ...keys])];
+      }
+      for (const d of pro.documents ?? []) if (d.type === 'license' && keys.length) d.type = keys[0];
+    }
     this.clients = new Map(clients.map((x) => [x.id, x]));
     this.jobs = new Map(jobs.map((x) => [x.id, x]));
     this.ledger = ledger;

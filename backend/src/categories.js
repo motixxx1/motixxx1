@@ -109,12 +109,12 @@ export const CATEGORIES = [
     { id: 'moving.apartment', name: 'הובלת דירה' },
     { id: 'moving.small', name: 'הובלה קטנה' },
     { id: 'moving.storage', name: 'אחסון' },
-    { id: 'moving.crane', name: 'מנוף' },
+    { id: 'moving.crane', name: 'מנוף', requirement: 'license' },
   ] },
 
   // ---- Vehicles
   { id: 'auto', name: 'רכב', requirement: null, leadPrice: 15, modes: ONSITE, subs: [
-    { id: 'auto.mechanic', name: 'מכונאי עד הבית' },
+    { id: 'auto.mechanic', name: 'מכונאי עד הבית', requirement: 'license' },
     { id: 'auto.battery', name: 'התנעה והחלפת מצבר' },
     { id: 'auto.tire', name: 'פנצ׳ר והחלפת צמיג' },
     { id: 'auto.towing', name: 'גרירה', requirement: 'license', leadPrice: 20 },
@@ -212,11 +212,29 @@ export const CATEGORIES = [
   ] },
 ];
 
+// A license is per profession: an electrician's license does not unlock pest control.
+// 'license' becomes 'license:<category>' (the field, or the specialty when only it is licensed);
+// the other requirements (insurance, police certificates, vehicle) belong to the person.
+const REQ_NAMES = { insurance: 'ביטוח צד ג׳', criminal_record: 'אישור היעדר רישום פלילי',
+  minors_clearance: 'אישור משטרה לעבודה עם קטינים', vehicle: 'רישיון רכב ונהיגה' };
+export const requirementNames = {};
+for (const p of CATEGORIES) {
+  if (p.requirement === 'license') p.requirement = `license:${p.id}`;
+  for (const s of p.subs) if (s.requirement === 'license') s.requirement = `license:${s.id}`;
+  for (const c of [p, ...p.subs]) {
+    const r = c.requirement;
+    if (!r) continue;
+    c.requirementName = r.startsWith('license:') ? `רישיון ${c.name}` : REQ_NAMES[r] ?? r;
+    requirementNames[r] = c.requirementName;
+  }
+}
+export const isRequirement = (r) => !!requirementNames[r];
+
 const index = new Map();
 for (const p of CATEGORIES) {
   index.set(p.id, { ...p, parent: null });
   for (const s of p.subs) {
-    index.set(s.id, { leadPrice: p.leadPrice, modes: p.modes, requirement: p.requirement,
+    index.set(s.id, { leadPrice: p.leadPrice, modes: p.modes, requirement: p.requirement, requirementName: p.requirementName,
       starter: !!p.starter, payment: p.payment ?? null, ...s, parent: p.id });
   }
 }

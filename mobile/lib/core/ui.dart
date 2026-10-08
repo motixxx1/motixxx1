@@ -133,6 +133,7 @@ class Cats {
           'parentName': p['name'],
           'modes': s['modes'] ?? p['modes'],
           'requirement': s['requirement'] ?? p['requirement'],
+          'requirementName': s['requirementName'] ?? p['requirementName'],
           'leadPrice': s['leadPrice'] ?? p['leadPrice'],
           'starter': p['starter'] == true,
           'payment': p['payment'],

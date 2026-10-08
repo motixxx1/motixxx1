@@ -548,6 +548,8 @@ const STATUS = { open: ['ממתין לבחירת הלקוח', 'warn'], assigned:
   in_progress: ['בעבודה', 'acc'], completed: ['ממתין לאישור הלקוח', 'warn'], closed_done: ['הושלם', 'ok'], booking_failed: ['הזמנה נכשלה', 'hot'] };
 const REQ = { license: 'רישיון מקצועי', insurance: 'ביטוח צד ג׳', criminal_record: 'אישור היעדר רישום פלילי',
   minors_clearance: 'אישור משטרה לעבודה עם קטינים', vehicle: 'רישיון רכב ונהיגה' };
+// Each license is per profession ('license:electric' -> 'רישיון חשמל'); names come with the categories.
+const reqName = (r) => Object.values(cats).find((c) => c.requirement === r && c.requirementName)?.requirementName ?? REQ[r] ?? r;
 const LEDGER = { welcome_bonus: ['מתנת הצטרפות', 'gift'], topup: ['טעינת קרדיט', 'plus'], offer_fee: ['שליחת הצעה', 'send'],
   payout: ['תשלום על עבודה', 'check'], referral_bonus: ['בונוס על חבר שהזמנת', 'users'] };
 const ERR = { insufficient_credit: 'אין מספיק קרדיט', full: 'כל המקומות להצעות כבר נתפסו', closed: 'הקריאה כבר נסגרה',
@@ -808,7 +810,7 @@ function renderToday() {
   const notes = [];
   if (!me.categories.length) notes.push(['עוד לא בחרתם תחומים', 'domains', 'בחירה']);
   const docs = missingDocs();
-  if (docs.length) notes.push([`חסר: ${docs.map((r) => REQ[r] ?? r).join(', ')}`, 'domains', 'העלאה']);
+  if (docs.length) notes.push([`חסר: ${docs.map(reqName).join(', ')}. בלי זה לא יגיעו קריאות בתחום`, 'domains', 'העלאה']);
   if (physical && !me.location) notes.push(['אין מיקום. אפשרו גישה למיקום', 'domains', 'עדכון']);
   if (cfg.leadFees && me.balance < 10) notes.push([`הקרדיט נמוך: ${ils(me.balance)}`, 'wallet', 'לפרטים']);
   $('#todayNotes').innerHTML = notes.slice(0, 1).map(([t2, to, cta]) => `<div class="pnote">${ic('alert', 18)}<span class="grow">${esc(t2)}</span><button type="button" class="btn sm ghost" data-go="${to}">${cta}</button></div>`).join('');
@@ -1172,7 +1174,7 @@ function renderDomains() {
           return `<label class="rw"><input type="checkbox" value="${s.id}" ${sel.has(s.id) || sel.has(p.id) ? 'checked' : ''}><span class="bx">${ic('check', 16)}</span><span class="grow">${esc(s.name)}</span>${locked ? `<span class="lk" title="דורש מסמך">${ic('lock', 16)}</span>` : ''}</label>`; }).join('')}
       </div>
       <div class="gmeta">כל הצעה בתחום: ${ils(p.leadPrice)}${p.starter ? ' · אפשר להתחיל בלי רישיון' : ''}</div>
-      ${!ok ? `<div class="gnote">${ic('lock', 15)}<span>אפשר לסמן עכשיו. קריאות יגיעו אחרי שנאשר ${REQ[req] ?? req}.</span></div>` : ''}
+      ${!ok ? `<div class="gnote">${ic('lock', 15)}<span>אפשר לסמן עכשיו. קריאות יגיעו רק אחרי שנאשר ${reqName(req)}.</span></div>` : ''}
     </details>`;
   }).join('');
   $('#modeChips').innerHTML = MODE_PICK.map(([v, l]) => `<label class="mc"><input type="checkbox" value="${v}" ${me.serviceModes.includes(v) ? 'checked' : ''}>${ic(MODE_I[v])}${l}</label>`).join('');
@@ -1187,10 +1189,12 @@ function renderDocs() {
   for (const d of me.documents) if (!reqs.includes(d.type)) reqs.push(d.type);
   $('#docs').innerHTML = reqs.length ? `<div class="docs">${reqs.map((r) => {
     const approved = me.approvedRequirements.includes(r), doc = me.documents.filter((d) => d.type === r).at(-1);
-    const [t, cls] = approved ? ['מאושר', 'ok'] : doc ? ['בבדיקה', 'warn'] : ['חסר', 'hot'];
-    return `<div class="doc"><span class="hic">${ic('file')}</span><span class="grow"><b>${esc(REQ[r] ?? r)}</b><span class="tag ${cls}">${t}</span></span>
+    const rejected = !approved && doc?.status === 'rejected';
+    const [t, cls] = approved ? ['מאושר', 'ok'] : rejected ? ['נדחה', 'hot'] : doc ? ['בבדיקה', 'warn'] : ['חסר', 'hot'];
+    return `<div class="doc"><span class="hic">${ic('file')}</span><span class="grow"><b>${esc(reqName(r))}</b><span class="tag ${cls}">${t}</span>
+        ${rejected ? `<span class="muted" style="display:block;margin-top:4px">${esc(doc.reason || 'המסמך לא אושר. העלו מסמך ברור ובתוקף')}</span>` : ''}</span>
       ${approved ? '' : `<label class="btn sm ghost upl">${ic('upload', 18)}${doc ? 'שוב' : 'העלאה'}<input type="file" accept="image/*" data-doc="${r}"></label>`}</div>`;
-  }).join('')}</div><p class="muted" style="margin:8px 4px 0">צלמו את המסמך. הבדיקה ידנית, ובינתיים התחום מסומן במנעול.</p>`
+  }).join('')}</div><p class="muted" style="margin:8px 4px 0">צלמו את המסמך. הבדיקה ידנית. עד שהמסמך מאושר, קריאות בתחום הזה לא מגיעות אליכם.</p>`
     : `<div class="card muted" style="display:flex;gap:10px;align-items:center">${ic('check')}התחומים שבחרתם לא דורשים מסמכים.</div>`;
 }
 $('#catGroups').addEventListener('change', (e) => {
@@ -1439,7 +1443,7 @@ async function boot() {
     tree = await api('/api/categories');
     for (const p of tree) {
       cats[p.id] = { ...p, parent: null, parentName: p.name };
-      for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, parentName: p.name, requirement: s.requirement ?? p.requirement };
+      for (const s of p.subs) cats[s.id] = { ...s, parent: p.id, parentName: p.name, requirement: s.requirement ?? p.requirement, requirementName: s.requirementName ?? p.requirementName };
     }
   }
   cfg = await api('/api/config').catch(() => cfg);

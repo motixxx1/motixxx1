@@ -172,9 +172,9 @@ export function createApp({ market = new Marketplace(), auth, partners = new Par
   on('POST', '/api/jobs/:id/rate', ['client', 'pro'], ({ p, me, body }) => market.rate(p[0], me, body.score, body.text));
 
   // ---- Admin
-  on('GET', '/api/admin/pending-documents', 'admin', () => [...market.pros.values()].flatMap((pro) =>
-    pro.documents.filter((d) => d.status === 'pending').map((d) => ({ proId: pro.id, proName: pro.name, ...d }))));
+  on('GET', '/api/admin/pending-documents', 'admin', () => market.pendingDocuments());
   on('POST', '/api/admin/pros/:id/documents/:doc/approve', 'admin', ({ p }) => market.approveDocument(p[0], p[1]));
+  on('POST', '/api/admin/pros/:id/documents/:doc/reject', 'admin', ({ p, body }) => market.rejectDocument(p[0], p[1], body.reason));
   on('POST', '/api/admin/partners', 'admin', ({ body }) => partners.create(body));
   // Credit is added only by the payment provider (webhook) or by an admin here, e.g. after a
   // pro paid by bank transfer or Bit.

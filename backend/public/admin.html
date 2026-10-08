@@ -28,6 +28,14 @@
   .add input{width:120px;padding:8px 10px}
   .add button{padding:8px 14px}
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;display:none}
+  .doc{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+  .doc:first-of-type{border-top:0}
+  .doc img{width:110px;height:110px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:#eee;cursor:zoom-in}
+  .doc .t{font-weight:800;font-size:17px}
+  .doc .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .doc .ok{background:var(--ok)} .doc .no{background:var(--bad)}
+  .pill{display:inline-block;background:#fff1e6;color:#a83a00;border-radius:10px;padding:2px 10px;font-weight:700;font-size:14px;margin-inline-start:6px}
+  .lb{position:fixed;inset:0;background:#000d;display:grid;place-items:center;z-index:9;padding:16px}.lb img{max-width:100%;max-height:100%;border-radius:10px}
 </style>
 </head>
 <body>
@@ -43,6 +51,11 @@
   </section>
 
   <section id="app" hidden>
+    <div class="card">
+      <h2 style="margin:0 0 4px">מסמכים לאישור<span class="pill" id="dn">0</span></h2>
+      <p class="muted">מקצוען בתחום שמסומן במנעול (חשמל, הדברה, גרירה, מנוף, מכונאי, עורך דין, נוטריון, מנעולן, שיפוצים ועוד) לא מקבל קריאות בתחום עד שתאשרו כאן את המסמך. כל רישיון מאשר רק את המקצוע שלו.</p>
+      <div id="docs"></div>
+    </div>
     <div class="card">
       <h2 style="margin:0 0 4px">קרדיט למקצוענים</h2>
       <p class="muted">טעינה ידנית, למשל אחרי העברה בנקאית או ביט. אפשר גם להוריד קרדיט עם מספר שלילי. כל פעולה נרשמת בהיסטוריה של המקצוען.</p>
@@ -89,7 +102,40 @@ $('#out').onclick = logout;
 async function start() {
   $('#login').hidden = true; $('#app').hidden = false; $('#out').hidden = false;
   try { pros = await api('/api/admin/pros'); draw(); } catch (e) { toast(e.message); }
+  loadDocs();
 }
+let docs = [];
+async function loadDocs() {
+  try { docs = await api('/api/admin/pending-documents'); } catch (e) { return toast(e.message); }
+  $('#dn').textContent = docs.length;
+  $('#docs').innerHTML = docs.length ? docs.map((d) => `
+    <div class="doc" data-pro="${esc(d.proId)}" data-doc="${esc(d.id)}">
+      <img src="${esc(d.url)}" alt="המסמך" data-big="${esc(d.url)}">
+      <div><div class="t">${esc(d.typeName)}</div>
+        <div><b>${esc(d.proName || 'ללא שם')}</b> · <span dir="ltr">${esc(local(d.proPhone || ''))}</span></div>
+        ${d.categories?.length ? `<div class="muted">בחר: ${esc(d.categories.join(', '))}</div>` : ''}
+        <div class="muted">${d.uploadedAt ? new Date(d.uploadedAt).toLocaleString('he-IL') : ''}</div>
+        <div class="acts"><button class="ok" data-act="approve">אישור</button><button class="no" data-act="reject">דחייה</button></div></div>
+    </div>`).join('') : '<p class="muted">אין מסמכים שמחכים לבדיקה</p>';
+}
+$('#docs').onclick = async (e) => {
+  const big = e.target.closest('[data-big]');
+  if (big) { const l = document.createElement('div'); l.className = 'lb'; l.innerHTML = `<img src="${esc(big.dataset.big)}" alt="">`; l.onclick = () => l.remove(); return document.body.appendChild(l); }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const row = b.closest('.doc'), d = docs.find((x) => x.id === row.dataset.doc);
+  let body = {};
+  if (b.dataset.act === 'approve') {
+    if (!confirm(`לאשר ${d.typeName} של ${d.proName}? מעכשיו יקבל קריאות בתחום.`)) return;
+  } else {
+    const reason = prompt('למה נדחה? (המקצוען יראה את זה)', 'המסמך לא קריא או לא בתוקף');
+    if (reason === null) return;
+    body = { reason };
+  }
+  b.disabled = true;
+  try { await api(`/api/admin/pros/${encodeURIComponent(d.proId)}/documents/${encodeURIComponent(d.id)}/${b.dataset.act}`, body);
+    toast(b.dataset.act === 'approve' ? 'המסמך אושר' : 'המסמך נדחה'); loadDocs(); }
+  catch (err) { toast(err.message); b.disabled = false; }
+};
 function draw() {
   const q = $('#q').value.trim().replace(/-/g, '');
   const list = pros.filter((p) => !q || (p.name || '').includes(q) || local(p.phone).includes(q) || p.phone.includes(q));
